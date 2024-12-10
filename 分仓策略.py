@@ -507,8 +507,8 @@ class Strategy:
         order_info = order_target_value(security, 0, pindex=self.subportfolio_index)
         print(self.name, '--卖出股票:', security, '--卖出数量:', order_info.amount,
               '--成交数量:', order_info.filled,  '--持仓均价:', order_info.avg_cost,
-              '--卖出均价:', order_info.price, '--实际卖出金额:',
-              order_info.price * order_info.filled, '--交易佣金:', order_info.commission)
+              '--卖出均价:', order_info.price, '--实际卖出金额:',order_info.price * order_info.filled,
+              '--交易佣金:', order_info.commission)
 
         if order_info != None and order_info.status == OrderStatus.held and order_info.filled == order_info.amount:
             return True
