@@ -801,7 +801,6 @@ class WPETF_Strategy(Strategy):
         log.info("——————————————————————————————————")
         return final_list
 
-
     # 2 全球ETF ATR
     def getATR(self, stock, period=14):
         # 获取历史数据
