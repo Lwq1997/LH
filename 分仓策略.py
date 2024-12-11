@@ -51,6 +51,8 @@ def initialize(context):
     log.info('初始函数开始运行且全局只运行一次')
     # 过滤掉order系列API产生的比error级别低的log
     log.set_level('order', 'error')
+    # 关闭未来函数
+    set_option('avoid_future_data', True)
 
     # 设置订单佣金
     set_order_cost(OrderCost(close_tax=0.001, open_commission=0.0003, close_commission=0.0003, min_commission=5),
@@ -281,7 +283,8 @@ class Strategy:
         elif pool_id == 1:
             # 过滤创业板、ST、停牌、当日涨停
             current_data = get_current_data()
-            log.error('603260.XSHG', current_data['603260.XSHG'].day_open, '--', current_data['603260.XSHG'].high_limit)
+            # 经过测试，这里可以拿到未来的价格
+            log.error('605179.XSHG', current_data['605179.XSHG'].day_open, '--', current_data['605179.XSHG'].high_limit)
             log.error('603833.XSHG', current_data['603833.XSHG'].day_open, '--', current_data['603833.XSHG'].high_limit)
             lists = [stock for stock in lists if not (
                     (current_data[stock].day_open == current_data[stock].high_limit) or  # 涨停开盘
