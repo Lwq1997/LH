@@ -255,9 +255,9 @@ class Strategy:
         if pool_id == 0:
             pass
         elif pool_id == 1:
-            lists = self.filter_kcbj_stock(lists)
-            lists = self.filter_st_stock(lists)
-            lists = self.filter_paused_stock(lists)
+            lists = self.filter_kcbj_stock(context, lists)
+            lists = self.filter_st_stock(context, lists)
+            lists = self.filter_paused_stock(context, lists)
             lists = self.filter_highlimit_stock(context, lists)
             lists = self.filter_lowlimit_stock(context, lists)
 
@@ -582,7 +582,7 @@ class Strategy:
         return sorted(list(set(temp_index)))
 
     # 过滤科创北交
-    def filter_kcbj_stock(self, stock_list):
+    def filter_kcbj_stock(self,context, stock_list):
         log.info(self.name, '--filter_kcbj_stock函数--',
                  str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
 
@@ -592,7 +592,7 @@ class Strategy:
         return stock_list
 
     # 过滤停牌股票
-    def filter_paused_stock(self, stock_list):
+    def filter_paused_stock(self,context,  stock_list):
         log.info(self.name, '--filter_paused_stock函数--',
                  str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
 
@@ -600,7 +600,7 @@ class Strategy:
         return [stock for stock in stock_list if not current_data[stock].paused]
 
     # 过滤ST及其他具有退市标签的股票
-    def filter_st_stock(self, stock_list):
+    def filter_st_stock(self,context, stock_list):
         log.info(self.name, '--filter_st_stock函数--',
                  str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
 
@@ -962,7 +962,7 @@ class XSZ_GJT_Strategy(Strategy):
         log.info(self.name, '--没过滤停盘/涨停/跌停之前，前100股票的财务数据:', df_fun)
         initial_list = list(df_fun.code)
         # 过滤停牌股票
-        initial_list = self.filter_paused_stock(initial_list)
+        initial_list = self.filter_paused_stock(context, initial_list)
         # 过滤涨停的股票
         initial_list = self.filter_highlimit_stock(context, initial_list)
         # 过滤跌停股票
