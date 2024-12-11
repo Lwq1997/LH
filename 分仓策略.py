@@ -43,12 +43,12 @@ import datetime as datet
 
 # 初始化函数，设定基准等等
 def initialize(context):
+    log.warn('--initialize函数(只运行一次)--',
+             str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
     # 设定沪深300作为基准
     set_benchmark('000300.XSHG')
     # 开启动态复权模式(真实价格)
     set_option('use_real_price', True)
-    # 输出内容到日志 loinitial_listinfo()
-    log.info('初始函数开始运行且全局只运行一次')
     # 过滤掉order系列API产生的比error级别低的log
     log.set_level('order', 'error')
     # 关闭未来函数
@@ -75,6 +75,12 @@ def initialize(context):
         SubPortfolioConfig(context.portfolio.starting_cash * g.portfolio_value_proportion[1], 'stock'),
         SubPortfolioConfig(context.portfolio.starting_cash * g.portfolio_value_proportion[2], 'stock'),
     ])
+
+    context.subportfolios_name_map = {
+        0: '白马策略',
+        1: 'ETF策略',
+        2: '小市值策略'
+    }
 
     params = {
         'max_hold_count': 2,  # 最大持股数
@@ -126,6 +132,28 @@ def initialize(context):
     #     run_daily(xszgjt_sell_when_highlimit_open, time='14:03')
     #     run_daily(xszgjt_sell_when_highlimit_open, time='14:53')
     #     # run_daily(xszgjt_print_position_info, time='15:10')
+
+
+# 每个交易日结束运行
+def after_trading_end(context):
+    log.warn('##############################################################')
+    # 得到当天所有成交记录
+    # trades = get_trades()
+    # for _trade in trades.values():
+    #     log.warn('成交记录：' + str(_trade))
+    now = str(context.current_dt.date()) + ' ' + str(context.current_dt.time())
+    log.warn('--after_trading_end函数--', now)
+
+    # print(context.subportfolios_name_map)
+    for key, value in context.subportfolios_name_map.items():
+        log.warn('after_trading_end函数----', now, ':账户,', value, '的余额:',
+                 context.subportfolios[key].available_cash)
+        log.warn('after_trading_end函数----', now, ':账户,', value, '的当前持仓:',
+                 context.subportfolios[key].long_positions)
+        log.warn('after_trading_end函数----', now, ':账户,', value, '的账户总资产:',
+                 context.subportfolios[key].total_value)
+
+    log.warn('##############################################################')
 
 
 # 白马股市场温度测试
@@ -284,6 +312,7 @@ class Strategy:
         # 返回筛选后的股票列表：将经过筛选的股票列表返回。
         elif pool_id == 1:
             # 过滤创业板、ST、停牌、当日涨停
+            # TODO
             current_data = get_current_data()
             # 经过测试，这里可以拿到未来的价格
             # log.error('605179.XSHG', current_data['605179.XSHG'].day_open, '--', current_data['605179.XSHG'].high_limit)
@@ -348,7 +377,9 @@ class Strategy:
         # 如果某只股票在当前持仓中，且在选股列表的前self.max_hold_count只股票中，则将其标记为继续持有。
         for stock in select_list:
             if stock not in subportfolio.long_positions and stock in select_list[:self.max_hold_count]:
-                content = content + stock + ' ' + current_data[stock].name + ' 买入(因为还没有卖出其他股票，这里估算的新股票买入金额仅供参考)-- ' + str(value_amount) + '\n'
+                content = content + stock + ' ' + current_data[
+                    stock].name + ' 买入(因为还没有卖出其他股票，这里估算的新股票买入金额仅供参考)-- ' + str(
+                    value_amount) + '\n'
             elif stock in subportfolio.long_positions and stock in select_list[:self.max_hold_count]:
                 content = content + stock + ' ' + current_data[stock].name + ' 继续持有\n'
             else:
@@ -548,24 +579,32 @@ class Strategy:
     # 开仓单只
     def __open_position(self, security, value):
         order_info = order_target_value(security, value, pindex=self.subportfolio_index)
-        log.info(self.name, '--买入股票:', security, '--计划买入金额:', value, '--买入数量:', order_info.amount,
-                 '--成交数量:', order_info.filled, '--买入均价:', order_info.price, '--实际买入金额:',
-                 order_info.price * order_info.filled, '--交易佣金:', order_info.commission)
 
         if order_info != None and order_info.filled > 0:
+            log.info(self.name, '--买入股票:', security, '--计划买入金额:', value, '--买入数量:', order_info.amount,
+                     '--成交数量:', order_info.filled, '--买入均价:', order_info.price, '--实际买入金额:',
+                     order_info.price * order_info.filled, '--交易佣金:', order_info.commission)
             return True
+        log.error(self.name, '--买入股票，交易失败！！！', security, '--计划买入金额:', value)
         return False
 
     # 清仓单只
     def __close_position(self, security):
         order_info = order_target_value(security, 0, pindex=self.subportfolio_index)
-        log.info(self.name, '--卖出股票:', security, '--卖出数量:', order_info.amount,
-                 '--成交数量:', order_info.filled, '--持仓均价:', order_info.avg_cost,
-                 '--卖出均价:', order_info.price, '--实际卖出金额:', order_info.price * order_info.filled,
-                 '--交易佣金:', order_info.commission)
 
         if order_info != None and order_info.status == OrderStatus.held and order_info.filled == order_info.amount:
+            # 计算收益率:（当前价格/持仓价格）- 1
+            ret = 100 * (order_info.price / order_info.avg_cost - 1)
+            # 计算收益金额: 可卖仓位 *（当前价格/持仓价格)
+            ret_money = order_info.amount * (order_info.price - order_info.avg_cost)
+
+            log.info(self.name, '--卖出股票:', security, '--卖出数量:', order_info.amount,
+                     '--成交数量:', order_info.filled, '--持仓均价:', order_info.avg_cost,
+                     '--卖出均价:', order_info.price, '--实际卖出金额:', order_info.price * order_info.filled,
+                     '--交易佣金:', order_info.commission, ' 收益率:{:.2f}%'.format(ret, '.2f'), ' 收益金额:',
+                     ret_money)
             return True
+        log.error(self.name, '--卖出股票，交易失败！！！', security)
         return False
 
     ##################################  选股函数群 ##################################
