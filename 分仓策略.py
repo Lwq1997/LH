@@ -112,20 +112,20 @@ def initialize(context):
         run_monthly(bmzh_select, 1, time='7:41')  # 阅读完成，测试完成
         run_monthly(bmzh_adjust, 1, time='9:31')  # 阅读完成，测试完成
 
-    # ETF轮动，按天运行
-    if g.portfolio_value_proportion[1] > 0:
-        run_daily(wpetf_select, time='7:42')  # 阅读完成，测试完成
-        run_daily(wpetf_adjust, time='09:32')  # 阅读完成，测试完成
+    # # ETF轮动，按天运行
+    # if g.portfolio_value_proportion[1] > 0:
+    #     run_daily(wpetf_select, time='7:42')  # 阅读完成，测试完成
+    #     run_daily(wpetf_adjust, time='09:32')  # 阅读完成，测试完成
 
-    # 小市值，按天/周运行
-    if g.portfolio_value_proportion[2] > 0:
-        run_daily(xszgjt_day_prepare, time='7:33')
-        run_weekly(xszgjt_select, 1, time='7:43')
-        run_daily(xszgjt_open_market, time='9:33')
-        run_weekly(xszgjt_adjust, 1, time='9:33')
-        run_daily(xszgjt_sell_when_highlimit_open, time='14:03')
-        run_daily(xszgjt_sell_when_highlimit_open, time='14:53')
-        # run_daily(xszgjt_print_position_info, time='15:10')
+    # # 小市值，按天/周运行
+    # if g.portfolio_value_proportion[2] > 0:
+    #     run_daily(xszgjt_day_prepare, time='7:33')
+    #     run_weekly(xszgjt_select, 1, time='7:43')
+    #     run_daily(xszgjt_open_market, time='9:33')
+    #     run_weekly(xszgjt_adjust, 1, time='9:33')
+    #     run_daily(xszgjt_sell_when_highlimit_open, time='14:03')
+    #     run_daily(xszgjt_sell_when_highlimit_open, time='14:53')
+    #     # run_daily(xszgjt_print_position_info, time='15:10')
 
 
 # 白马股市场温度测试
@@ -348,7 +348,7 @@ class Strategy:
         # 如果某只股票在当前持仓中，且在选股列表的前self.max_hold_count只股票中，则将其标记为继续持有。
         for stock in select_list:
             if stock not in subportfolio.long_positions and stock in select_list[:self.max_hold_count]:
-                content = content + stock + ' ' + current_data[stock].name + ' 买入-- ' + str(value_amount) + '\n'
+                content = content + stock + ' ' + current_data[stock].name + ' 买入(因为还没有卖出其他股票，这里估算的新股票买入金额仅供参考)-- ' + str(value_amount) + '\n'
             elif stock in subportfolio.long_positions and stock in select_list[:self.max_hold_count]:
                 content = content + stock + ' ' + current_data[stock].name + ' 继续持有\n'
             else:
