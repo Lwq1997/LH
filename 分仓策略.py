@@ -326,10 +326,9 @@ class Strategy:
         positions_count = len(positions)
         current_data = get_current_data()  # 取股票名称
 
-        content = context.current_dt.date().strftime("%Y-%m-%d") + ' ' + self.name + " 交易计划：" + "\n"
+        content = context.current_dt.date().strftime("%Y-%m-%d %H:%M:%S") + ' ' + self.name + " 交易计划：" + "\n"
 
-        # 遍历当前持仓的股票列表 subportfolio.long_positions,如果某只股票不在选股
-        # 列表select_list的前self.max_hold_count只股票中，则将其标记为卖出。
+        # 遍历当前持仓的股票列表 subportfolio.long_positions,如果某只股票不在选股列表select_list的前self.max_hold_count只股票中，则将其标记为卖出。
         for stock in positions:
             if stock not in select_list[:self.max_hold_count]:
                 content = content + stock + ' ' + current_data[stock].name + ' 卖出\n'
@@ -352,12 +351,12 @@ class Strategy:
                 content = content + stock + ' ' + current_data[stock].name + ' 继续持有\n'
             else:
                 # 兜底逻辑，一般用不到
-                content = content + stock + ' ' + current_data[stock].name + '\n'
+                content = content + stock + ' ' + current_data[stock].name + '持仓已满，备选股票 \n'
 
-        # if ('买' in content) or ('持有' in content) or ('卖' in content):
+        if ('买' in content) or ('持有' in content) or ('卖' in content):
         # weixin消息
-        send_message(content)
-        log.info(content)
+            send_message(content)
+            log.info(content)
 
     ##################################  风控函数群 ##################################
 
@@ -722,9 +721,6 @@ class BMZH_Strategy(Strategy):
         #   并且股票代码在初始列表中。
         # 查询结果按照ROA与市净率的比值降序排列
         # 并限制最多返回 self.max_select_count+1只股票。
-
-        # 3.执行查询并获取选股列表：使用 get_fundamentals 函数执行查
-        # 询，并将查询结果转换为股票代码列表，然后返回这个列表。
         if self.market_temperature == "cold":
             q = query(
                 valuation.code,
@@ -795,6 +791,7 @@ class BMZH_Strategy(Strategy):
             ).limit(self.max_select_count + 1)
 
         # 得到选股列表
+        # 3.执行查询并获取选股列表：使用 get_fundamentals 函数执行查询，并将查询结果转换为股票代码列表，然后返回这个列表。
         check_out_lists = list(get_fundamentals(q).code)
         return check_out_lists
 
