@@ -104,16 +104,18 @@ def initialize(context):
     g.strategys[xszgjt_strategy.name] = xszgjt_strategy
 
     # 执行计划
+    # 选股函数--Select：白马和 ETF 分开使用
+    # 执行函数--adjust：白马和 ETF 轮动共用一个
     # 白马，按月运行
     if g.portfolio_value_proportion[0] > 0:
         run_monthly(bmzh_market_temperature, 1, time='5:01')  # 阅读完成，测试完成
         run_monthly(bmzh_select, 1, time='7:41')  # 阅读完成，测试完成
-        run_monthly(bmzh_adjust, 1, time='9:31')  # 阅读完成，等待测试
+        run_monthly(bmzh_adjust, 1, time='9:31')  # 阅读完成，测试完成
 
     # ETF轮动，按天运行
     if g.portfolio_value_proportion[1] > 0:
-        run_daily(wpetf_select, time='7:42')  # 阅读完成，等待测试
-        run_daily(wpetf_adjust, time='09:32')  # 阅读完成，等待测试
+        run_daily(wpetf_select, time='7:42')  # 阅读完成，测试完成
+        run_daily(wpetf_adjust, time='09:32')  # 阅读完成，测试完成
 
     # 小市值，按天/周运行
     if g.portfolio_value_proportion[2] > 0:
@@ -284,8 +286,8 @@ class Strategy:
             # 过滤创业板、ST、停牌、当日涨停
             current_data = get_current_data()
             # 经过测试，这里可以拿到未来的价格
-            log.error('605179.XSHG', current_data['605179.XSHG'].day_open, '--', current_data['605179.XSHG'].high_limit)
-            log.error('603833.XSHG', current_data['603833.XSHG'].day_open, '--', current_data['603833.XSHG'].high_limit)
+            # log.error('605179.XSHG', current_data['605179.XSHG'].day_open, '--', current_data['605179.XSHG'].high_limit)
+            # log.error('603833.XSHG', current_data['603833.XSHG'].day_open, '--', current_data['603833.XSHG'].high_limit)
             lists = [stock for stock in lists if not (
                     (current_data[stock].day_open == current_data[stock].high_limit) or  # 涨停开盘
                     (current_data[stock].day_open == current_data[stock].low_limit) or  # 跌停开盘
@@ -490,6 +492,7 @@ class Strategy:
 
         # 先卖后买
         hold_list = list(context.subportfolios[self.subportfolio_index].long_positions)
+        # 售卖列表：不在select_list前max_hold_count中的股票都要被卖掉
         sell_stocks = []
         for stock in hold_list:
             if stock not in self.select_list[:self.max_hold_count]:
@@ -523,7 +526,6 @@ class Strategy:
         buy_count = self.max_hold_count - len(subportfolio.long_positions)
         if buy_count > 0:
             value = subportfolio.available_cash / buy_count
-            log.info('买入金额:', value)
             index = 0
             for stock in buy_stocks:
                 if stock in subportfolio.long_positions:
