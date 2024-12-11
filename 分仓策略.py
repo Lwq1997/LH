@@ -351,7 +351,7 @@ class Strategy:
                 content = content + stock + ' ' + current_data[stock].name + ' 继续持有\n'
             else:
                 # 兜底逻辑，一般用不到
-                content = content + stock + ' ' + current_data[stock].name + '持仓已满，备选股票 \n'
+                content = content + stock + ' ' + current_data[stock].name + '  持仓已满，备选股票 \n'
 
         if ('买' in content) or ('持有' in content) or ('卖' in content):
             # weixin消息
