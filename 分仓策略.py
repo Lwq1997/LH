@@ -869,7 +869,7 @@ class WPETF_Strategy(Strategy):
         for etf in etf_pool:
             try:
                 # 计算ATR
-                atr = self.getATR(etf, period=self.days)
+                atr = self.getATR(context, etf, period=self.days)
                 score_list.append(atr)
             except ValueError as e:
                 log.info(e)
@@ -888,7 +888,7 @@ class WPETF_Strategy(Strategy):
         return final_list
 
     # 2 全球ETF 平均真实波幅（ATR）
-    def getATR(self, stock, period=14):
+    def getATR(self, context, stock, period=14):
         log.info(self.name, '--getATR函数--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
 
         # 获取历史数据
