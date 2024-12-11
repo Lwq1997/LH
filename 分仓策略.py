@@ -123,17 +123,17 @@ def initialize(context):
         run_daily(xszgjt_sell_when_highlimit_open, time='14:50')
         # run_daily(xszgjt_print_position_info, time='15:10')
 
+# 选股底池
+def bmzh_market_temperature(context):
+    g.strategys['白马股攻防转换策略'].Market_temperature(context)
 
+# 选股
 def bmzh_select(context):
     g.strategys['白马股攻防转换策略'].select(context)
 
-
+# 交易
 def bmzh_adjust(context):
     g.strategys['白马股攻防转换策略'].adjustwithnoRM(context)
-
-
-def bmzh_market_temperature(context):
-    g.strategys['白马股攻防转换策略'].Market_temperature(context)
 
 
 def wpetf_select(context):
@@ -215,17 +215,19 @@ class Strategy:
         # 获取昨日持股列表
         self.hold_list = list(subportfolio.long_positions)
 
-        # 获取最近一段时间持有过的股票列表
+        # 获取最近一段时间持有过的股票列表，放入一个新的列表中
         self.history_hold_list.append(self.hold_list)
+        # 这个列表只维护最近hold_limit_days天的股票池
         if len(self.history_hold_list) >= self.hold_limit_days:
             self.history_hold_list = self.history_hold_list[-self.hold_limit_days:]
         temp_set = set()
         for lists in self.history_hold_list:
             for stock in lists:
                 temp_set.add(stock)
+        # 用于记录最近一段时间内曾经持有的股票，避免重复买入。
         self.not_buy_again_list = list(temp_set)
 
-        # 获取昨日持股涨停列表
+        # 获取昨日持股中的涨停列表
         if self.hold_list != []:
             df = get_price(self.hold_list, end_date=context.previous_date, frequency='daily',
                            fields=['close', 'high_limit'], count=1, panel=False, fill_paused=False)
@@ -239,7 +241,7 @@ class Strategy:
         # 检查止损
         self.check_stoplost(context)
 
-    # 基础股票池
+    # 基础股票池（暂无使用）
     def stockpool(self, context, pool_id=1):
         lists = list(get_all_securities(types=['stock'], date=context.previous_date).index)
         if pool_id == 0:
@@ -253,6 +255,7 @@ class Strategy:
 
         return lists
 
+    # 小市值专用（白马股+小市值专用）
     def stockpool_index(self, context, index, pool_id=1):
         # 获取指数成份股
         lists = list(get_index_stocks(index))
@@ -361,15 +364,18 @@ class Strategy:
                 subportfolio.long_positions) > 0:
             self.sell(context, list(subportfolio.long_positions))
 
-    # 止损检查
+    # 止损检查，没看懂
     def check_stoplost(self, context):
         subportfolio = context.subportfolios[self.subportfolio_index]
         if self.use_stoplost:
             if self.stoplost_date is None:
+                # 获取持仓股票的昨日收盘价
                 last_prices = history(1, unit='1m', field='close', security_list=subportfolio.long_positions)
                 for stock in subportfolio.long_positions:
                     position = subportfolio.long_positions[stock]
+                    # 如果股票跌幅超stoplost_level:20%
                     if (position.avg_cost - last_prices[stock][-1]) / position.avg_cost > self.stoplost_level:
+                        # 止损日记录到self.stoplost_date中
                         self.stoplost_date = context.current_dt.date()
                         print(self.name + ': ' + '开始止损')
                         content = context.current_dt.date().strftime("%Y-%m-%d") + ' ' + self.name + ': 止损' + "\n"
@@ -555,7 +561,6 @@ class Strategy:
         last_prices = history(1, unit='1m', field='close', security_list=stock_list)
         current_data = get_current_data()
 
-        # 已存在于持仓的股票即使涨停也不过滤，避免此股票再次可买，但因被过滤而导致选择别的股票
         return [stock for stock in stock_list if stock in subportfolio.long_positions
                 or last_prices[stock][-1] < current_data[stock].high_limit]
 
@@ -568,13 +573,14 @@ class Strategy:
         return [stock for stock in stock_list if stock in subportfolio.long_positions
                 or last_prices[stock][-1] > current_data[stock].low_limit]
 
-    # 过滤次新股
+    # 过滤次新股（小市值专用）
     def filter_new_stock(self, context, stock_list, days):
         return [stock for stock in stock_list if
                 not context.previous_date - get_security_info(stock).start_date < datetime.timedelta(days=days)]
 
-    # 过滤大幅解禁
+    # 过滤大幅解禁（小市值专用）
     def filter_locked_shares(self, context, stock_list, days):
+        # 获取指定日期区间内的限售解禁数据
         df = get_locked_shares(stock_list=stock_list, start_date=context.previous_date.strftime('%Y-%m-%d'),
                                forward_count=days)
         df = df[df['rate1'] > 0.2]  # 解禁数量占总股本的百分比
@@ -792,16 +798,16 @@ class WPETF_Strategy(Strategy):
         # 删除包含 NaN 值的行
         df = df.dropna()
         df = df.sort_values(by='ATR', ascending=True)
-        print(df)
+        print('ETF的股票池ATR数据:',df)
         final_list = list(df.index)
         log.info("——————————————————————————————————")
         for i, etf in enumerate(df.index):
             name = get_security_info(etf).display_name
-            print("{}. {}，{}".format(i + 1, name, df.loc[etf, 'ATR']))
+            print("编号:{}. 股票:{}，ATR:{}".format(i + 1, name, df.loc[etf, 'ATR']))
         log.info("——————————————————————————————————")
         return final_list
 
-    # 2 全球ETF ATR
+    # 2 全球ETF 平均真实波幅（ATR）
     def getATR(self, stock, period=14):
         # 获取历史数据
         hData = attribute_history(stock, period + 1, unit='1d',
@@ -850,26 +856,35 @@ class XSZ_GJT_Strategy(Strategy):
     def __get_rank(self, context):
         # 获得初始列表
         initial_list = self.stockpool_index(context, '399101.XSHE')
+        # 过滤次新股
         initial_list = self.filter_new_stock(context, initial_list, self.new_days)
-        initial_list = self.filter_locked_shares(context, initial_list,
-                                                 120)  # 过滤即将大幅解禁https://www.joinquant.com/algorithm/backtest/detail?backtestId=24960b1bc5312f251e0909c33a89917c
+        # 过滤120天内即将大幅解禁
+        initial_list = self.filter_locked_shares(context, initial_list,120)
 
         final_list_1 = []
-        q = query(valuation.code, valuation.market_cap).filter(valuation.code.in_(initial_list),
-                                                               valuation.market_cap.between(5, 30)).order_by(
-            valuation.market_cap.asc())
+        # 市值5-30亿，并且在列表中，按市值从小到大到排序
+        q = (query(valuation.code, valuation.market_cap)
+            .filter(valuation.code.in_(initial_list),valuation.market_cap.between(5, 30))
+            .order_by(valuation.market_cap.asc()))
+
+        # 获取财务数据
         df_fun = get_fundamentals(q)
         df_fun = df_fun[:100]
-        print(df_fun)
+        print(self.name,'--没过滤停盘/涨停/跌停之前，前100股票的财务数据:',df_fun)
         initial_list = list(df_fun.code)
+        # 过滤停牌股票
         initial_list = self.filter_paused_stock(initial_list)
+        # 过滤涨停的股票
         initial_list = self.filter_highlimit_stock(context, initial_list)
+        # 过滤跌停股票
         initial_list = self.filter_lowlimit_stock(context, initial_list)
         # print('initial_list中含有{}个元素'.format(len(initial_list)))
-        q = query(valuation.code, valuation.market_cap).filter(valuation.code.in_(initial_list)).order_by(
-            valuation.market_cap.asc())
+        q = (query(valuation.code, valuation.market_cap)
+            .filter(valuation.code.in_(initial_list))
+            .order_by(valuation.market_cap.asc()))
         df_fun = get_fundamentals(q)
         df_fun = df_fun[:50]
+        print(self.name,'过滤停盘/涨停/跌停之后，--前50股票的财务数据:',df_fun)
         final_list_1 = list(df_fun.code)
 
         # 获得初始列表
@@ -899,10 +914,13 @@ class XSZ_GJT_Strategy(Strategy):
 
         final_list_2 = list(df.code)
         last_prices = history(1, unit='1d', field='close', security_list=final_list_2)
+        # 过滤价格低于最高价的股票  ｜  再持仓列表中的股票
         final_list_2 = [stock for stock in final_list_2 if
                         stock in self.hold_list or last_prices[stock][-1] <= self.highest]
 
+        # 合并两个股票列表并去重
         target_list = list(dict.fromkeys(final_list_1 + final_list_2))
+        # 取前 self.max_select_count * 3 只股票
         target_list = target_list[:self.max_select_count * 3]
         final_list = get_fundamentals(query(
             valuation.code,
