@@ -106,14 +106,14 @@ def initialize(context):
     # 执行计划
     # 白马，按月运行
     if g.portfolio_value_proportion[0] > 0:
-        run_monthly(bmzh_market_temperature, 1, time='5:01')
-        run_monthly(bmzh_select, 1, time='7:41')
-        run_monthly(bmzh_adjust, 1, time='9:31')
+        run_monthly(bmzh_market_temperature, 1, time='5:01')  # 阅读完成，测试完成
+        run_monthly(bmzh_select, 1, time='7:41')  # 阅读完成，测试完成
+        run_monthly(bmzh_adjust, 1, time='9:31')  # 阅读完成，等待测试
 
     # ETF轮动，按天运行
     if g.portfolio_value_proportion[1] > 0:
-        run_daily(wpetf_select, time='7:42')
-        run_daily(wpetf_adjust, time='09:32')
+        run_daily(wpetf_select, time='7:42')  # 阅读完成，等待测试
+        run_daily(wpetf_adjust, time='09:32')  # 阅读完成，等待测试
 
     # 小市值，按天/周运行
     if g.portfolio_value_proportion[2] > 0:
@@ -354,7 +354,7 @@ class Strategy:
                 content = content + stock + ' ' + current_data[stock].name + '持仓已满，备选股票 \n'
 
         if ('买' in content) or ('持有' in content) or ('卖' in content):
-        # weixin消息
+            # weixin消息
             send_message(content)
             log.info(content)
 
@@ -584,7 +584,7 @@ class Strategy:
         return sorted(list(set(temp_index)))
 
     # 过滤科创北交
-    def filter_kcbj_stock(self,context, stock_list):
+    def filter_kcbj_stock(self, context, stock_list):
         log.info(self.name, '--filter_kcbj_stock函数--',
                  str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
 
@@ -594,7 +594,7 @@ class Strategy:
         return stock_list
 
     # 过滤停牌股票
-    def filter_paused_stock(self,context,  stock_list):
+    def filter_paused_stock(self, context, stock_list):
         log.info(self.name, '--filter_paused_stock函数--',
                  str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
 
@@ -602,7 +602,7 @@ class Strategy:
         return [stock for stock in stock_list if not current_data[stock].paused]
 
     # 过滤ST及其他具有退市标签的股票
-    def filter_st_stock(self,context, stock_list):
+    def filter_st_stock(self, context, stock_list):
         log.info(self.name, '--filter_st_stock函数--',
                  str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
 
@@ -847,7 +847,7 @@ class WPETF_Strategy(Strategy):
             # '161716.XSHE',#招商双债
         ]
         self.deltaday = 20  # 上市天数
-        self.days = 10  # 计算ATR的序列长度
+        self.days = 14  # 计算ATR的序列长度
 
     def select(self, context):
         log.info(self.name, '--Select函数--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
@@ -861,6 +861,7 @@ class WPETF_Strategy(Strategy):
         etf_pool = self.fun_delNewShare(context, self.foreign_ETF, self.deltaday)
         score_list = []
         if len(etf_pool) == 0:
+            # 如果没有合适的 ETF 就买入国债
             etf_pool = self.fun_delNewShare(context, ['511010.XSHG', '511880.XSHG'], self.deltaday)
             if len(etf_pool) == 0:  # 2013年前的测试会出现这种情况
                 log.info('ETF_pool 为空！')
@@ -872,13 +873,12 @@ class WPETF_Strategy(Strategy):
                 atr = self.getATR(context, etf, period=self.days)
                 score_list.append(atr)
             except ValueError as e:
-                log.info(e)
+                log.error(e)
                 score_list.append(np.nan)
         df = pd.DataFrame(index=etf_pool, data={'ATR': score_list})
         # 删除包含 NaN 值的行
         df = df.dropna()
         df = df.sort_values(by='ATR', ascending=True)
-        log.info('ETF的股票池ATR数据:', df)
         final_list = list(df.index)
         log.info("——————————————————————————————————")
         for i, etf in enumerate(df.index):
@@ -889,7 +889,8 @@ class WPETF_Strategy(Strategy):
 
     # 2 全球ETF 平均真实波幅（ATR）
     def getATR(self, context, stock, period=14):
-        log.info(self.name, '--getATR函数--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+        log.info(self.name, '--getATR函数--计算', stock, '的 ATR信息--',
+                 str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
 
         # 获取历史数据
         hData = attribute_history(stock, period + 1, unit='1d',
@@ -907,7 +908,7 @@ class WPETF_Strategy(Strategy):
         return realATR[-1]
 
     #############################外盘ETF策略增加通用函数###########################
-    # 获取具体的股票List
+    # 删除上市少于deltaday天的股票
     def fun_delNewShare(self, context, equity, deltaday):
         log.info(self.name, '--fun_delNewShare函数--',
                  str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
