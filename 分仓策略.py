@@ -123,13 +123,16 @@ def initialize(context):
         run_daily(xszgjt_sell_when_highlimit_open, time='14:53')
         # run_daily(xszgjt_print_position_info, time='15:10')
 
-# 选股底池
+
+# 白马股市场温度测试
 def bmzh_market_temperature(context):
     g.strategys['白马股攻防转换策略'].Market_temperature(context)
+
 
 # 选股
 def bmzh_select(context):
     g.strategys['白马股攻防转换策略'].select(context)
+
 
 # 交易
 def bmzh_adjust(context):
@@ -210,6 +213,9 @@ class Strategy:
             'no_trading_today_signal'] if 'no_trading_today_signal' in self.params else False
 
     def day_prepare(self, context):
+        log.info(self.name, '--day_prepare函数--',
+                 str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+
         subportfolio = context.subportfolios[self.subportfolio_index]
 
         # 获取昨日持股列表
@@ -243,6 +249,8 @@ class Strategy:
 
     # 基础股票池（暂无使用）
     def stockpool(self, context, pool_id=1):
+        log.info(self.name, '--stockpool函数--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+
         lists = list(get_all_securities(types=['stock'], date=context.previous_date).index)
         if pool_id == 0:
             pass
@@ -257,6 +265,9 @@ class Strategy:
 
     # 小市值专用（白马股+小市值专用）
     def stockpool_index(self, context, index, pool_id=1):
+        log.info(self.name, '--stockpool_index函数--',
+                 str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+
         # 获取指数成份股
         lists = list(get_index_stocks(index))
         # ·如果pool_id为0,则直接返回原始的成分股列表。
@@ -270,8 +281,8 @@ class Strategy:
         elif pool_id == 1:
             # 过滤创业板、ST、停牌、当日涨停
             current_data = get_current_data()
-            log.error(current_data['603833.XSHG'].day_open)
-            log.error(current_data['603260.XSHG'].day_open)
+            log.error('603260.XSHG', current_data['603260.XSHG'].day_open, '--', current_data['603260.XSHG'].high_limit)
+            log.error('603833.XSHG', current_data['603833.XSHG'].day_open, '--', current_data['603833.XSHG'].high_limit)
             lists = [stock for stock in lists if not (
                     (current_data[stock].day_open == current_data[stock].high_limit) or  # 涨停开盘
                     (current_data[stock].day_open == current_data[stock].low_limit) or  # 跌停开盘
@@ -291,6 +302,8 @@ class Strategy:
 
     # 选股
     def select(self, context):
+        log.info(self.name, '--select函数--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+
         # 空仓期控制
         if self.use_empty_month and context.current_dt.month in (self.empty_month):
             return
@@ -301,6 +314,9 @@ class Strategy:
 
     # 打印交易计划
     def print_trade_plan(self, context, select_list):
+        log.info(self.name, '--print_trade_plan函数--',
+                 str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+
         # 1.获取子投资组合信息：从context中获取当前的子投资组合subportfolio,以及子投资组合的索引 self.subportfolio_index
         subportfolio = context.subportfolios[self.subportfolio_index]
         positions = subportfolio.long_positions
@@ -314,7 +330,7 @@ class Strategy:
         for stock in positions:
             if stock not in select_list[:self.max_hold_count]:
                 content = content + stock + ' ' + current_data[stock].name + ' 卖出\n'
-                positions_count = positions_count-1
+                positions_count = positions_count - 1
 
         # 计算买入金额
         # 如果买入数量buy_count大于0,则将可用现金除以买入数量，得到每只股票的买入金额。
@@ -351,6 +367,9 @@ class Strategy:
 
     # 空仓期检查
     def check_empty_month(self, context):
+        log.info(self.name, '--check_empty_month函数--',
+                 str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+
         subportfolio = context.subportfolios[self.subportfolio_index]
         if self.use_empty_month and context.current_dt.month in (self.empty_month) and len(
                 subportfolio.long_positions) > 0:
@@ -361,6 +380,9 @@ class Strategy:
 
     # 进入空仓期清仓
     def close_for_empty_month(self, context):
+        log.info(self.name, '--close_for_empty_month函数--',
+                 str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+
         subportfolio = context.subportfolios[self.subportfolio_index]
         if self.use_empty_month and context.current_dt.month in (self.empty_month) and len(
                 subportfolio.long_positions) > 0:
@@ -368,6 +390,9 @@ class Strategy:
 
     # 止损检查，没看懂
     def check_stoplost(self, context):
+        log.info(self.name, '--check_stoplost函数--',
+                 str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+
         subportfolio = context.subportfolios[self.subportfolio_index]
         if self.use_stoplost:
             if self.stoplost_date is None:
@@ -393,6 +418,9 @@ class Strategy:
 
     # 止损时清仓
     def close_for_stoplost(self, context):
+        log.info(self.name, '--close_for_stoplost函数--',
+                 str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+
         subportfolio = context.subportfolios[self.subportfolio_index]
         if self.use_stoplost and self.stoplost_date is not None and len(subportfolio.long_positions) > 0:
             self.sell(context, list(subportfolio.long_positions))
@@ -428,6 +456,8 @@ class Strategy:
 
     # 调仓
     def adjust(self, context):
+        log.info(self.name, '--adjust函数--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+
         # 空仓期控制
         if self.use_empty_month and context.current_dt.month in (self.empty_month):
             return
@@ -446,6 +476,9 @@ class Strategy:
 
     # 调仓
     def adjustwithnoRM(self, context):
+        log.info(self.name, '--adjustwithnoRM函数--',
+                 str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+
         # 空仓期控制
         # if self.use_empty_month and context.current_dt.month in (self.empty_month):
         #    return
@@ -464,6 +497,9 @@ class Strategy:
 
     # 涨停打开卖出
     def sell_when_highlimit_open(self, context):
+        log.info(self.name, '--sell_when_highlimit_open函数--',
+                 str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+
         if self.yestoday_high_limit_list != []:
             for stock in self.yestoday_high_limit_list:
                 if stock in context.subportfolios[self.subportfolio_index].long_positions:
@@ -478,11 +514,14 @@ class Strategy:
 
     # 买入多只股票
     def buy(self, context, buy_stocks):
+
+        log.info(self.name, '--buy函数--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+
         subportfolio = context.subportfolios[self.subportfolio_index]
         buy_count = self.max_hold_count - len(subportfolio.long_positions)
         if buy_count > 0:
             value = subportfolio.available_cash / buy_count
-            log.info('买入金额:',value)
+            log.info('买入金额:', value)
             index = 0
             for stock in buy_stocks:
                 if stock in subportfolio.long_positions:
@@ -494,6 +533,9 @@ class Strategy:
 
     # 卖出多只股票
     def sell(self, context, sell_stocks):
+
+        log.info(self.name, '--sell函数--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+
         subportfolio = context.subportfolios[self.subportfolio_index]
         for stock in sell_stocks:
             if stock in subportfolio.long_positions:
@@ -503,8 +545,8 @@ class Strategy:
     def __open_position(self, security, value):
         order_info = order_target_value(security, value, pindex=self.subportfolio_index)
         log.info(self.name, '--买入股票:', security, '--计划买入金额:', value, '--买入数量:', order_info.amount,
-              '--成交数量:', order_info.filled, '--买入均价:', order_info.price, '--实际买入金额:',
-              order_info.price * order_info.filled, '--交易佣金:', order_info.commission)
+                 '--成交数量:', order_info.filled, '--买入均价:', order_info.price, '--实际买入金额:',
+                 order_info.price * order_info.filled, '--交易佣金:', order_info.commission)
 
         if order_info != None and order_info.filled > 0:
             return True
@@ -514,9 +556,9 @@ class Strategy:
     def __close_position(self, security):
         order_info = order_target_value(security, 0, pindex=self.subportfolio_index)
         log.info(self.name, '--卖出股票:', security, '--卖出数量:', order_info.amount,
-              '--成交数量:', order_info.filled,  '--持仓均价:', order_info.avg_cost,
-              '--卖出均价:', order_info.price, '--实际卖出金额:',order_info.price * order_info.filled,
-              '--交易佣金:', order_info.commission)
+                 '--成交数量:', order_info.filled, '--持仓均价:', order_info.avg_cost,
+                 '--卖出均价:', order_info.price, '--实际卖出金额:', order_info.price * order_info.filled,
+                 '--交易佣金:', order_info.commission)
 
         if order_info != None and order_info.status == OrderStatus.held and order_info.filled == order_info.amount:
             return True
@@ -526,6 +568,9 @@ class Strategy:
 
     # 获取股票股票池
     def get_security_universe(self, context, security_universe_index, security_universe_user_securities):
+        log.info(self.name, '--get_security_universe函数--',
+                 str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+
         temp_index = []
         for s in security_universe_index:
             if s == 'all_a_securities':
@@ -538,6 +583,9 @@ class Strategy:
 
     # 过滤科创北交
     def filter_kcbj_stock(self, stock_list):
+        log.info(self.name, '--filter_kcbj_stock函数--',
+                 str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+
         for stock in stock_list[:]:
             if stock[0] == '4' or stock[0] == '8' or stock[:2] == '68' or stock[:2] == '30':
                 stock_list.remove(stock)
@@ -545,11 +593,17 @@ class Strategy:
 
     # 过滤停牌股票
     def filter_paused_stock(self, stock_list):
+        log.info(self.name, '--filter_paused_stock函数--',
+                 str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+
         current_data = get_current_data()
         return [stock for stock in stock_list if not current_data[stock].paused]
 
     # 过滤ST及其他具有退市标签的股票
     def filter_st_stock(self, stock_list):
+        log.info(self.name, '--filter_st_stock函数--',
+                 str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+
         current_data = get_current_data()
         return [stock for stock in stock_list
                 if not current_data[stock].is_st
@@ -559,6 +613,9 @@ class Strategy:
 
     # 过滤涨停的股票
     def filter_highlimit_stock(self, context, stock_list):
+        log.info(self.name, '--filter_highlimit_stock函数--',
+                 str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+
         subportfolio = context.subportfolios[self.subportfolio_index]
         last_prices = history(1, unit='1m', field='close', security_list=stock_list)
         current_data = get_current_data()
@@ -568,6 +625,9 @@ class Strategy:
 
     # 过滤跌停的股票
     def filter_lowlimit_stock(self, context, stock_list):
+        log.info(self.name, '--filter_lowlimit_stock函数--',
+                 str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+
         subportfolio = context.subportfolios[self.subportfolio_index]
         last_prices = history(1, unit='1m', field='close', security_list=stock_list)
         current_data = get_current_data()
@@ -577,11 +637,17 @@ class Strategy:
 
     # 过滤次新股（小市值专用）
     def filter_new_stock(self, context, stock_list, days):
+        log.info(self.name, '--filter_new_stock函数--',
+                 str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+
         return [stock for stock in stock_list if
                 not context.previous_date - get_security_info(stock).start_date < datetime.timedelta(days=days)]
 
     # 过滤大幅解禁（小市值专用）
     def filter_locked_shares(self, context, stock_list, days):
+        log.info(self.name, '--filter_locked_shares函数--',
+                 str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+
         # 获取指定日期区间内的限售解禁数据
         df = get_locked_shares(stock_list=stock_list, start_date=context.previous_date.strftime('%Y-%m-%d'),
                                forward_count=days)
@@ -596,6 +662,9 @@ class Strategy:
 
     # 4-1 打印每日持仓信息
     def print_position_info(self, context):
+        log.info(self.name, '--print_position_info函数--',
+                 str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+
         # 打印当天成交记录
         trades = get_trades()
         for _trade in trades.values():
@@ -625,12 +694,16 @@ class BMZH_Strategy(Strategy):
         self.market_temperature = "warm"
 
     def select(self, context):
+        log.info(self.name, '--select函数--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+
         # 根据市场温度设置选股条件，选出股票
         self.select_list = self.__get_rank(context)[:self.max_select_count]
         # 编写操作计划
         self.print_trade_plan(context, self.select_list)
 
     def __get_rank(self, context):
+        log.info(self.name, '--get_rank函数--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+
         initial_list = super().stockpool_index(context, "000300.XSHG")
 
         # 2.根据市场温度进行选股
@@ -724,7 +797,8 @@ class BMZH_Strategy(Strategy):
 
     #  这个函数的目的是根据沪深300指数的历史收盘价数据来评估市场温度，并根据市场温度的不同状态设置一个临时变量temp的值。
     def Market_temperature(self, context):
-
+        log.info(self.name, '--Market_temperature函数--',
+                 str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
         # 获取数据：使用attribute_history函数获取沪深300指数过去220天的收盘价数据。
         index300 = attribute_history('000300.XSHG', 220, '1d', ('close'), df=False)['close']
 
@@ -776,10 +850,14 @@ class WPETF_Strategy(Strategy):
         self.days = 10  # 计算ATR的序列长度
 
     def select(self, context):
+        log.info(self.name, '--Select函数--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+
         self.select_list = self.__get_rank(context)[:self.max_select_count]
         self.print_trade_plan(context, self.select_list)
 
     def __get_rank(self, context):
+        log.info(self.name, '--get_rank函数--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+
         etf_pool = self.fun_delNewShare(context, self.foreign_ETF, self.deltaday)
         score_list = []
         if len(etf_pool) == 0:
@@ -800,7 +878,7 @@ class WPETF_Strategy(Strategy):
         # 删除包含 NaN 值的行
         df = df.dropna()
         df = df.sort_values(by='ATR', ascending=True)
-        log.info('ETF的股票池ATR数据:',df)
+        log.info('ETF的股票池ATR数据:', df)
         final_list = list(df.index)
         log.info("——————————————————————————————————")
         for i, etf in enumerate(df.index):
@@ -811,6 +889,8 @@ class WPETF_Strategy(Strategy):
 
     # 2 全球ETF 平均真实波幅（ATR）
     def getATR(self, stock, period=14):
+        log.info(self.name, '--getATR函数--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+
         # 获取历史数据
         hData = attribute_history(stock, period + 1, unit='1d',
                                   fields=('close', 'volume', 'open', 'high', 'low'),
@@ -829,6 +909,9 @@ class WPETF_Strategy(Strategy):
     #############################外盘ETF策略增加通用函数###########################
     # 获取具体的股票List
     def fun_delNewShare(self, context, equity, deltaday):
+        log.info(self.name, '--fun_delNewShare函数--',
+                 str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+
         deltaDate = context.current_dt.date() - datet.timedelta(deltaday)
         tmpList = []
         for stock in equity:
@@ -844,6 +927,8 @@ class XSZ_GJT_Strategy(Strategy):
         self.highest = 50
 
     def select(self, context):
+        log.info(self.name, '--select函数--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+
         # 月份空仓期控制
         if self.use_empty_month and context.current_dt.month in (self.empty_month):
             log.info('月份判断关仓期')
@@ -856,23 +941,25 @@ class XSZ_GJT_Strategy(Strategy):
         self.print_trade_plan(context, self.select_list)
 
     def __get_rank(self, context):
+        log.info(self.name, '--get_rank函数--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+
         # 获得初始列表
         initial_list = self.stockpool_index(context, '399101.XSHE')
         # 过滤次新股
         initial_list = self.filter_new_stock(context, initial_list, self.new_days)
         # 过滤120天内即将大幅解禁
-        initial_list = self.filter_locked_shares(context, initial_list,120)
+        initial_list = self.filter_locked_shares(context, initial_list, 120)
 
         final_list_1 = []
         # 市值5-30亿，并且在列表中，按市值从小到大到排序
         q = (query(valuation.code, valuation.market_cap)
-            .filter(valuation.code.in_(initial_list),valuation.market_cap.between(5, 30))
-            .order_by(valuation.market_cap.asc()))
+             .filter(valuation.code.in_(initial_list), valuation.market_cap.between(5, 30))
+             .order_by(valuation.market_cap.asc()))
 
         # 获取财务数据
         df_fun = get_fundamentals(q)
         df_fun = df_fun[:100]
-        log.info(self.name,'--没过滤停盘/涨停/跌停之前，前100股票的财务数据:',df_fun)
+        log.info(self.name, '--没过滤停盘/涨停/跌停之前，前100股票的财务数据:', df_fun)
         initial_list = list(df_fun.code)
         # 过滤停牌股票
         initial_list = self.filter_paused_stock(initial_list)
@@ -882,11 +969,11 @@ class XSZ_GJT_Strategy(Strategy):
         initial_list = self.filter_lowlimit_stock(context, initial_list)
         # log.info('initial_list中含有{}个元素'.format(len(initial_list)))
         q = (query(valuation.code, valuation.market_cap)
-            .filter(valuation.code.in_(initial_list))
-            .order_by(valuation.market_cap.asc()))
+             .filter(valuation.code.in_(initial_list))
+             .order_by(valuation.market_cap.asc()))
         df_fun = get_fundamentals(q)
         df_fun = df_fun[:50]
-        log.info(self.name,'过滤停盘/涨停/跌停之后，--前50股票的财务数据:',df_fun)
+        log.info(self.name, '过滤停盘/涨停/跌停之后，--前50股票的财务数据:', df_fun)
         final_list_1 = list(df_fun.code)
 
         # 获得初始列表
