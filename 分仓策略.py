@@ -112,11 +112,11 @@ def initialize(context):
     # 执行计划
     # 选股函数--Select：白马和 ETF 分开使用
     # 执行函数--adjust：白马和 ETF 轮动共用一个
-    # 白马，按月运行
+    # 白马，按月运行 TODO
     if g.portfolio_value_proportion[0] > 0:
-        run_monthly(bmzh_market_temperature, 1, time='5:01')  # 阅读完成，测试完成
-        run_monthly(bmzh_select, 1, time='7:41')  # 阅读完成，测试完成
-        run_monthly(bmzh_adjust, 1, time='9:31')  # 阅读完成，测试完成
+        run_monthly(bmzh_market_temperature, 1, time='5:00')  # 阅读完成，测试完成
+        run_monthly(bmzh_select, 1, time='7:40')  # 阅读完成，测试完成
+        run_monthly(bmzh_adjust, 1, time='9:30')  # 阅读完成，测试完成
 
     # # ETF轮动，按天运行
     # if g.portfolio_value_proportion[1] > 0:
@@ -134,26 +134,26 @@ def initialize(context):
     #     # run_daily(xszgjt_print_position_info, time='15:10')
 
 
-# 每个交易日结束运行
-def after_trading_end(context):
-    log.warn('##############################################################')
-    # 得到当天所有成交记录
-    # trades = get_trades()
-    # for _trade in trades.values():
-    #     log.warn('成交记录：' + str(_trade))
-    now = str(context.current_dt.date()) + ' ' + str(context.current_dt.time())
-    log.warn('--after_trading_end函数--', now)
-
-    # print(context.subportfolios_name_map)
-    for key, value in context.subportfolios_name_map.items():
-        log.warn('after_trading_end函数----', now, ':账户,', value, '的余额:',
-                 context.subportfolios[key].available_cash)
-        log.warn('after_trading_end函数----', now, ':账户,', value, '的当前持仓:',
-                 context.subportfolios[key].long_positions)
-        log.warn('after_trading_end函数----', now, ':账户,', value, '的账户总资产:',
-                 context.subportfolios[key].total_value)
-
-    log.warn('##############################################################')
+# # 每个交易日结束运行
+# def after_trading_end(context):
+#     log.warn('##############################################################')
+#     # 得到当天所有成交记录
+#     # trades = get_trades()
+#     # for _trade in trades.values():
+#     #     log.warn('成交记录：' + str(_trade))
+#     now = str(context.current_dt.date()) + ' ' + str(context.current_dt.time())
+#     log.warn('--after_trading_end函数--', now)
+#
+#     # print(context.subportfolios_name_map)
+#     for key, value in context.subportfolios_name_map.items():
+#         log.warn('after_trading_end函数----', now, ':账户,', value, '的余额:',
+#                  context.subportfolios[key].available_cash)
+#         log.warn('after_trading_end函数----', now, ':账户,', value, '的当前持仓:',
+#                  context.subportfolios[key].long_positions)
+#         log.warn('after_trading_end函数----', now, ':账户,', value, '的账户总资产:',
+#                  context.subportfolios[key].total_value)
+#
+#     log.warn('##############################################################')
 
 
 # 白马股市场温度测试
