@@ -1044,7 +1044,8 @@ class BMZH_Strategy(Strategy):
 
         if context.run_params.type != 'sim_trade':
             # 画图
-            record(temp=temp)
+            # record(temp=temp)
+            pass
 
 
 # 外盘ETF轮动策略
