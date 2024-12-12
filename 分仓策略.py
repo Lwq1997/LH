@@ -364,7 +364,7 @@ class Strategy:
         # 遍历当前持仓的股票列表 subportfolio.long_positions,如果某只股票不在选股列表select_list的前self.max_hold_count只股票中，则将其标记为卖出。
         for stock in positions:
             if stock not in select_list[:self.max_hold_count]:
-                content = content + stock + ' ' + current_data[stock].name + ' 卖出'+ str(
+                content = content + stock + ' ' + current_data[stock].name + ' 卖出--'+ str(
                     positions[stock].value) + '\n'
                 value_amount = value_amount + positions[stock].value
                 positions_count = positions_count - 1
