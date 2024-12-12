@@ -359,18 +359,21 @@ class Strategy:
 
         content = context.current_dt.date().strftime("%Y-%m-%d %H:%M:%S") + ' ' + self.name + " 交易计划：" + "\n"
 
+        # 仓位可用余额
+        value_amount = subportfolio.available_cash
         # 遍历当前持仓的股票列表 subportfolio.long_positions,如果某只股票不在选股列表select_list的前self.max_hold_count只股票中，则将其标记为卖出。
         for stock in positions:
             if stock not in select_list[:self.max_hold_count]:
-                content = content + stock + ' ' + current_data[stock].name + ' 卖出\n'
+                content = content + stock + ' ' + current_data[stock].name + ' 卖出'+ str(
+                    positions[stock].value) + '\n'
+                value_amount = value_amount + positions[stock].value
                 positions_count = positions_count - 1
 
         # 计算买入金额
         # 如果买入数量buy_count大于0,则将可用现金除以买入数量，得到每只股票的买入金额。
         buy_count = self.max_hold_count - positions_count
-        value_amount = subportfolio.available_cash
         if buy_count > 0:
-            value_amount = subportfolio.available_cash / buy_count
+            value_amount = value_amount / buy_count
 
         # 遍历选股列表
         # 如果某只股票不在当前持仓中，且在选股列表的前 self.max_hold_count只股票中，则将其标记为买入，并添加买入金额
@@ -378,7 +381,7 @@ class Strategy:
         for stock in select_list:
             if stock not in subportfolio.long_positions and stock in select_list[:self.max_hold_count]:
                 content = content + stock + ' ' + current_data[
-                    stock].name + ' 买入(因为还没有卖出其他股票，这里估算的新股票买入金额仅供参考)-- ' + str(
+                    stock].name + ' 买入-- ' + str(
                     value_amount) + '\n'
             elif stock in subportfolio.long_positions and stock in select_list[:self.max_hold_count]:
                 content = content + stock + ' ' + current_data[stock].name + ' 继续持有\n'
