@@ -112,16 +112,16 @@ def initialize(context):
     # 执行计划
     # 选股函数--Select：白马和 ETF 分开使用
     # 执行函数--adjust：白马和 ETF 轮动共用一个
-    # 白马，按月运行 TODO
-    if g.portfolio_value_proportion[0] > 0:
-        run_monthly(bmzh_market_temperature, 1, time='5:00')  # 阅读完成，测试完成
-        run_monthly(bmzh_select, 1, time='7:40')  # 阅读完成，测试完成
-        run_monthly(bmzh_adjust, 1, time='9:30')  # 阅读完成，测试完成
+    # # 白马，按月运行 TODO
+    # if g.portfolio_value_proportion[0] > 0:
+    #     run_monthly(bmzh_market_temperature, 1, time='5:00')  # 阅读完成，测试完成
+    #     run_monthly(bmzh_select, 1, time='7:40')  # 阅读完成，测试完成
+    #     run_monthly(bmzh_adjust, 1, time='9:30')  # 阅读完成，测试完成
 
-    # # ETF轮动，按天运行
-    # if g.portfolio_value_proportion[1] > 0:
-    #     run_daily(wpetf_select, time='7:42')  # 阅读完成，测试完成
-    #     run_daily(wpetf_adjust, time='09:32')  # 阅读完成，测试完成
+    # ETF轮动，按天运行
+    if g.portfolio_value_proportion[1] > 0:
+        run_daily(wpetf_select, time='7:42')  # 阅读完成，测试完成
+        run_daily(wpetf_adjust, time='09:32')  # 阅读完成，测试完成
 
     # # 小市值，按天/周运行
     # if g.portfolio_value_proportion[2] > 0:
@@ -364,7 +364,7 @@ class Strategy:
         # 遍历当前持仓的股票列表 subportfolio.long_positions,如果某只股票不在选股列表select_list的前self.max_hold_count只股票中，则将其标记为卖出。
         for stock in positions:
             if stock not in select_list[:self.max_hold_count]:
-                content = content + stock + ' ' + current_data[stock].name + ' 卖出--'+ str(
+                content = content + stock + ' ' + current_data[stock].name + ' 卖出-- '+ str(
                     positions[stock].value) + '\n'
                 value_amount = value_amount + positions[stock].value
                 positions_count = positions_count - 1
@@ -960,7 +960,8 @@ class WPETF_Strategy(Strategy):
         deltaDate = context.current_dt.date() - datet.timedelta(deltaday)
         tmpList = []
         for stock in equity:
-            if get_security_info(stock).start_date < deltaDate:
+            stock_info = get_security_info(stock)
+            if stock_info is not None and stock_info.start_date < deltaDate:
                 tmpList.append(stock)
         return tmpList
 
