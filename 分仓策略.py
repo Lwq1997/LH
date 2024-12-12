@@ -39,6 +39,7 @@ from jqlib.technical_analysis import *
 from scipy.linalg import inv
 import pickle
 import datetime as datet
+from prettytable import PrettyTable
 
 
 # 初始化函数，设定基准等等
@@ -56,7 +57,8 @@ def initialize(context):
 
     ### 股票相关设定 ###
     # 股票类每笔交易时的手续费是：买入时佣金万分之三，卖出时佣金万分之三加千分之一印花税, 每笔交易佣金最低扣5块钱
-    set_order_cost(OrderCost(close_tax=0.001, open_commission=0.0001, close_commission=0.0001, min_commission=0), type='stock')
+    set_order_cost(OrderCost(close_tax=0.001, open_commission=0.0001, close_commission=0.0001, min_commission=0),
+                   type='stock')
 
     # 为股票设定滑点为百分比滑点
     set_slippage(PriceRelatedSlippage(0.01), type='stock')
@@ -66,7 +68,7 @@ def initialize(context):
     # 持久变量
     g.strategys = {}
     # 子账户 分仓
-    g.portfolio_value_proportion = [0.3, 0.3, 0.4]
+    g.portfolio_value_proportion = [0.1, 0.5, 0.4]
 
     # 创建策略实例
     # 初始化策略子账户 subportfolios
@@ -83,8 +85,8 @@ def initialize(context):
     }
 
     params = {
-        'max_hold_count': 2,  # 最大持股数
-        'max_select_count': 4,  # 最大输出选股数
+        'max_hold_count': 1,  # 最大持股数
+        'max_select_count': 3,  # 最大输出选股数
     }
     # 白马策略，第一个仓
     bmzh_strategy = BMZH_Strategy(context, subportfolio_index=0, name='白马股攻防转换策略', params=params)
@@ -92,17 +94,17 @@ def initialize(context):
 
     params = {
         'max_hold_count': 2,  # 最大持股数
-        'max_select_count': 4,  # 最大输出选股数
+        'max_select_count': 2,  # 最大输出选股数
     }
     # ETF 策略，第二个仓
     wpetf_strategy = WPETF_Strategy(context, subportfolio_index=1, name='外盘ETF轮动策略', params=params)
     g.strategys[wpetf_strategy.name] = wpetf_strategy
 
     params = {
-        'max_hold_count': 3,  # 最大持股数
-        'max_select_count': 6,  # 最大输出选股数
+        'max_hold_count': 5,  # 最大持股数
+        'max_select_count': 10,  # 最大输出选股数
         'use_empty_month': True,  # 是否在指定月份空仓
-        'empty_month': [2, 4],  # 指定空仓的月份列表
+        'empty_month': [1, 4],  # 指定空仓的月份列表
         'use_stoplost': True,  # 是否使用止损
     }
     # 小世值，第三个仓
@@ -113,25 +115,28 @@ def initialize(context):
     # 选股函数--Select：白马和 ETF 分开使用
     # 执行函数--adjust：白马和 ETF 轮动共用一个
     # # 白马，按月运行 TODO
-    # if g.portfolio_value_proportion[0] > 0:
-    #     run_monthly(bmzh_market_temperature, 1, time='5:00')  # 阅读完成，测试完成
-    #     run_monthly(bmzh_select, 1, time='7:40')  # 阅读完成，测试完成
-    #     run_monthly(bmzh_adjust, 1, time='9:30')  # 阅读完成，测试完成
+    if g.portfolio_value_proportion[0] > 0:
+        run_monthly(bmzh_market_temperature, 1, time='5:00')  # 阅读完成，测试完成
+        run_monthly(bmzh_select, 1, time='7:40')  # 阅读完成，测试完成
+        run_monthly(bmzh_adjust, 1, time='10:00')  # 阅读完成，测试完成
+        run_daily(bmzh_after_market_close, 'after_close')
 
     # ETF轮动，按天运行
     if g.portfolio_value_proportion[1] > 0:
         run_daily(wpetf_select, time='7:42')  # 阅读完成，测试完成
-        run_daily(wpetf_adjust, time='09:32')  # 阅读完成，测试完成
+        run_daily(wpetf_adjust, time='10:00')  # 阅读完成，测试完成
+        run_daily(wpetf_after_market_close, 'after_close')
 
     # # 小市值，按天/周运行
-    # if g.portfolio_value_proportion[2] > 0:
-    #     run_daily(xszgjt_day_prepare, time='7:33')
-    #     run_weekly(xszgjt_select, 1, time='7:43')
-    #     run_daily(xszgjt_open_market, time='9:33')
-    #     run_weekly(xszgjt_adjust, 1, time='9:33')
-    #     run_daily(xszgjt_sell_when_highlimit_open, time='14:03')
-    #     run_daily(xszgjt_sell_when_highlimit_open, time='14:53')
-    #     # run_daily(xszgjt_print_position_info, time='15:10')
+    if g.portfolio_value_proportion[2] > 0:
+        run_daily(xszgjt_day_prepare, time='7:33')
+        run_weekly(xszgjt_select, 1, time='7:43')
+        run_daily(xszgjt_open_market, time='9:30')
+        run_weekly(xszgjt_adjust, 1, time='9:35')
+        run_daily(xszgjt_sell_when_highlimit_open, time='14:00')
+        run_daily(xszgjt_sell_when_highlimit_open, time='14:50')
+        run_daily(xszgjt_after_market_close, 'after_close')
+        # run_daily(xszgjt_print_position_info, time='15:10')
 
 
 # # 每个交易日结束运行
@@ -171,12 +176,21 @@ def bmzh_adjust(context):
     g.strategys['白马股攻防转换策略'].adjustwithnoRM(context)
 
 
+# 收盘统计
+def bmzh_after_market_close(context):
+    g.strategys['白马股攻防转换策略'].after_market_close(context)
+
+
 def wpetf_select(context):
     g.strategys['外盘ETF轮动策略'].select(context)
 
 
 def wpetf_adjust(context):
     g.strategys['外盘ETF轮动策略'].adjustwithnoRM(context)
+
+
+def wpetf_after_market_close(context):
+    g.strategys['外盘ETF轮动策略'].after_market_close(context)
 
 
 def xszgjt_day_prepare(context):
@@ -204,6 +218,10 @@ def xszgjt_print_position_info(context):
     g.strategys['国九条小市值策略'].print_position_info(context)
 
 
+def xszgjt_after_market_close(context):
+    g.strategys['国九条小市值策略'].after_market_close(context)
+
+
 # 打印交易记录
 def print_trade_info(context):
     orders = get_orders()
@@ -218,6 +236,15 @@ class Strategy:
         self.subportfolio_index = subportfolio_index
         self.name = name
         self.params = params
+
+        self.trade_num = 0
+        self.win_num = 0
+        self.win_lose_rate = 0
+        self.sharp = 0
+        self.portfolio_value = pd.DataFrame(columns=['date', 'total_value'])
+        self.strategyID = self.params['strategyID'] if 'strategyID' in self.params else ''
+        self.inout_cash = 0
+
         self.max_hold_count = self.params['max_hold_count'] if 'max_hold_count' in self.params else 1  # 最大持股数
         self.max_select_count = self.params['max_select_count'] if 'max_select_count' in self.params else 5  # 最大输出选股数
         self.hold_limit_days = self.params['hold_limit_days'] if 'hold_limit_days' in self.params else 20  # 计算最近持有列表的天数
@@ -364,7 +391,7 @@ class Strategy:
         # 遍历当前持仓的股票列表 subportfolio.long_positions,如果某只股票不在选股列表select_list的前self.max_hold_count只股票中，则将其标记为卖出。
         for stock in positions:
             if stock not in select_list[:self.max_hold_count]:
-                content = content + stock + ' ' + current_data[stock].name + ' 卖出-- '+ str(
+                content = content + stock + ' ' + current_data[stock].name + ' 卖出-- ' + str(
                     positions[stock].value) + '\n'
                 value_amount = value_amount + positions[stock].value
                 positions_count = positions_count - 1
@@ -706,6 +733,150 @@ class Strategy:
     def get_industry_name(self, i_Constituent_Stocks, value):
         return [k for k, v in i_Constituent_Stocks.items() if value in v]
 
+    # 计算夏普系数的函数
+    def cal_sharpe_ratio(self, returns, rf, type):  # portfolio_daily_returns 是一个包含每日收益的列表
+        annual_periods = 250  # 假设一年有250个交易日
+        sharpe_ratio = 0
+        if (type == 'MEAN'):
+            returns = returns - rf / annual_periods  # 计算超额收益
+            return_mean = np.mean(returns) * annual_periods  # 简单年化收益率 = 投资组合的平均超额收益率 * 年化期数
+            std_annualized = returns.std() * np.sqrt(annual_periods)  # 计算年化标准差
+            if std_annualized == 0:  # 计算夏普比率
+                sharpe_ratio = 0
+            else:
+                sharpe_ratio = return_mean / std_annualized
+        if (type == 'CAGR'):
+            returns = returns - rf / annual_periods  # 计算超额收益
+            years = len(returns) / annual_periods  # 投资期数
+            total = returns.add(1).prod() - 1  # 计算年化收益率
+            return_annualized = (total + 1.0) ** (1.0 / years) - 1  # 年化收益率
+            std_annualized = returns.std() * np.sqrt(annual_periods)  # 计算年化标准差
+            if std_annualized == 0:  # 计算夏普比率
+                sharpe_ratio = 0
+            else:
+                sharpe_ratio = return_annualized / std_annualized
+        return sharpe_ratio
+
+    ## 收盘后运行函数
+    def after_market_close(self, context):
+
+        subportfolio = context.subportfolios[self.subportfolio_index]
+
+        # 计算当前盈利
+        title = self.name + '收益率'
+        # subportfolio_startcash=context.portfolio.starting_cash*g.portfolio_value_proportion[self.subportfolio_index]+subportfolio.inout_cash
+        subportfolio_startcash = subportfolio.inout_cash
+        if subportfolio_startcash != 0:
+            ret_ratio = round((subportfolio.total_value / subportfolio_startcash - 1), 2)
+        else:
+            ret_ratio = 0
+
+        kv = {title: ret_ratio}
+        record(**kv)
+        orders = get_orders()
+        trades = get_trades()
+        # 创建一个 prettytable 对象,打印当天交易信息
+        trade_table = PrettyTable(
+            ["策略名称", "代码", "证券名称", "交易方向", "交易时间", "交易数量", "交易价格", "盈亏情况"])
+        transaction = 0
+
+        if len(trades) > 0:
+            for _trade in trades.values():
+                if (self.subportfolio_index == orders[_trade.order_id].pindex):
+                    transaction += 1
+                    strategy_index = orders[_trade.order_id].pindex
+                    strategy_name = self.name
+                    security = _trade.security[:6]
+                    name = get_security_info(_trade.security).display_name
+                    action = '买入' if orders[_trade.order_id].is_buy else '卖出'
+                    if orders[_trade.order_id].is_buy == False:
+                        self.trade_num += 1
+                        if _trade.price > round(orders[_trade.order_id].avg_cost, 2):
+                            # print('交易日志：',name, _trade.price, round(orders[_trade.order_id].avg_cost,2))
+                            self.win_num += 1
+                        self.win_lose_rate = self.win_num / self.trade_num
+                    # print(self.trade_num,self.win_num,self.win_lose_rate)
+                    tradedate = _trade.time
+                    tradeamount = _trade.amount
+                    tradeprice = _trade.price
+                    profit_percent_trade = (_trade.price / orders[_trade.order_id].avg_cost - 1) * 100
+                    trade_table.add_row(
+                        [strategy_name, security, name, action, tradedate, tradeamount, f"{tradeprice:.3f}",
+                         f"{profit_percent_trade:.3f}%"])
+        if transaction > 0:
+            # print(f'\n{trade_table}')
+
+            # write_file(g.logfile,f'\n{trade_table}', append=True)
+            pass
+        else:
+            # print('----------'+self.name+'当天没有任何交易----------')
+
+            # write_file(g.logfile,'-'*20+self.name+'当天没有任何交易'+'-'*20+'\n', append=True)
+            pass
+
+        # 创建一个 prettytable 对象,打印当天持仓信息
+        pos_table = PrettyTable(
+            ["策略名称", "代码", "证券名称", "买入日期", "买入价格", "现价", "收益率", "持股数", "市值"])
+        if len(list(subportfolio.long_positions)) > 0:
+            for stock in list(subportfolio.long_positions):
+                position = subportfolio.long_positions[stock]
+                security = position.security[:6]
+                name = get_security_info(position.security).display_name
+                buyindate = position.init_time.date()
+                buyinprice = position.avg_cost
+                currprice = position.price
+                profit_percent_hold = (position.price / position.avg_cost - 1) * 100
+                value = position.value / 10000
+                amount = position.total_amount
+                pos_table.add_row([self.name, security, name, buyindate, f"{buyinprice:.3f}", f"{currprice:.3f}",
+                                   f"{profit_percent_hold:.3f}%", amount, f"{value:.3f}万"])
+            # print(f'\n{pos_table}')
+            # write_file(g.logfile,f'\n{pos_table}', append=True)
+        else:
+            # print('----------'+self.name+'当天没有持仓----------')
+            # write_file(g.logfile,'-'*20+self.name+'当天没有任何交易'+'-'*20+'\n', append=True)
+            pass
+
+        # 创建一个 prettytable 对象,打印当天账户信息
+        account_table = PrettyTable(
+            ["日期", "策略名称", "策略总资产", "策略持仓总市值", "策略可用现金", "策略当天出入金", "策略当天收益率",
+             "策略累计收益率", "策略胜率", "策略夏普比率", "策略最大回撤", "最大回撤区间"])
+        date = context.current_dt.strftime("%Y-%m-%d")
+        cash = subportfolio.available_cash / 10000
+        pos_value = subportfolio.positions_value / 10000
+        total_assets = subportfolio.total_value / 10000
+        new_data = {'date': date, 'total_value': subportfolio.total_value}
+        self.portfolio_value = self.portfolio_value.append(new_data, ignore_index=True)
+        # 计算当日之前的资金曲线最高点
+        self.portfolio_value['max2here'] = self.portfolio_value['total_value'].expanding().max()
+        # 计算历史最高值到当日的剩余量drawdown
+        self.portfolio_value['dd2here'] = self.portfolio_value['total_value'] / self.portfolio_value['max2here']
+        # 计算回撤完之后剩余量的最小值(也就是最大回撤的剩余量)，以及最大回撤的结束时间
+        end_date, remains = tuple(self.portfolio_value.sort_values(by=['dd2here']).iloc[0][['date', 'dd2here']])
+        # 计算最大回撤开始时间
+        start_date = self.portfolio_value[self.portfolio_value['date'] <= end_date].sort_values(by='total_value',
+                                                                                                ascending=False).iloc[
+            0]['date']
+        max_draw_down = (1 - remains) * 100
+        daily_returns = self.portfolio_value['total_value'].pct_change()
+
+        if (self.inout_cash != 0):
+            daily_returns.iloc[-1] = (self.portfolio_value['total_value'].iloc[-1] - self.inout_cash) / \
+                                     self.portfolio_value['total_value'].iloc[-2] - 1
+
+        self.sharp = self.cal_sharpe_ratio(daily_returns, rf=0.04, type='CAGR')
+        total_return = subportfolio.total_value / subportfolio_startcash - 1
+        account_table.add_row([date, self.name, f"{total_assets:.3f}万", f"{pos_value:.3f}万", f"{cash:.3f}万",
+                               f"{self.inout_cash / 10000:.3f}万", f"{daily_returns.iloc[-1] * 100:.3f}%",
+                               f"{total_return * 100:.3f}%", f"{self.win_lose_rate:.3f}", f"{self.sharp:.3f}",
+                               f"{max_draw_down:.3f}%", f"{start_date}到{end_date}"])
+        self.previous_portfolio_value = subportfolio.total_value
+        # print(f'\n{account_table}')
+        # write_file(g.logfile,f'\n{account_table}', append=True)
+        # print('-------------分割线-------------')
+        # write_file(g.logfile,'-'*20+date+'日志终结'+'-'*20+'\n'+'\n', append=True)
+        self.inout_cash = 0
+
     # 4-1 打印每日持仓信息
     def print_position_info(self, context):
         log.info(self.name, '--print_position_info函数--',
@@ -885,9 +1056,15 @@ class WPETF_Strategy(Strategy):
             '513030.XSHG',  # 德国
             '513100.XSHG',  # 纳指
             '164824.XSHE',  # 印度
-            '159866.XSHE',  # 日本
-            '513500.XSHG',  # 标普500
-            '159915.XSHE',  # 创业板100
+            '159866.XSHE'  # 日本
+
+            # '518880.XSHG',  # 黄金
+            # '513030.XSHG',  # 德国
+            # '513100.XSHG',  # 纳指
+            # '164824.XSHE',  # 印度
+            # '159866.XSHE',  # 日本
+            # '513500.XSHG',  # 标普500
+            # '159915.XSHE',  # 创业板100
             # '161716.XSHE',#招商双债
         ]
         self.deltaday = 20  # 上市天数
