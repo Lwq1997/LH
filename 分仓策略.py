@@ -133,6 +133,7 @@ def initialize(context):
         run_weekly(xszgjt_select, 1, time='7:43')
         run_daily(xszgjt_open_market, time='9:30')
         run_weekly(xszgjt_adjust, 1, time='9:35')
+        run_daily(xszgjt_sell_when_highlimit_open, time='11:27')
         run_daily(xszgjt_sell_when_highlimit_open, time='14:00')
         run_daily(xszgjt_sell_when_highlimit_open, time='14:50')
         run_daily(xszgjt_after_market_close, 'after_close')
@@ -143,9 +144,9 @@ def initialize(context):
 # def after_trading_end(context):
 #     log.warn('##############################################################')
 #     # 得到当天所有成交记录
-#     # trades = get_trades()
-#     # for _trade in trades.values():
-#     #     log.warn('成交记录：' + str(_trade))
+#     trades = get_trades()
+#     for _trade in trades.values():
+#         log.warn('成交记录：' + str(_trade))
 #     now = str(context.current_dt.date()) + ' ' + str(context.current_dt.time())
 #     log.warn('--after_trading_end函数--', now)
 #
@@ -570,7 +571,7 @@ class Strategy:
 
     # 涨停打开卖出
     def sell_when_highlimit_open(self, context):
-        log.info(self.name, '--sell_when_highlimit_open函数--',
+        log.info(self.name, '--sell_when_highlimit_open涨停打开卖出股票函数--',
                  str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
 
         if self.yestoday_high_limit_list != []:
@@ -768,12 +769,15 @@ class Strategy:
 
     ## 收盘后运行函数
     def after_market_close(self, context):
+        log.info(self.name, '--after_market_close收盘后运行函数--',
+                 str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
 
         subportfolio = context.subportfolios[self.subportfolio_index]
 
         # 计算当前盈利
         title = self.name + '收益率'
         # subportfolio_startcash=context.portfolio.starting_cash*g.portfolio_value_proportion[self.subportfolio_index]+subportfolio.inout_cash
+        # 账户累计出入金
         subportfolio_startcash = subportfolio.inout_cash
         if subportfolio_startcash != 0:
             ret_ratio = round((subportfolio.total_value / subportfolio_startcash - 1), 2)
@@ -793,12 +797,13 @@ class Strategy:
             for _trade in trades.values():
                 if (self.subportfolio_index == orders[_trade.order_id].pindex):
                     transaction += 1
-                    strategy_index = orders[_trade.order_id].pindex
+                    # strategy_index = orders[_trade.order_id].pindex
                     strategy_name = self.name
-                    security = _trade.security[:6]
+                    security = _trade.security[:20]
                     name = get_security_info(_trade.security).display_name
                     action = '买入' if orders[_trade.order_id].is_buy else '卖出'
                     if orders[_trade.order_id].is_buy == False:
+                        # 卖出的时候可以计算收益情况
                         self.trade_num += 1
                         if _trade.price > round(orders[_trade.order_id].avg_cost, 2):
                             # print('交易日志：',name, _trade.price, round(orders[_trade.order_id].avg_cost,2))
@@ -813,15 +818,15 @@ class Strategy:
                         [strategy_name, security, name, action, tradedate, tradeamount, f"{tradeprice:.3f}",
                          f"{profit_percent_trade:.3f}%"])
         if transaction > 0:
-            # print(f'\n{trade_table}')
+            log.info(self.name,'策略当日交易信息:',f'\n{trade_table}')
 
             # write_file(g.logfile,f'\n{trade_table}', append=True)
-            pass
+            # pass
         else:
-            # print('----------'+self.name+'当天没有任何交易----------')
+            log.info('----------'+self.name+'当天没有任何交易----------')
 
             # write_file(g.logfile,'-'*20+self.name+'当天没有任何交易'+'-'*20+'\n', append=True)
-            pass
+            # pass
 
         # 创建一个 prettytable 对象,打印当天持仓信息
         pos_table = PrettyTable(
@@ -829,20 +834,25 @@ class Strategy:
         if len(list(subportfolio.long_positions)) > 0:
             for stock in list(subportfolio.long_positions):
                 position = subportfolio.long_positions[stock]
-                security = position.security[:6]
+                security = position.security[:20]
                 name = get_security_info(position.security).display_name
                 buyindate = position.init_time.date()
                 buyinprice = position.avg_cost
                 currprice = position.price
+                # 股票收益率
                 profit_percent_hold = (position.price / position.avg_cost - 1) * 100
+                # 股票价值
                 value = position.value / 10000
+                # 股票持股数
                 amount = position.total_amount
                 pos_table.add_row([self.name, security, name, buyindate, f"{buyinprice:.3f}", f"{currprice:.3f}",
                                    f"{profit_percent_hold:.3f}%", amount, f"{value:.3f}万"])
             # print(f'\n{pos_table}')
+
+            log.info(self.name,'策略当日持仓信息:',f'\n{pos_table}')
             # write_file(g.logfile,f'\n{pos_table}', append=True)
         else:
-            # print('----------'+self.name+'当天没有持仓----------')
+            print('----------'+self.name+'当天没有持仓----------')
             # write_file(g.logfile,'-'*20+self.name+'当天没有任何交易'+'-'*20+'\n', append=True)
             pass
 
@@ -850,8 +860,10 @@ class Strategy:
         account_table = PrettyTable(
             ["日期", "策略名称", "策略总资产", "策略持仓总市值", "策略可用现金", "策略当天出入金", "策略当天收益率",
              "策略累计收益率", "策略胜率", "策略夏普比率", "策略最大回撤", "最大回撤区间"])
-        date = context.current_dt.strftime("%Y-%m-%d")
+        date = str(context.current_dt.date())+' '+str(context.current_dt.time())
+        # 账户可用现金
         cash = subportfolio.available_cash / 10000
+        # 账户持仓价值
         pos_value = subportfolio.positions_value / 10000
         total_assets = subportfolio.total_value / 10000
         new_data = {'date': date, 'total_value': subportfolio.total_value}
@@ -880,13 +892,13 @@ class Strategy:
                                f"{total_return * 100:.3f}%", f"{self.win_lose_rate:.3f}", f"{self.sharp:.3f}",
                                f"{max_draw_down:.3f}%", f"{start_date}到{end_date}"])
         self.previous_portfolio_value = subportfolio.total_value
-        # print(f'\n{account_table}')
+        log.info(self.name, '策略当日账户信息:', f'\n{account_table}')
         # write_file(g.logfile,f'\n{account_table}', append=True)
-        # print('-------------分割线-------------')
+        log.info('-------------分割线-------------')
         # write_file(g.logfile,'-'*20+date+'日志终结'+'-'*20+'\n'+'\n', append=True)
         self.inout_cash = 0
 
-    # 4-1 打印每日持仓信息
+    # 4-1 打印每日持仓信息,暂无使用
     def print_position_info(self, context):
         log.info(self.name, '--print_position_info函数--',
                  str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
