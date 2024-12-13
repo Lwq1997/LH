@@ -38,8 +38,10 @@ import talib as tl
 from jqlib.technical_analysis import *
 from scipy.linalg import inv
 import pickle
+import requests
 import datetime as datet
 from prettytable import PrettyTable
+import inspect
 
 
 # 初始化函数，设定基准等等
@@ -376,8 +378,8 @@ class Strategy:
 
     # 打印交易计划
     def print_trade_plan(self, context, select_list):
-        log.info(self.name, '--print_trade_plan函数--',
-                 str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+        now = str(context.current_dt.date()) + ' ' + str(context.current_dt.time())
+        log.info(self.name, '--print_trade_plan函数--', now)
 
         # 1.获取子投资组合信息：从context中获取当前的子投资组合subportfolio,以及子投资组合的索引 self.subportfolio_index
         subportfolio = context.subportfolios[self.subportfolio_index]
@@ -385,7 +387,7 @@ class Strategy:
         positions_count = len(positions)
         current_data = get_current_data()  # 取股票名称
 
-        content = context.current_dt.date().strftime("%Y-%m-%d %H:%M:%S") + ' ' + self.name + " 交易计划：" + "\n"
+        content = now + ' ' + self.name + " 交易计划：" + "\n"
 
         # 仓位可用余额
         value_amount = subportfolio.available_cash
@@ -393,7 +395,7 @@ class Strategy:
         for stock in positions:
             if stock not in select_list[:self.max_hold_count]:
                 content = content + stock + ' ' + current_data[stock].name + ' 卖出-- ' + str(
-                    positions[stock].value) + '\n'
+                    positions[stock].value) + '\n<br> '
                 value_amount = value_amount + positions[stock].value
                 positions_count = positions_count - 1
 
@@ -410,16 +412,19 @@ class Strategy:
             if stock not in subportfolio.long_positions and stock in select_list[:self.max_hold_count]:
                 content = content + stock + ' ' + current_data[
                     stock].name + ' 买入-- ' + str(
-                    value_amount) + '\n'
+                    value_amount) + '\n<br>'
             elif stock in subportfolio.long_positions and stock in select_list[:self.max_hold_count]:
-                content = content + stock + ' ' + current_data[stock].name + ' 继续持有\n'
+                content = content + stock + ' ' + current_data[stock].name + ' 继续持有 \n<br>'
             else:
                 # 兜底逻辑，一般用不到
-                content = content + stock + ' ' + current_data[stock].name + '  持仓已满，备选股票 \n'
+                content = content + stock + ' ' + current_data[stock].name + '  持仓已满，备选股票 \n<br>'
 
         if ('买' in content) or ('持有' in content) or ('卖' in content):
             # weixin消息
             send_message(content)
+            method_name = inspect.getframeinfo(inspect.currentframe()).function
+            item = f"分仓策略:{self.name}<br>-函数名称:{method_name}<br>-时间:{now}"
+            send_wx_message(item, content)
             log.info(content)
 
     ##################################  风控函数群 ##################################
@@ -599,7 +604,7 @@ class Strategy:
             for stock in buy_stocks:
                 if stock in subportfolio.long_positions:
                     continue
-                self.__open_position(stock, value)
+                self.__open_position(context, stock, value)
                 index = index + 1
                 if index >= buy_count:
                     break
@@ -612,37 +617,69 @@ class Strategy:
         subportfolio = context.subportfolios[self.subportfolio_index]
         for stock in sell_stocks:
             if stock in subportfolio.long_positions:
-                self.__close_position(stock)
+                self.__close_position(context, stock)
 
     # 开仓单只
-    def __open_position(self, security, value):
+    def __open_position(self, context, security, value):
+        now = str(context.current_dt.date()) + ' ' + str(context.current_dt.time())
         order_info = order_target_value(security, value, pindex=self.subportfolio_index)
 
+        method_name = inspect.getframeinfo(inspect.currentframe()).function
+        item = f"分仓策略:{self.name}<br>-函数名称:{method_name}<br>-时间:{now}"
         if order_info != None and order_info.filled > 0:
-            log.info(self.name, '--买入股票:', security, '--计划买入金额:', value, '--买入数量:', order_info.amount,
-                     '--成交数量:', order_info.filled, '--买入均价:', order_info.price, '--实际买入金额:',
-                     order_info.price * order_info.filled, '--交易佣金:', order_info.commission)
+            content = (f"策略: {self.name} "
+                       f"--操作时间: {now} "
+                       f"--买入股票: {security} "
+                       f"--计划买入金额: {value} "
+                       f"--买入数量: {order_info.amount} "
+                       f"--成交数量: {order_info.filled} "
+                       f"--买入均价: {order_info.price} "
+                       f"--实际买入金额: {order_info.price * order_info.filled} "
+                       f"--交易佣金: {order_info.commission:.2f}\n<br>")
+            log.info(content)
+            send_message(content)
+            send_wx_message(item, content)
             return True
-        log.error(self.name, '--买入股票，交易失败！！！', security, '--计划买入金额:', value)
+        content = (f"策略: {self.name} "
+                   f"--操作时间: {now} "
+                   f"--买入股票，交易失败！！股票: {security} "
+                   f"--计划买入金额: {value}\n<br>")
+        log.error(content)
+        send_message(content)
+        send_wx_message(item, content)
         return False
 
     # 清仓单只
-    def __close_position(self, security):
+    def __close_position(self, context, security):
+        now = str(context.current_dt.date()) + ' ' + str(context.current_dt.time())
         order_info = order_target_value(security, 0, pindex=self.subportfolio_index)
+        method_name = inspect.getframeinfo(inspect.currentframe()).function
+        item = f"分仓策略:{self.name}<br>-函数名称:{method_name}<br>-时间:{now}"
 
         if order_info != None and order_info.status == OrderStatus.held and order_info.filled == order_info.amount:
             # 计算收益率:（当前价格/持仓价格）- 1
             ret = 100 * (order_info.price / order_info.avg_cost - 1)
             # 计算收益金额: 可卖仓位 *（当前价格/持仓价格)
             ret_money = order_info.amount * (order_info.price - order_info.avg_cost)
-
-            log.info(self.name, '--卖出股票:', security, '--卖出数量:', order_info.amount,
-                     '--成交数量:', order_info.filled, '--持仓均价:', order_info.avg_cost,
-                     '--卖出均价:', order_info.price, '--实际卖出金额:', order_info.price * order_info.filled,
-                     '--交易佣金:', order_info.commission, ' 收益率:{:.2f}%'.format(ret, '.2f'), ' 收益金额:',
-                     ret_money)
+            content = (f"策略: {self.name} "
+                       f"--操作时间: {now} "
+                       f"--卖出股票: {security} "
+                       f"--卖出数量: {order_info.amount} "
+                       f"--成交数量: {order_info.filled} "
+                       f"--持仓均价: {order_info.avg_cost} "
+                       f"--卖出均价: {order_info.price} "
+                       f"--实际卖出金额: {order_info.price * order_info.filled} "
+                       f"--交易佣金: {order_info.commission:.2f} 收益率: {ret:.2f}% 收益金额: {ret_money:.2f} \n<br>")
+            log.info(content)
+            send_message(content)
+            send_wx_message(item, content)
             return True
-        log.error(self.name, '--卖出股票，交易失败！！！', security)
+        content = (f"策略: {self.name} "
+                   f"--操作时间: {now} "
+                   f"--卖出股票，交易失败！！！股票: {security} \n<br>")
+        log.error(content)
+        send_message(content)
+        send_wx_message(item, content)
         return False
 
     ##################################  选股函数群 ##################################
@@ -769,8 +806,8 @@ class Strategy:
 
     ## 收盘后运行函数
     def after_market_close(self, context):
-        log.info(self.name, '--after_market_close收盘后运行函数--',
-                 str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+        now = str(context.current_dt.date()) + ' ' + str(context.current_dt.time())
+        log.info(self.name, '--after_market_close收盘后运行函数--',now)
 
         subportfolio = context.subportfolios[self.subportfolio_index]
 
@@ -817,13 +854,20 @@ class Strategy:
                     trade_table.add_row(
                         [strategy_name, security, name, action, tradedate, tradeamount, f"{tradeprice:.3f}",
                          f"{profit_percent_trade:.3f}%"])
-        if transaction > 0:
-            log.info(self.name,'策略当日交易信息:',f'\n{trade_table}')
 
+        method_name = inspect.getframeinfo(inspect.currentframe()).function
+        item = f"分仓策略:{self.name}<br>-函数名称:{method_name}<br>-时间:{now}"
+
+        if transaction > 0:
+            content =  f"{self.name} 策略当日交易信息: \n{pretty_table_to_kv_string(trade_table)}"
+            log.info(content)
+            send_wx_message(item, content)
             # write_file(g.logfile,f'\n{trade_table}', append=True)
             # pass
         else:
-            log.info('----------'+self.name+'当天没有任何交易----------')
+            content = '----------' + self.name + '当天没有任何交易----------'
+            log.info(content)
+            send_wx_message(item, content)
 
             # write_file(g.logfile,'-'*20+self.name+'当天没有任何交易'+'-'*20+'\n', append=True)
             # pass
@@ -849,12 +893,20 @@ class Strategy:
                                    f"{profit_percent_hold:.3f}%", amount, f"{value:.3f}万"])
             # print(f'\n{pos_table}')
 
-            log.info(self.name,'策略当日持仓信息:',f'\n{pos_table}')
+
+            content =  f"{self.name} 策略当日持仓信息: \n{pretty_table_to_kv_string(pos_table)}"
+            log.info(content)
+            send_wx_message(item, content)
+
             # write_file(g.logfile,f'\n{pos_table}', append=True)
         else:
-            print('----------'+self.name+'当天没有持仓----------')
+
+            content = '----------'+self.name+'当天没有持仓----------'
+            log.info(content)
+            send_wx_message(item, content)
+
             # write_file(g.logfile,'-'*20+self.name+'当天没有任何交易'+'-'*20+'\n', append=True)
-            pass
+            # pass
 
         # 创建一个 prettytable 对象,打印当天账户信息
         account_table = PrettyTable(
@@ -892,7 +944,11 @@ class Strategy:
                                f"{total_return * 100:.3f}%", f"{self.win_lose_rate:.3f}", f"{self.sharp:.3f}",
                                f"{max_draw_down:.3f}%", f"{start_date}到{end_date}"])
         self.previous_portfolio_value = subportfolio.total_value
-        log.info(self.name, '策略当日账户信息:', f'\n{account_table}')
+
+        content = f"{self.name} 策略当日账户信息: \n{pretty_table_to_kv_string(account_table)}"
+        log.info(content)
+        send_wx_message(item, content)
+
         # write_file(g.logfile,f'\n{account_table}', append=True)
         log.info('-------------分割线-------------')
         # write_file(g.logfile,'-'*20+date+'日志终结'+'-'*20+'\n'+'\n', append=True)
@@ -1269,3 +1325,34 @@ class XSZ_GJT_Strategy(Strategy):
             valuation.market_cap.asc()
         )).set_index('code').index.tolist()
         return final_list
+
+def pretty_table_to_kv_string(table):
+    headers = table.field_names
+    result = ""
+    data_rows = table._rows  # 直接获取表格内部存储的数据行列表，避免格式干扰
+    for row in data_rows:
+        for header, cell in zip(headers, row):
+            result += f"{header}: {cell}\n<br>"
+        result += "\n<br>"
+    return result.rstrip()
+
+def send_wx_message(item, message):
+
+    url = "https://wxpusher.zjiecode.com/api/send/message"
+
+    data = {
+        "appToken": "AT_B7CVGazuAWXoqBoIlGAzlIwkunQuXIQM",
+        "content": f"<h1>{item}</h1><br/><p style=\"color:red;\">{message}</p>",
+        "summary": item,
+        "contentType": 2,
+        "topicIds": [
+            36105
+        ],
+        "url": "https://wxpusher.zjiecode.com",
+        "verifyPay": False,
+        "verifyPayType": 0
+    }
+    response = requests.post(url, json=data)
+    # 可以根据需要查看响应的状态码、内容等信息
+    print(response.status_code)
+    print(response.text)
