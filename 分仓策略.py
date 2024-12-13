@@ -68,7 +68,7 @@ def initialize(context):
     # 持久变量
     g.strategys = {}
     # 子账户 分仓
-    g.portfolio_value_proportion = [0.1, 0.5, 0.4]
+    g.portfolio_value_proportion = [0.33, 0.33, 0.34]
 
     # 创建策略实例
     # 初始化策略子账户 subportfolios
@@ -115,17 +115,17 @@ def initialize(context):
     # 选股函数--Select：白马和 ETF 分开使用
     # 执行函数--adjust：白马和 ETF 轮动共用一个
     # # 白马，按月运行 TODO
-    if g.portfolio_value_proportion[0] > 0:
-        run_monthly(bmzh_market_temperature, 1, time='5:00')  # 阅读完成，测试完成
-        run_monthly(bmzh_select, 1, time='7:40')  # 阅读完成，测试完成
-        run_monthly(bmzh_adjust, 1, time='10:00')  # 阅读完成，测试完成
-        run_daily(bmzh_after_market_close, 'after_close')
-
-    # ETF轮动，按天运行
-    if g.portfolio_value_proportion[1] > 0:
-        run_daily(wpetf_select, time='7:42')  # 阅读完成，测试完成
-        run_daily(wpetf_adjust, time='10:00')  # 阅读完成，测试完成
-        run_daily(wpetf_after_market_close, 'after_close')
+    # if g.portfolio_value_proportion[0] > 0:
+    #     run_monthly(bmzh_market_temperature, 1, time='5:00')  # 阅读完成，测试完成
+    #     run_monthly(bmzh_select, 1, time='7:40')  # 阅读完成，测试完成
+    #     run_monthly(bmzh_adjust, 1, time='10:00')  # 阅读完成，测试完成
+    #     run_daily(bmzh_after_market_close, 'after_close')
+    #
+    # # ETF轮动，按天运行
+    # if g.portfolio_value_proportion[1] > 0:
+    #     run_daily(wpetf_select, time='7:42')  # 阅读完成，测试完成
+    #     run_daily(wpetf_adjust, time='10:00')  # 阅读完成，测试完成
+    #     run_daily(wpetf_after_market_close, 'after_close')
 
     # # 小市值，按天/周运行
     if g.portfolio_value_proportion[2] > 0:
@@ -202,7 +202,7 @@ def xszgjt_select(context):
 
 
 def xszgjt_adjust(context):
-    g.strategys['国九条小市值策略'].adjust(context)
+    g.strategys['国九条小市值策略'].adjustwithnoRM(context)
 
 
 def xszgjt_open_market(context):
@@ -272,7 +272,7 @@ class Strategy:
             'no_trading_today_signal'] if 'no_trading_today_signal' in self.params else False
 
     def day_prepare(self, context):
-        log.info(self.name, '--day_prepare函数--',
+        log.info(self.name, '--day_prepare选股前的准备工作函数--',
                  str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
 
         subportfolio = context.subportfolios[self.subportfolio_index]
@@ -324,7 +324,7 @@ class Strategy:
 
     # 小市值专用（白马股+小市值专用）
     def stockpool_index(self, context, index, pool_id=1):
-        log.info(self.name, '--stockpool_index函数--',
+        log.info(self.name, '--stockpool_index获取指数成分股函数--',
                  str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
 
         # 获取指数成份股
@@ -432,20 +432,20 @@ class Strategy:
 
     # 空仓期检查
     def check_empty_month(self, context):
-        log.info(self.name, '--check_empty_month函数--',
+        log.info(self.name, '--check_empty_month函数：空仓期检查--',
                  str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
 
         subportfolio = context.subportfolios[self.subportfolio_index]
         if self.use_empty_month and context.current_dt.month in (self.empty_month) and len(
                 subportfolio.long_positions) > 0:
-            content = context.current_dt.date().strftime("%Y-%m-%d") + self.name + ': 进入空仓期' + "\n"
+            content = context.current_dt.date().strftime("%Y-%m-%d") + self.name + ': 进入空仓期' + "\n" + "当前持仓股票: " + "\n"
             for stock in subportfolio.long_positions:
                 content = content + stock + "\n"
             log.info(content)
 
     # 进入空仓期清仓
     def close_for_empty_month(self, context):
-        log.info(self.name, '--close_for_empty_month函数--',
+        log.info(self.name, '--close_for_empty_month函数：如果在空仓期会清仓所有股票--',
                  str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
 
         subportfolio = context.subportfolios[self.subportfolio_index]
@@ -453,9 +453,10 @@ class Strategy:
                 subportfolio.long_positions) > 0:
             self.sell(context, list(subportfolio.long_positions))
 
-    # 止损检查，没看懂
+    # 止损检查
+    # 实现了一个止损检查功能，它会根据股票的跌幅来决定是否需要止损，并在需要止损时记录止损日期和打印止损的股票列表。
     def check_stoplost(self, context):
-        log.info(self.name, '--check_stoplost函数--',
+        log.info(self.name, '--check_stoplost函数:止损检查--',
                  str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
 
         subportfolio = context.subportfolios[self.subportfolio_index]
@@ -474,8 +475,9 @@ class Strategy:
                         for stock in subportfolio.long_positions:
                             content = content + stock + "\n"
                         log.info(content)
+                        # 一旦有股票需要止损，就不需要继续检查其他股票了。
                         break
-            else:  # 已经在清仓静默期
+            else:  # 已经在清仓静默期,stoplost_silent_days天后退出静默期
                 if (context.current_dt + datetime.timedelta(
                         days=-self.stoplost_silent_days)).date() >= self.stoplost_date:
                     self.stoplost_date = None
@@ -483,7 +485,7 @@ class Strategy:
 
     # 止损时清仓
     def close_for_stoplost(self, context):
-        log.info(self.name, '--close_for_stoplost函数--',
+        log.info(self.name, '--close_for_stoplost函数：如果在止损期会清仓所有股票--',
                  str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
 
         subportfolio = context.subportfolios[self.subportfolio_index]
@@ -519,19 +521,22 @@ class Strategy:
 
     ##################################  交易函数群 ##################################
 
-    # 调仓
+    # 调仓，小市值专用调仓函数
     def adjust(self, context):
-        log.info(self.name, '--adjust函数--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+        log.info(self.name, '--adjust小市值调仓函数--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
 
-        # 空仓期控制
+        # 空仓期或者止损期不再进行调仓
         if self.use_empty_month and context.current_dt.month in (self.empty_month):
+            log.info('adjust小市值调仓函数不再执行，因为当前月份是空仓期，空仓期月份为：',self.empty_month)
             return
         # 止损期控制
         if self.stoplost_date is not None:
+            log.info('adjust小市值调仓函数不再执行，因为当前时刻还处于止损期，止损期从:',self.stoplost_date,'开始')
             return
 
         # 先卖后买
         hold_list = list(context.subportfolios[self.subportfolio_index].long_positions)
+        # 售卖列表：不在select_list前max_hold_count中的股票都要被卖掉
         sell_stocks = []
         for stock in hold_list:
             if stock not in self.select_list[:self.max_hold_count]:
@@ -541,15 +546,17 @@ class Strategy:
 
     # 调仓
     def adjustwithnoRM(self, context):
-        log.info(self.name, '--adjustwithnoRM函数--',
+        log.info(self.name, '--adjustwithnoRM调仓函数--',
                  str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
 
-        # 空仓期控制
-        # if self.use_empty_month and context.current_dt.month in (self.empty_month):
-        #    return
+        # 空仓期或者止损期不再进行调仓
+        if self.use_empty_month and context.current_dt.month in (self.empty_month):
+            log.info('adjustwithnoRM调仓函数不再执行，因为当前月份是空仓期，空仓期月份为：', self.empty_month)
+            return
         # 止损期控制
-        # if self.stoplost_date is not None:
-        #    return
+        if self.stoplost_date is not None:
+            log.info('adjustwithnoRM调仓函数不再执行，因为当前时刻还处于止损期，止损期从:', self.stoplost_date, '开始')
+            return
 
         # 先卖后买
         hold_list = list(context.subportfolios[self.subportfolio_index].long_positions)
@@ -710,7 +717,7 @@ class Strategy:
 
     # 过滤次新股（小市值专用）
     def filter_new_stock(self, context, stock_list, days):
-        log.info(self.name, '--filter_new_stock函数--',
+        log.info(self.name, '--filter_new_stock过滤次新股函数--',
                  str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
 
         return [stock for stock in stock_list if
@@ -718,14 +725,16 @@ class Strategy:
 
     # 过滤大幅解禁（小市值专用）
     def filter_locked_shares(self, context, stock_list, days):
-        log.info(self.name, '--filter_locked_shares函数--',
+        log.info(self.name, '--filter_locked_shares过滤解禁股函数--',
                  str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
 
         # 获取指定日期区间内的限售解禁数据
         df = get_locked_shares(stock_list=stock_list, start_date=context.previous_date.strftime('%Y-%m-%d'),
                                forward_count=days)
-        df = df[df['rate1'] > 0.2]  # 解禁数量占总股本的百分比
+        # 过滤出解禁数量占总股本的百分比超过 20% 的股票
+        df = df[df['rate1'] > 0.2]
         filterlist = list(df['code'])
+        # 从股票池中排除这些股票
         return [stock for stock in stock_list if stock not in filterlist]
 
     ###################################  公用函数群 ##################################
@@ -1151,14 +1160,14 @@ class XSZ_GJT_Strategy(Strategy):
         self.highest = 50
 
     def select(self, context):
-        log.info(self.name, '--select函数--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+        log.info(self.name, '--select选股函数--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
 
-        # 月份空仓期控制
+        # 空仓期控制和止损期都不在选择股票
         if self.use_empty_month and context.current_dt.month in (self.empty_month):
-            log.info('月份判断关仓期')
+            log.info('Select选股函数不再执行，因为当前月份是空仓期，空仓期月份为：',self.empty_month)
             return
-        # 止损期控制
         if self.stoplost_date is not None:
+            log.info('Select选股函数不再执行，因为当前时刻还处于止损期，止损期从:',self.stoplost_date,'开始')
             return
 
         self.select_list = self.__get_rank(context)[:self.max_select_count]
@@ -1183,7 +1192,7 @@ class XSZ_GJT_Strategy(Strategy):
         # 获取财务数据
         df_fun = get_fundamentals(q)
         df_fun = df_fun[:100]
-        log.info(self.name, '--没过滤停盘/涨停/跌停之前，前100股票的财务数据:', df_fun)
+        # log.info(self.name, '--没过滤停盘/涨停/跌停之前，前100股票的财务数据:', df_fun)
         initial_list = list(df_fun.code)
         # 过滤停牌股票
         initial_list = self.filter_paused_stock(context, initial_list)
@@ -1197,13 +1206,15 @@ class XSZ_GJT_Strategy(Strategy):
              .order_by(valuation.market_cap.asc()))
         df_fun = get_fundamentals(q)
         df_fun = df_fun[:50]
-        log.info(self.name, '过滤停盘/涨停/跌停之后，--前50股票的财务数据:', df_fun)
+        # log.info(self.name, '过滤停盘/涨停/跌停之后，--前50股票的财务数据:', df_fun)
         final_list_1 = list(df_fun.code)
 
         # 获得初始列表
         lists = self.stockpool_index(context, '399101.XSHE')
+        # 过滤次新股
         lists = self.filter_new_stock(context, lists, self.new_days)
-        lists = self.filter_locked_shares(context, lists, 120)  # 过滤即将大幅解禁
+        # 过滤120天内即将大幅解禁
+        lists = self.filter_locked_shares(context, lists, 120)
         final_list_2 = []
         # 国九更新：过滤近一年净利润为负且营业收入小于1亿的
         # 国九更新：过滤近一年期末净资产为负的 (经查询没有为负数的，所以直接pass这条)
@@ -1227,7 +1238,7 @@ class XSZ_GJT_Strategy(Strategy):
 
         final_list_2 = list(df.code)
         last_prices = history(1, unit='1d', field='close', security_list=final_list_2)
-        # 过滤价格低于最高价的股票  ｜  再持仓列表中的股票
+        # 过滤价格低于最高价50元/股的股票  ｜  再持仓列表中的股票
         final_list_2 = [stock for stock in final_list_2 if
                         stock in self.hold_list or last_prices[stock][-1] <= self.highest]
 
