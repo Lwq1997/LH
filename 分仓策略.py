@@ -70,7 +70,7 @@ def initialize(context):
     # 持久变量
     g.strategys = {}
     # 子账户 分仓
-    g.portfolio_value_proportion = [0.33, 0.33, 0.34]
+    g.portfolio_value_proportion = [0.35, 0.15, 0.5]
 
     # 创建策略实例
     # 初始化策略子账户 subportfolios
@@ -118,17 +118,17 @@ def initialize(context):
     # 选股函数--Select：白马和 ETF 分开使用
     # 执行函数--adjust：白马和 ETF 轮动共用一个
     # # 白马，按月运行 TODO
-    # if g.portfolio_value_proportion[0] > 0:
-    #     run_monthly(bmzh_market_temperature, 1, time='5:00')  # 阅读完成，测试完成
-    #     run_monthly(bmzh_select, 1, time='7:40')  # 阅读完成，测试完成
-    #     run_monthly(bmzh_adjust, 1, time='10:00')  # 阅读完成，测试完成
-    #     run_daily(bmzh_after_market_close, 'after_close')
+    if g.portfolio_value_proportion[0] > 0:
+        run_monthly(bmzh_market_temperature, 1, time='5:00')  # 阅读完成，测试完成
+        run_monthly(bmzh_select, 1, time='7:40')  # 阅读完成，测试完成
+        run_monthly(bmzh_adjust, 1, time='10:00')  # 阅读完成，测试完成
+        run_daily(bmzh_after_market_close, 'after_close')
     #
     # # ETF轮动，按天运行
-    # if g.portfolio_value_proportion[1] > 0:
-    #     run_daily(wpetf_select, time='7:42')  # 阅读完成，测试完成
-    #     run_daily(wpetf_adjust, time='10:00')  # 阅读完成，测试完成
-    #     run_daily(wpetf_after_market_close, 'after_close')
+    if g.portfolio_value_proportion[1] > 0:
+        run_daily(wpetf_select, time='7:42')  # 阅读完成，测试完成
+        run_daily(wpetf_adjust, time='10:00')  # 阅读完成，测试完成
+        run_daily(wpetf_after_market_close, 'after_close')
 
     # # 小市值，按天/周运行
     if g.portfolio_value_proportion[2] > 0:
