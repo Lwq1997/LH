@@ -85,7 +85,8 @@ def initialize(context):
         1: 'ETF策略',
         2: '小市值策略'
     }
-
+    # 是否发送微信消息，回测环境不发送，模拟环境发送
+    context.is_send_wx_message = 0
     params = {
         'max_hold_count': 1,  # 最大持股数
         'max_select_count': 3,  # 最大输出选股数
@@ -424,7 +425,7 @@ class Strategy:
             send_message(content)
             method_name = inspect.getframeinfo(inspect.currentframe()).function
             item = f"分仓策略:{self.name}<br>-函数名称:{method_name}<br>-时间:{now}"
-            send_wx_message(item, content)
+            send_wx_message(context, item, content)
             log.info(content)
 
     ##################################  风控函数群 ##################################
@@ -444,7 +445,8 @@ class Strategy:
         subportfolio = context.subportfolios[self.subportfolio_index]
         if self.use_empty_month and context.current_dt.month in (self.empty_month) and len(
                 subportfolio.long_positions) > 0:
-            content = context.current_dt.date().strftime("%Y-%m-%d") + self.name + ': 进入空仓期' + "\n" + "当前持仓股票: " + "\n"
+            content = context.current_dt.date().strftime(
+                "%Y-%m-%d") + self.name + ': 进入空仓期' + "\n" + "当前持仓股票: " + "\n"
             for stock in subportfolio.long_positions:
                 content = content + stock + "\n"
             log.info(content)
@@ -529,15 +531,16 @@ class Strategy:
 
     # 调仓，小市值专用调仓函数
     def adjust(self, context):
-        log.info(self.name, '--adjust小市值调仓函数--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+        log.info(self.name, '--adjust小市值调仓函数--',
+                 str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
 
         # 空仓期或者止损期不再进行调仓
         if self.use_empty_month and context.current_dt.month in (self.empty_month):
-            log.info('adjust小市值调仓函数不再执行，因为当前月份是空仓期，空仓期月份为：',self.empty_month)
+            log.info('adjust小市值调仓函数不再执行，因为当前月份是空仓期，空仓期月份为：', self.empty_month)
             return
         # 止损期控制
         if self.stoplost_date is not None:
-            log.info('adjust小市值调仓函数不再执行，因为当前时刻还处于止损期，止损期从:',self.stoplost_date,'开始')
+            log.info('adjust小市值调仓函数不再执行，因为当前时刻还处于止损期，止损期从:', self.stoplost_date, '开始')
             return
 
         # 先卖后买
@@ -638,7 +641,7 @@ class Strategy:
                        f"--交易佣金: {order_info.commission:.2f}\n<br>")
             log.info(content)
             send_message(content)
-            send_wx_message(item, content)
+            send_wx_message(context, item, content)
             return True
         content = (f"策略: {self.name} "
                    f"--操作时间: {now} "
@@ -646,7 +649,7 @@ class Strategy:
                    f"--计划买入金额: {value}\n<br>")
         log.error(content)
         send_message(content)
-        send_wx_message(item, content)
+        send_wx_message(context, item, content)
         return False
 
     # 清仓单只
@@ -672,14 +675,14 @@ class Strategy:
                        f"--交易佣金: {order_info.commission:.2f} 收益率: {ret:.2f}% 收益金额: {ret_money:.2f} \n<br>")
             log.info(content)
             send_message(content)
-            send_wx_message(item, content)
+            send_wx_message(context, item, content)
             return True
         content = (f"策略: {self.name} "
                    f"--操作时间: {now} "
                    f"--卖出股票，交易失败！！！股票: {security} \n<br>")
         log.error(content)
         send_message(content)
-        send_wx_message(item, content)
+        send_wx_message(context, item, content)
         return False
 
     ##################################  选股函数群 ##################################
@@ -807,7 +810,7 @@ class Strategy:
     ## 收盘后运行函数
     def after_market_close(self, context):
         now = str(context.current_dt.date()) + ' ' + str(context.current_dt.time())
-        log.info(self.name, '--after_market_close收盘后运行函数--',now)
+        log.info(self.name, '--after_market_close收盘后运行函数--', now)
 
         subportfolio = context.subportfolios[self.subportfolio_index]
 
@@ -859,15 +862,15 @@ class Strategy:
         item = f"分仓策略:{self.name}<br>-函数名称:{method_name}<br>-时间:{now}"
 
         if transaction > 0:
-            content =  f"{self.name} 策略当日交易信息: \n{pretty_table_to_kv_string(trade_table)}"
+            content = f"{self.name} 策略当日交易信息: \n{pretty_table_to_kv_string(trade_table)}"
             log.info(content)
-            send_wx_message(item, content)
+            send_wx_message(context, item, content)
             # write_file(g.logfile,f'\n{trade_table}', append=True)
             # pass
         else:
             content = '----------' + self.name + '当天没有任何交易----------'
             log.info(content)
-            send_wx_message(item, content)
+            send_wx_message(context, item, content)
 
             # write_file(g.logfile,'-'*20+self.name+'当天没有任何交易'+'-'*20+'\n', append=True)
             # pass
@@ -893,17 +896,16 @@ class Strategy:
                                    f"{profit_percent_hold:.3f}%", amount, f"{value:.3f}万"])
             # print(f'\n{pos_table}')
 
-
-            content =  f"{self.name} 策略当日持仓信息: \n{pretty_table_to_kv_string(pos_table)}"
+            content = f"{self.name} 策略当日持仓信息: \n{pretty_table_to_kv_string(pos_table)}"
             log.info(content)
-            send_wx_message(item, content)
+            send_wx_message(context, item, content)
 
             # write_file(g.logfile,f'\n{pos_table}', append=True)
         else:
 
-            content = '----------'+self.name+'当天没有持仓----------'
+            content = '----------' + self.name + '当天没有持仓----------'
             log.info(content)
-            send_wx_message(item, content)
+            send_wx_message(context, item, content)
 
             # write_file(g.logfile,'-'*20+self.name+'当天没有任何交易'+'-'*20+'\n', append=True)
             # pass
@@ -912,7 +914,7 @@ class Strategy:
         account_table = PrettyTable(
             ["日期", "策略名称", "策略总资产", "策略持仓总市值", "策略可用现金", "策略当天出入金", "策略当天收益率",
              "策略累计收益率", "策略胜率", "策略夏普比率", "策略最大回撤", "最大回撤区间"])
-        date = str(context.current_dt.date())+' '+str(context.current_dt.time())
+        date = str(context.current_dt.date()) + ' ' + str(context.current_dt.time())
         # 账户可用现金
         cash = subportfolio.available_cash / 10000
         # 账户持仓价值
@@ -947,7 +949,7 @@ class Strategy:
 
         content = f"{self.name} 策略当日账户信息: \n{pretty_table_to_kv_string(account_table)}"
         log.info(content)
-        send_wx_message(item, content)
+        send_wx_message(context, item, content)
 
         # write_file(g.logfile,f'\n{account_table}', append=True)
         log.info('-------------分割线-------------')
@@ -1232,10 +1234,10 @@ class XSZ_GJT_Strategy(Strategy):
 
         # 空仓期控制和止损期都不在选择股票
         if self.use_empty_month and context.current_dt.month in (self.empty_month):
-            log.info('Select选股函数不再执行，因为当前月份是空仓期，空仓期月份为：',self.empty_month)
+            log.info('Select选股函数不再执行，因为当前月份是空仓期，空仓期月份为：', self.empty_month)
             return
         if self.stoplost_date is not None:
-            log.info('Select选股函数不再执行，因为当前时刻还处于止损期，止损期从:',self.stoplost_date,'开始')
+            log.info('Select选股函数不再执行，因为当前时刻还处于止损期，止损期从:', self.stoplost_date, '开始')
             return
 
         self.select_list = self.__get_rank(context)[:self.max_select_count]
@@ -1326,6 +1328,7 @@ class XSZ_GJT_Strategy(Strategy):
         )).set_index('code').index.tolist()
         return final_list
 
+
 def pretty_table_to_kv_string(table):
     headers = table.field_names
     result = ""
@@ -1336,8 +1339,10 @@ def pretty_table_to_kv_string(table):
         result += "\n<br>"
     return result.rstrip()
 
-def send_wx_message(item, message):
 
+def send_wx_message(context, item, message):
+    if context.is_send_wx_message != 1:
+        return
     url = "https://wxpusher.zjiecode.com/api/send/message"
 
     data = {
