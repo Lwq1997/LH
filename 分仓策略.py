@@ -218,8 +218,8 @@ def xszgjt_sell_when_highlimit_open(context):
     g.strategys['国九条小市值策略'].sell_when_highlimit_open(context)
 
 
-def xszgjt_print_position_info(context):
-    g.strategys['国九条小市值策略'].print_position_info(context)
+# def xszgjt_print_position_info(context):
+#     g.strategys['国九条小市值策略'].print_position_info(context)
 
 
 def xszgjt_after_market_close(context):
@@ -275,6 +275,7 @@ class Strategy:
         self.no_trading_today_signal = self.params[
             'no_trading_today_signal'] if 'no_trading_today_signal' in self.params else False
 
+    # 每天准备工作（小市值专属）
     def day_prepare(self, context):
         log.info(self.name, '--day_prepare选股前的准备工作函数--',
                  str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
@@ -326,7 +327,7 @@ class Strategy:
 
         return lists
 
-    # 小市值专用（白马股+小市值专用）
+    # 股票池（白马股+小市值专用）
     def stockpool_index(self, context, index, pool_id=1):
         log.info(self.name, '--stockpool_index获取指数成分股函数--',
                  str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
@@ -430,7 +431,7 @@ class Strategy:
 
     ##################################  风控函数群 ##################################
 
-    ## 风险管理
+    ## 风险管理（暂无使用）
     def risk_management(self, context):
         ### _风控函数筛选-开始 ###
         # security_stopprofit(context,g.max_fit,g.open_sell_securities)
@@ -500,7 +501,7 @@ class Strategy:
         if self.use_stoplost and self.stoplost_date is not None and len(subportfolio.long_positions) > 0:
             self.sell(context, list(subportfolio.long_positions))
 
-    # 3-8 判断今天是否为账户资金再平衡的日期
+    # 3-8 判断今天是否为账户资金再平衡的日期(暂无使用)
     # date_flag,1-单个月，2-两个月1和4，3-三个月1和4和6
     def today_is_between(self, context, date_flag, start_date, end_date):
         today = context.current_dt.strftime('%m-%d')
@@ -529,7 +530,7 @@ class Strategy:
 
     ##################################  交易函数群 ##################################
 
-    # 调仓，小市值专用调仓函数
+    # 调仓，小市值专用调仓函数（暂无使用）
     def adjust(self, context):
         log.info(self.name, '--adjust小市值调仓函数--',
                  str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
@@ -687,7 +688,7 @@ class Strategy:
 
     ##################################  选股函数群 ##################################
 
-    # 获取股票股票池
+    # 获取股票股票池（暂无使用）
     def get_security_universe(self, context, security_universe_index, security_universe_user_securities):
         log.info(self.name, '--get_security_universe函数--',
                  str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
@@ -982,6 +983,39 @@ class Strategy:
             log.info('———————————————————————————————————')
         log.info('———————————————————————————————————————分割线————————————————————————————————————————')
 
+    # 把prettytable对象转换成键值对字符串
+    def pretty_table_to_kv_string(table):
+        headers = table.field_names
+        result = ""
+        data_rows = table._rows  # 直接获取表格内部存储的数据行列表，避免格式干扰
+        for row in data_rows:
+            for header, cell in zip(headers, row):
+                result += f"{header}: {cell}\n<br>"
+            result += "\n<br>"
+        return result.rstrip()
+
+    # 发送微信消息
+    def send_wx_message(context, item, message):
+        if context.is_send_wx_message != 1:
+            return
+        url = "https://wxpusher.zjiecode.com/api/send/message"
+
+        data = {
+            "appToken": "AT_B7CVGazuAWXoqBoIlGAzlIwkunQuXIQM",
+            "content": f"<h1>{item}</h1><br/><p style=\"color:red;\">{message}</p>",
+            "summary": item,
+            "contentType": 2,
+            "topicIds": [
+                36105
+            ],
+            "url": "https://wxpusher.zjiecode.com",
+            "verifyPay": False,
+            "verifyPayType": 0
+        }
+        response = requests.post(url, json=data)
+        # 可以根据需要查看响应的状态码、内容等信息
+        print(response.status_code)
+        print(response.text)
 
 # 白马股攻防转换策略（BMZH策略）
 class BMZH_Strategy(Strategy):
@@ -1327,37 +1361,3 @@ class XSZ_GJT_Strategy(Strategy):
             valuation.market_cap.asc()
         )).set_index('code').index.tolist()
         return final_list
-
-
-def pretty_table_to_kv_string(table):
-    headers = table.field_names
-    result = ""
-    data_rows = table._rows  # 直接获取表格内部存储的数据行列表，避免格式干扰
-    for row in data_rows:
-        for header, cell in zip(headers, row):
-            result += f"{header}: {cell}\n<br>"
-        result += "\n<br>"
-    return result.rstrip()
-
-
-def send_wx_message(context, item, message):
-    if context.is_send_wx_message != 1:
-        return
-    url = "https://wxpusher.zjiecode.com/api/send/message"
-
-    data = {
-        "appToken": "AT_B7CVGazuAWXoqBoIlGAzlIwkunQuXIQM",
-        "content": f"<h1>{item}</h1><br/><p style=\"color:red;\">{message}</p>",
-        "summary": item,
-        "contentType": 2,
-        "topicIds": [
-            36105
-        ],
-        "url": "https://wxpusher.zjiecode.com",
-        "verifyPay": False,
-        "verifyPayType": 0
-    }
-    response = requests.post(url, json=data)
-    # 可以根据需要查看响应的状态码、内容等信息
-    print(response.status_code)
-    print(response.text)
