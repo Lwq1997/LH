@@ -426,7 +426,7 @@ class Strategy:
             send_message(content)
             method_name = inspect.getframeinfo(inspect.currentframe()).function
             item = f"分仓策略:{self.name}<br>-函数名称:{method_name}<br>-时间:{now}"
-            send_wx_message(context, item, content)
+            self.send_wx_message(context, item, content)
             log.info(content)
 
     ##################################  风控函数群 ##################################
@@ -642,7 +642,7 @@ class Strategy:
                        f"--交易佣金: {order_info.commission:.2f}\n<br>")
             log.info(content)
             send_message(content)
-            send_wx_message(context, item, content)
+            self.send_wx_message(context, item, content)
             return True
         content = (f"策略: {self.name} "
                    f"--操作时间: {now} "
@@ -650,7 +650,7 @@ class Strategy:
                    f"--计划买入金额: {value}\n<br>")
         log.error(content)
         send_message(content)
-        send_wx_message(context, item, content)
+        self.send_wx_message(context, item, content)
         return False
 
     # 清仓单只
@@ -676,14 +676,14 @@ class Strategy:
                        f"--交易佣金: {order_info.commission:.2f} 收益率: {ret:.2f}% 收益金额: {ret_money:.2f} \n<br>")
             log.info(content)
             send_message(content)
-            send_wx_message(context, item, content)
+            self.send_wx_message(context, item, content)
             return True
         content = (f"策略: {self.name} "
                    f"--操作时间: {now} "
                    f"--卖出股票，交易失败！！！股票: {security} \n<br>")
         log.error(content)
         send_message(content)
-        send_wx_message(context, item, content)
+        self.send_wx_message(context, item, content)
         return False
 
     ##################################  选股函数群 ##################################
@@ -863,15 +863,15 @@ class Strategy:
         item = f"分仓策略:{self.name}<br>-函数名称:{method_name}<br>-时间:{now}"
 
         if transaction > 0:
-            content = f"{self.name} 策略当日交易信息: \n{pretty_table_to_kv_string(trade_table)}"
+            content = f"{self.name} 策略当日交易信息: \n{pretty_table_to_kv_string(self, trade_table)}"
             log.info(content)
-            send_wx_message(context, item, content)
+            self.send_wx_message(context, item, content)
             # write_file(g.logfile,f'\n{trade_table}', append=True)
             # pass
         else:
             content = '----------' + self.name + '当天没有任何交易----------'
             log.info(content)
-            send_wx_message(context, item, content)
+            self.send_wx_message(context, item, content)
 
             # write_file(g.logfile,'-'*20+self.name+'当天没有任何交易'+'-'*20+'\n', append=True)
             # pass
@@ -897,16 +897,16 @@ class Strategy:
                                    f"{profit_percent_hold:.3f}%", amount, f"{value:.3f}万"])
             # print(f'\n{pos_table}')
 
-            content = f"{self.name} 策略当日持仓信息: \n{pretty_table_to_kv_string(pos_table)}"
+            content = f"{self.name} 策略当日持仓信息: \n{pretty_table_to_kv_string(self, pos_table)}"
             log.info(content)
-            send_wx_message(context, item, content)
+            self.send_wx_message(context, item, content)
 
             # write_file(g.logfile,f'\n{pos_table}', append=True)
         else:
 
             content = '----------' + self.name + '当天没有持仓----------'
             log.info(content)
-            send_wx_message(context, item, content)
+            self.send_wx_message(context, item, content)
 
             # write_file(g.logfile,'-'*20+self.name+'当天没有任何交易'+'-'*20+'\n', append=True)
             # pass
@@ -948,9 +948,9 @@ class Strategy:
                                f"{max_draw_down:.3f}%", f"{start_date}到{end_date}"])
         self.previous_portfolio_value = subportfolio.total_value
 
-        content = f"{self.name} 策略当日账户信息: \n{pretty_table_to_kv_string(account_table)}"
+        content = f"{self.name} 策略当日账户信息: \n{pretty_table_to_kv_string(self, account_table)}"
         log.info(content)
-        send_wx_message(context, item, content)
+        self.send_wx_message(context, item, content)
 
         # write_file(g.logfile,f'\n{account_table}', append=True)
         log.info('-------------分割线-------------')
@@ -984,7 +984,7 @@ class Strategy:
         log.info('———————————————————————————————————————分割线————————————————————————————————————————')
 
     # 把prettytable对象转换成键值对字符串
-    def pretty_table_to_kv_string(table):
+    def pretty_table_to_kv_string(self, table):
         headers = table.field_names
         result = ""
         data_rows = table._rows  # 直接获取表格内部存储的数据行列表，避免格式干扰
@@ -995,7 +995,7 @@ class Strategy:
         return result.rstrip()
 
     # 发送微信消息
-    def send_wx_message(context, item, message):
+    def send_wx_message(self, context, item, message):
         if context.is_send_wx_message != 1:
             return
         url = "https://wxpusher.zjiecode.com/api/send/message"
@@ -1016,6 +1016,7 @@ class Strategy:
         # 可以根据需要查看响应的状态码、内容等信息
         print(response.status_code)
         print(response.text)
+
 
 # 白马股攻防转换策略（BMZH策略）
 class BMZH_Strategy(Strategy):
