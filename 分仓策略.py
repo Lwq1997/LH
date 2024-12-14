@@ -136,7 +136,7 @@ def initialize(context):
         run_weekly(xszgjt_select, 1, time='7:43')
         run_daily(xszgjt_open_market, time='9:30')
         run_weekly(xszgjt_adjust, 1, time='9:35')
-        run_daily(xszgjt_sell_when_highlimit_open, time='11:27')
+        # run_daily(xszgjt_sell_when_highlimit_open, time='11:27')
         run_daily(xszgjt_sell_when_highlimit_open, time='14:00')
         run_daily(xszgjt_sell_when_highlimit_open, time='14:50')
         run_daily(xszgjt_after_market_close, 'after_close')
