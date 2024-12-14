@@ -24,6 +24,10 @@ import inspect
 
 # DSZMX策略
 class DSZ_MX_Strategy(Strategy):
+    def __init__(self, context, subportfolio_index, name, params):
+        super().__init__(context, subportfolio_index, name, params)
+
+
     def select(self, context):
         self.select_list = self.__get_rank(context)[:self.max_select_count]
         self.print_trade_plan(context, self.select_list)
