@@ -86,7 +86,7 @@ def initialize(context):
         2: '小市值策略'
     }
     # 是否发送微信消息，回测环境不发送，模拟环境发送
-    context.is_send_wx_message = 0
+    context.is_send_wx_message = 1
     params = {
         'max_hold_count': 1,  # 最大持股数
         'max_select_count': 3,  # 最大输出选股数
@@ -861,17 +861,17 @@ class Strategy:
 
         method_name = inspect.getframeinfo(inspect.currentframe()).function
         item = f"分仓策略:{self.name}<br>-函数名称:{method_name}<br>-时间:{now}"
-
+        content_log = ''
+        content_wx = ''
         if transaction > 0:
-            content = f"{self.name} 策略当日交易信息: \n{pretty_table_to_kv_string(self, trade_table)}"
-            log.info(content)
-            self.send_wx_message(context, item, content)
+            content_wx = content_wx + '#############<br><br><br>' + f"{self.name} 策略当日交易信息: <br>{self.pretty_table_to_kv_string(trade_table)}<br>"
+            content_log = content_log + '#############\n\n\n' + f"{self.name} 策略当日交易信息: \n{trade_table}\n"
+
             # write_file(g.logfile,f'\n{trade_table}', append=True)
             # pass
         else:
-            content = '----------' + self.name + '当天没有任何交易----------'
-            log.info(content)
-            self.send_wx_message(context, item, content)
+            content_log = content_log + '#############' + self.name + '当天没有任何交易#############\n'
+            content_wx = content_wx + '#############' + self.name + '当天没有任何交易#############<br>'
 
             # write_file(g.logfile,'-'*20+self.name+'当天没有任何交易'+'-'*20+'\n', append=True)
             # pass
@@ -897,16 +897,13 @@ class Strategy:
                                    f"{profit_percent_hold:.3f}%", amount, f"{value:.3f}万"])
             # print(f'\n{pos_table}')
 
-            content = f"{self.name} 策略当日持仓信息: \n{pretty_table_to_kv_string(self, pos_table)}"
-            log.info(content)
-            self.send_wx_message(context, item, content)
+            content_wx = content_wx + "#############<br><br><br>" + f"{self.name} 策略当日持仓信息: <br>{self.pretty_table_to_kv_string(pos_table)}<br>"
+            content_log = content_log + "#############\n\n\n" + f"{self.name} 策略当日持仓信息: \n{pos_table}\n"
 
             # write_file(g.logfile,f'\n{pos_table}', append=True)
         else:
-
-            content = '----------' + self.name + '当天没有持仓----------'
-            log.info(content)
-            self.send_wx_message(context, item, content)
+            content_wx = content_log + '#############' + self.name + '当天没有持仓#############<br>'
+            content_log = content_log + '#############' + self.name + '当天没有持仓#############\n'
 
             # write_file(g.logfile,'-'*20+self.name+'当天没有任何交易'+'-'*20+'\n', append=True)
             # pass
@@ -948,11 +945,13 @@ class Strategy:
                                f"{max_draw_down:.3f}%", f"{start_date}到{end_date}"])
         self.previous_portfolio_value = subportfolio.total_value
 
-        content = f"{self.name} 策略当日账户信息: \n{pretty_table_to_kv_string(self, account_table)}"
-        log.info(content)
-        self.send_wx_message(context, item, content)
+        content_wx = content_wx + "#############<br><br><br>" + f"{self.name} 策略当日账户信息: <br>{self.pretty_table_to_kv_string(account_table)}<br>"
+        content_log = content_log + "#############\n\n\n" + f"{self.name} 策略当日账户信息: \n{account_table}\n"
 
         # write_file(g.logfile,f'\n{account_table}', append=True)
+
+        log.info(content_log)
+        self.send_wx_message(context, item, content_wx)
         log.info('-------------分割线-------------')
         # write_file(g.logfile,'-'*20+date+'日志终结'+'-'*20+'\n'+'\n', append=True)
         self.inout_cash = 0
@@ -1014,8 +1013,8 @@ class Strategy:
         }
         response = requests.post(url, json=data)
         # 可以根据需要查看响应的状态码、内容等信息
-        print(response.status_code)
-        print(response.text)
+        # print(response.status_code)
+        # print(response.text)
 
 
 # 白马股攻防转换策略（BMZH策略）
