@@ -492,7 +492,7 @@ class Strategy:
 
     # 过滤科创北交
     def filter_kcbj_stock(self, context, stock_list):
-        log.info(self.name, '--filter_kcbj_stock函数--',
+        log.info(self.name, '--filter_kcbj_stock过滤科创北交函数--',
                  str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
 
         for stock in stock_list[:]:
@@ -502,7 +502,7 @@ class Strategy:
 
     # 过滤停牌股票
     def filter_paused_stock(self, context, stock_list):
-        log.info(self.name, '--filter_paused_stock函数--',
+        log.info(self.name, '--filter_paused_stock过滤停牌股票函数--',
                  str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
 
         current_data = get_current_data()
@@ -510,7 +510,7 @@ class Strategy:
 
     # 过滤ST及其他具有退市标签的股票
     def filter_st_stock(self, context, stock_list):
-        log.info(self.name, '--filter_st_stock函数--',
+        log.info(self.name, '--filter_st_stock过滤ST及其他具有退市标签的股票函数--',
                  str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
 
         current_data = get_current_data()
@@ -522,7 +522,7 @@ class Strategy:
 
     # 过滤涨停的股票
     def filter_highlimit_stock(self, context, stock_list):
-        log.info(self.name, '--filter_highlimit_stock函数--',
+        log.info(self.name, '--filter_highlimit_stock过滤涨停的股票函数--',
                  str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
 
         subportfolio = context.subportfolios[self.subportfolio_index]
@@ -534,7 +534,7 @@ class Strategy:
 
     # 过滤跌停的股票
     def filter_lowlimit_stock(self, context, stock_list):
-        log.info(self.name, '--filter_lowlimit_stock函数--',
+        log.info(self.name, '--filter_lowlimit_stock过滤跌停的股票函数--',
                  str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
 
         subportfolio = context.subportfolios[self.subportfolio_index]
