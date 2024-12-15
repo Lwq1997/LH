@@ -580,10 +580,10 @@ class Strategy:
 
     # 涨停打开卖出
     def sell_when_highlimit_open(self, context):
-        log.info(self.name, '--sell_when_highlimit_open涨停打开卖出股票函数--',
-                 str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+        now = str(context.current_dt.date()) + ' ' + str(context.current_dt.time())
+        log.info(self.name, '--sell_when_highlimit_open涨停打开卖出股票函数--',now)
 
-        if self.yestoday_high_limit_list != []:
+        if self.yestoday_high_limit_list:
             for stock in self.yestoday_high_limit_list:
                 if stock in context.subportfolios[self.subportfolio_index].long_positions:
                     current_data = get_price(stock, end_date=context.current_dt, frequency='1m',
@@ -591,8 +591,10 @@ class Strategy:
                                              skip_paused=False, fq='pre', count=1, panel=False, fill_paused=True)
                     if current_data.iloc[0, 0] < current_data.iloc[0, 1]:
                         self.sell(context, [stock])
-                        content = context.current_dt.date().strftime(
-                            "%Y-%m-%d") + ' ' + self.name + ': {}涨停打开，卖出'.format(stock) + "\n"
+                        content = now + ' ' + self.name + ': {}涨停打开，卖出'.format(stock) + "\n"
+                        log.info(content)
+                    else:
+                        content = now + ' ' + self.name + ': {}涨停，继续持有'.format(stock) + "\n"
                         log.info(content)
 
     # 买入多只股票
