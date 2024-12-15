@@ -1,4 +1,4 @@
-#-*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 # 如果你的文件包含中文, 请在文件的第一行使用上面的语句指定你的文件编码
 
 # 用到策略及数据相关API请加入下面的语句(如果要兼容研究使用可以使用 try except导入
@@ -21,6 +21,7 @@ import datetime as datet
 from prettytable import PrettyTable
 import inspect
 from UtilsToolClass import UtilsToolClass
+
 
 # 策略基类
 class Strategy:
@@ -56,6 +57,9 @@ class Strategy:
 
         self.utilstool = UtilsToolClass()
         self.utilstool.set_params(name, subportfolio_index)
+
+        self.bought_stocks = {}  # 记录补跌的股票和金额
+        self.is_stoplost_or_highlimit = False  # 记录是否卖出过止损的股票
 
         # 行业列表
         # self.industry_list = []
@@ -350,6 +354,7 @@ class Strategy:
                                              skip_paused=False, fq='pre', count=1, panel=False, fill_paused=True)
                     if current_data.iloc[0, 0] < current_data.iloc[0, 1]:
                         self.sell(context, [stock])
+                        self.is_stoplost_or_highlimit = True
                         content = context.current_dt.date().strftime(
                             "%Y-%m-%d") + ' ' + self.name + ': {}涨停打开，卖出'.format(stock) + "\n"
                         log.info(content)
@@ -380,7 +385,7 @@ class Strategy:
         subportfolio = context.subportfolios[self.subportfolio_index]
         for stock in sell_stocks:
             if stock in subportfolio.long_positions:
-                self.utilstool.close_position(context, stock)
+                self.utilstool.close_position(context, stock, 0)
 
     # 计算夏普系数的函数
     def cal_sharpe_ratio(self, returns, rf, type):  # portfolio_daily_returns 是一个包含每日收益的列表
@@ -553,3 +558,47 @@ class Strategy:
         log.info('-------------分割线-------------')
         # write_file(g.logfile,'-'*20+date+'日志终结'+'-'*20+'\n'+'\n', append=True)
         self.inout_cash = 0
+
+    def clear_append_buy_dict(self, context):  # 卖出补跌的仓位
+        print(self.bought_stocks)
+        if self.bought_stocks != {}:
+            for stock, amount in self.bought_stocks.items():
+                positions = context.subportfolios[self.subportfolio_index].long_positions
+                if stock in positions:
+                    self.utilstool.close_position(context, stock, -amount, False)
+                # 清空记录
+            self.bought_stocks.clear()
+
+    def append_buy_dict(self, context):
+        now = str(context.current_dt.date()) + ' ' + str(context.current_dt.time())
+        log.info(self.name, '--append_buy_dict 补买函数--', now)
+        subportfolios = context.subportfolios[self.subportfolio_index]
+        positions = subportfolios.long_positions
+
+        append_buy_dict = {}
+        for stock in self.hold_list:
+            if stock in positions:
+                position = positions[stock]
+                current_price = position.price
+                avg_cost = position.avg_cost
+
+                if current_price < avg_cost * 0.92:
+                    log.info("止损 Selling out %s" % (stock))
+                    self.sell(context, [stock])
+                    self.is_stoplost_or_highlimit = True
+                else:
+                    rate = (current_price - avg_cost) / avg_cost
+                    append_buy_dict[stock] = rate
+        if self.is_stoplost_or_highlimit and append_buy_dict:
+            self.is_stoplost_or_highlimit = False
+            # 清空记录
+            num = 2
+            sorted_items = sorted(append_buy_dict.items(), key=lambda x: x[1])  # 按照值进行排序，返回包含(key, value)元组的列表
+            result_stock = [item[0] for item in sorted_items[:num]]  # 取前N个元组中的key
+
+            cash = subportfolios.available_cash / len(result_stock)
+            for stock in result_stock:
+                self.utilstool.open_position(context, stock, cash, False)
+                log.info("补跌最多的N支 Order %s" % (stock))
+                if stock not in self.bought_stocks:
+                    self.bought_stocks[stock] = cash

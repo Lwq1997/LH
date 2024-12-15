@@ -97,8 +97,8 @@ def initialize(context):
         'max_hold_count': 5,  # 最大持股数
         'max_select_count': 10,  # 最大输出选股数
         'use_empty_month': True,  # 是否在指定月份空仓
-        'empty_month': [1, 4],  # 指定空仓的月份列表
-        'use_stoplost': True,  # 是否使用止损
+        'empty_month': [1, 4]  # 指定空仓的月份列表
+        # 'use_stoplost': True,  # 是否使用止损
     }
     # 小世值，第三个仓
     xszgjt_strategy = XSZ_GJT_Strategy(context, subportfolio_index=2, name='国九条小市值策略', params=params)
@@ -129,6 +129,7 @@ def initialize(context):
         # run_daily(xszgjt_sell_when_highlimit_open, time='11:27')
         run_daily(xszgjt_sell_when_highlimit_open, time='14:00')
         run_daily(xszgjt_sell_when_highlimit_open, time='14:50')
+        run_daily(xszgjt_append_buy_stock, time='14:51')
         run_daily(xszgjt_after_market_close, 'after_close')
         # run_daily(xszgjt_print_position_info, time='15:10')
 
@@ -196,6 +197,7 @@ def xszgjt_select(context):
 
 
 def xszgjt_adjust(context):
+    g.strategys['国九条小市值策略'].clear_append_buy_dict(context)
     g.strategys['国九条小市值策略'].adjustwithnoRM(context)
 
 
@@ -207,6 +209,8 @@ def xszgjt_open_market(context):
 def xszgjt_sell_when_highlimit_open(context):
     g.strategys['国九条小市值策略'].sell_when_highlimit_open(context)
 
+def xszgjt_append_buy_stock(context):
+    g.strategys['国九条小市值策略'].append_buy_dict(context)
 
 def xszgjt_after_market_close(context):
     g.strategys['国九条小市值策略'].after_market_close(context)

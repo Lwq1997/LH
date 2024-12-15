@@ -30,9 +30,12 @@ class UtilsToolClass:
     ##################################  交易函数群 ##################################
 
     # 开仓单只
-    def open_position(self, context, security, value):
+    def open_position(self, context, security, value, target=True):
         now = str(context.current_dt.date()) + ' ' + str(context.current_dt.time())
-        order_info = order_target_value(security, value, pindex=self.subportfolio_index)
+        if target:
+            order_info = order_target_value(security, value, pindex=self.subportfolio_index)
+        else:
+            order_info = order_value(security, value, pindex=self.subportfolio_index)
 
         method_name = inspect.getframeinfo(inspect.currentframe()).function
         item = f"分仓策略:{self.name}<br>-函数名称:{method_name}<br>-时间:{now}"
@@ -60,9 +63,9 @@ class UtilsToolClass:
         return False
 
     # 清仓单只
-    def close_position(self, context, security, value=0):
+    def close_position(self, context, security, value, target=True):
         now = str(context.current_dt.date()) + ' ' + str(context.current_dt.time())
-        if value == 0:
+        if target:
             order_info = order_target_value(security, value, pindex=self.subportfolio_index)
         else:
             order_info = order_value(security, value, pindex=self.subportfolio_index)
