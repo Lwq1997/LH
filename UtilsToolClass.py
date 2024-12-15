@@ -17,6 +17,7 @@ import datetime as datet
 from prettytable import PrettyTable
 import inspect
 
+
 class UtilsToolClass:
     def __init__(self):
         self.name = None
@@ -25,6 +26,7 @@ class UtilsToolClass:
     def set_params(self, name, subportfolio_index):
         self.name = name
         self.subportfolio_index = subportfolio_index
+
     ##################################  交易函数群 ##################################
 
     # 开仓单只
@@ -57,11 +59,13 @@ class UtilsToolClass:
         self.send_wx_message(context, item, content)
         return False
 
-
     # 清仓单只
-    def close_position(self, context, security):
+    def close_position(self, context, security, value=0):
         now = str(context.current_dt.date()) + ' ' + str(context.current_dt.time())
-        order_info = order_target_value(security, 0, pindex=self.subportfolio_index)
+        if value == 0:
+            order_info = order_target_value(security, value, pindex=self.subportfolio_index)
+        else
+            order_info = order_value(security, value, pindex=self.subportfolio_index)
         method_name = inspect.getframeinfo(inspect.currentframe()).function
         item = f"分仓策略:{self.name}<br>-函数名称:{method_name}<br>-时间:{now}"
 
@@ -91,7 +95,6 @@ class UtilsToolClass:
         self.send_wx_message(context, item, content)
         return False
 
-
     ##################################  选股函数群 ##################################
 
     # 获取股票股票池（暂无使用）
@@ -109,7 +112,6 @@ class UtilsToolClass:
             temp_index += x
         return sorted(list(set(temp_index)))
 
-
     # 过滤科创北交
     def filter_kcbj_stock(self, context, stock_list):
         log.info(self.name, '--filter_kcbj_stock过滤科创北交函数--',
@@ -120,7 +122,6 @@ class UtilsToolClass:
                 stock_list.remove(stock)
         return stock_list
 
-
     # 过滤停牌股票
     def filter_paused_stock(self, context, stock_list):
         log.info(self.name, '--filter_paused_stock过滤停牌股票函数--',
@@ -128,7 +129,6 @@ class UtilsToolClass:
 
         current_data = get_current_data()
         return [stock for stock in stock_list if not current_data[stock].paused]
-
 
     # 过滤ST及其他具有退市标签的股票
     def filter_st_stock(self, context, stock_list):
@@ -142,7 +142,6 @@ class UtilsToolClass:
                 and '*' not in current_data[stock].name
                 and '退' not in current_data[stock].name]
 
-
     # 过滤涨停的股票
     def filter_highlimit_stock(self, context, stock_list):
         log.info(self.name, '--filter_highlimit_stock过滤涨停的股票函数--',
@@ -154,7 +153,6 @@ class UtilsToolClass:
 
         return [stock for stock in stock_list if stock in subportfolio.long_positions
                 or last_prices[stock][-1] < current_data[stock].high_limit]
-
 
     # 过滤跌停的股票
     def filter_lowlimit_stock(self, context, stock_list):
@@ -168,7 +166,6 @@ class UtilsToolClass:
         return [stock for stock in stock_list if stock in subportfolio.long_positions
                 or last_prices[stock][-1] > current_data[stock].low_limit]
 
-
     # 过滤次新股（小市值专用）
     def filter_new_stock(self, context, stock_list, days):
         log.info(self.name, '--filter_new_stock过滤次新股函数--',
@@ -176,7 +173,6 @@ class UtilsToolClass:
 
         return [stock for stock in stock_list if
                 not context.previous_date - get_security_info(stock).start_date < datetime.timedelta(days=days)]
-
 
     # 过滤大幅解禁（小市值专用）
     def filter_locked_shares(self, context, stock_list, days):
@@ -192,16 +188,10 @@ class UtilsToolClass:
         # 从股票池中排除这些股票
         return [stock for stock in stock_list if stock not in filterlist]
 
-
-
-
-
-
     ###################################  公用函数群 ##################################
     # 获取个股行业,暂无使用
     def get_industry_name(self, i_Constituent_Stocks, value):
         return [k for k, v in i_Constituent_Stocks.items() if value in v]
-
 
     # 把prettytable对象转换成键值对字符串
     def pretty_table_to_kv_string(self, table):
@@ -213,7 +203,6 @@ class UtilsToolClass:
                 result += f"{header}: {cell}\n<br>"
             result += "\n<br>"
         return result.rstrip()
-
 
     # 发送微信消息
     def send_wx_message(self, context, item, message):
@@ -237,7 +226,6 @@ class UtilsToolClass:
         # 可以根据需要查看响应的状态码、内容等信息
         # print(response.status_code)
         # print(response.text)
-
 
     # 4-1 打印每日持仓信息,暂无使用
     def print_position_info(self, context):
