@@ -20,6 +20,7 @@ import requests
 import datetime as datet
 from prettytable import PrettyTable
 import inspect
+from UtilsToolClass import UtilsToolClass
 
 # 策略基类
 class Strategy:
@@ -52,6 +53,9 @@ class Strategy:
         self.not_buy_again_list = []  # 最近持有不再购买列表
         self.yestoday_high_limit_list = []  # 昨日涨停列表
         self.stoplost_date = None  # 止损日期，为None是表示未进入止损
+
+        self.utilstool = UtilsToolClass()
+        self.utilstool.set_params(name, subportfolio_index)
 
         # 行业列表
         # self.industry_list = []
@@ -98,7 +102,7 @@ class Strategy:
         # 检查止损
         self.check_stoplost(context)
 
-    # 基础股票池（暂无使用）
+    # 基础股票池-全市场选股
     def stockpool(self, context, pool_id=1):
         log.info(self.name, '--stockpool函数--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
 
@@ -106,15 +110,15 @@ class Strategy:
         if pool_id == 0:
             pass
         elif pool_id == 1:
-            lists = self.filter_kcbj_stock(context, lists)
-            lists = self.filter_st_stock(context, lists)
-            lists = self.filter_paused_stock(context, lists)
-            lists = self.filter_highlimit_stock(context, lists)
-            lists = self.filter_lowlimit_stock(context, lists)
+            lists = self.utilstool.filter_kcbj_stock(context, lists)
+            lists = self.utilstool.filter_st_stock(context, lists)
+            lists = self.utilstool.filter_paused_stock(context, lists)
+            lists = self.utilstool.filter_highlimit_stock(context, lists)
+            lists = self.utilstool.filter_lowlimit_stock(context, lists)
 
         return lists
 
-    # 股票池（白马股+小市值专用）
+    # 按指数选股票（白马股+小市值专用）
     def stockpool_index(self, context, index, pool_id=1):
         log.info(self.name, '--stockpool_index获取指数成分股函数--',
                  str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
@@ -213,17 +217,10 @@ class Strategy:
             send_message(content)
             method_name = inspect.getframeinfo(inspect.currentframe()).function
             item = f"分仓策略:{self.name}<br>-函数名称:{method_name}<br>-时间:{now}"
-            self.send_wx_message(context, item, content)
+            self.utilstool.send_wx_message(context, item, content)
             log.info(content)
 
     ##################################  风控函数群 ##################################
-
-    ## 风险管理（暂无使用）
-    def risk_management(self, context):
-        ### _风控函数筛选-开始 ###
-        # security_stopprofit(context,g.max_fit,g.open_sell_securities)
-        ### _风控函数筛选-结束 ###
-        return
 
     # 空仓期检查
     def check_empty_month(self, context):
@@ -316,31 +313,6 @@ class Strategy:
                 return False
 
     ##################################  交易函数群 ##################################
-
-    # 调仓，小市值专用调仓函数（暂无使用）
-    def adjust(self, context):
-        log.info(self.name, '--adjust小市值调仓函数--',
-                 str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
-
-        # 空仓期或者止损期不再进行调仓
-        if self.use_empty_month and context.current_dt.month in (self.empty_month):
-            log.info('adjust小市值调仓函数不再执行，因为当前月份是空仓期，空仓期月份为：', self.empty_month)
-            return
-        # 止损期控制
-        if self.stoplost_date is not None:
-            log.info('adjust小市值调仓函数不再执行，因为当前时刻还处于止损期，止损期从:', self.stoplost_date, '开始')
-            return
-
-        # 先卖后买
-        hold_list = list(context.subportfolios[self.subportfolio_index].long_positions)
-        # 售卖列表：不在select_list前max_hold_count中的股票都要被卖掉
-        sell_stocks = []
-        for stock in hold_list:
-            if stock not in self.select_list[:self.max_hold_count]:
-                sell_stocks.append(stock)
-        self.sell(context, sell_stocks)
-        self.buy(context, self.select_list)
-
     # 调仓
     def adjustwithnoRM(self, context):
         log.info(self.name, '--adjustwithnoRM调仓函数--',
@@ -395,7 +367,7 @@ class Strategy:
             for stock in buy_stocks:
                 if stock in subportfolio.long_positions:
                     continue
-                self.__open_position(context, stock, value)
+                self.utilstool.open_position(context, stock, value)
                 index = index + 1
                 if index >= buy_count:
                     break
@@ -408,168 +380,7 @@ class Strategy:
         subportfolio = context.subportfolios[self.subportfolio_index]
         for stock in sell_stocks:
             if stock in subportfolio.long_positions:
-                self.__close_position(context, stock)
-
-    # 开仓单只
-    def __open_position(self, context, security, value):
-        now = str(context.current_dt.date()) + ' ' + str(context.current_dt.time())
-        order_info = order_target_value(security, value, pindex=self.subportfolio_index)
-
-        method_name = inspect.getframeinfo(inspect.currentframe()).function
-        item = f"分仓策略:{self.name}<br>-函数名称:{method_name}<br>-时间:{now}"
-        if order_info != None and order_info.filled > 0:
-            content = (f"策略: {self.name} "
-                       f"--操作时间: {now} "
-                       f"--买入股票: {security} "
-                       f"--计划买入金额: {value} "
-                       f"--买入数量: {order_info.amount} "
-                       f"--成交数量: {order_info.filled} "
-                       f"--买入均价: {order_info.price} "
-                       f"--实际买入金额: {order_info.price * order_info.filled} "
-                       f"--交易佣金: {order_info.commission:.2f}\n<br>")
-            log.info(content)
-            send_message(content)
-            self.send_wx_message(context, item, content)
-            return True
-        content = (f"策略: {self.name} "
-                   f"--操作时间: {now} "
-                   f"--买入股票，交易失败！！股票: {security} "
-                   f"--计划买入金额: {value}\n<br>")
-        log.error(content)
-        send_message(content)
-        self.send_wx_message(context, item, content)
-        return False
-
-    # 清仓单只
-    def __close_position(self, context, security):
-        now = str(context.current_dt.date()) + ' ' + str(context.current_dt.time())
-        order_info = order_target_value(security, 0, pindex=self.subportfolio_index)
-        method_name = inspect.getframeinfo(inspect.currentframe()).function
-        item = f"分仓策略:{self.name}<br>-函数名称:{method_name}<br>-时间:{now}"
-
-        if order_info != None and order_info.status == OrderStatus.held and order_info.filled == order_info.amount:
-            # 计算收益率:（当前价格/持仓价格）- 1
-            ret = 100 * (order_info.price / order_info.avg_cost - 1)
-            # 计算收益金额: 可卖仓位 *（当前价格/持仓价格)
-            ret_money = order_info.amount * (order_info.price - order_info.avg_cost)
-            content = (f"策略: {self.name} "
-                       f"--操作时间: {now} "
-                       f"--卖出股票: {security} "
-                       f"--卖出数量: {order_info.amount} "
-                       f"--成交数量: {order_info.filled} "
-                       f"--持仓均价: {order_info.avg_cost} "
-                       f"--卖出均价: {order_info.price} "
-                       f"--实际卖出金额: {order_info.price * order_info.filled} "
-                       f"--交易佣金: {order_info.commission:.2f} 收益率: {ret:.2f}% 收益金额: {ret_money:.2f} \n<br>")
-            log.info(content)
-            send_message(content)
-            self.send_wx_message(context, item, content)
-            return True
-        content = (f"策略: {self.name} "
-                   f"--操作时间: {now} "
-                   f"--卖出股票，交易失败！！！股票: {security} \n<br>")
-        log.error(content)
-        send_message(content)
-        self.send_wx_message(context, item, content)
-        return False
-
-    ##################################  选股函数群 ##################################
-
-    # 获取股票股票池（暂无使用）
-    def get_security_universe(self, context, security_universe_index, security_universe_user_securities):
-        log.info(self.name, '--get_security_universe函数--',
-                 str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
-
-        temp_index = []
-        for s in security_universe_index:
-            if s == 'all_a_securities':
-                temp_index += list(get_all_securities(['stock'], context.current_dt.date()).index)
-            else:
-                temp_index += get_index_stocks(s)
-        for x in security_universe_user_securities:
-            temp_index += x
-        return sorted(list(set(temp_index)))
-
-    # 过滤科创北交
-    def filter_kcbj_stock(self, context, stock_list):
-        log.info(self.name, '--filter_kcbj_stock过滤科创北交函数--',
-                 str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
-
-        for stock in stock_list[:]:
-            if stock[0] == '4' or stock[0] == '8' or stock[:2] == '68' or stock[:2] == '30':
-                stock_list.remove(stock)
-        return stock_list
-
-    # 过滤停牌股票
-    def filter_paused_stock(self, context, stock_list):
-        log.info(self.name, '--filter_paused_stock过滤停牌股票函数--',
-                 str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
-
-        current_data = get_current_data()
-        return [stock for stock in stock_list if not current_data[stock].paused]
-
-    # 过滤ST及其他具有退市标签的股票
-    def filter_st_stock(self, context, stock_list):
-        log.info(self.name, '--filter_st_stock过滤ST及其他具有退市标签的股票函数--',
-                 str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
-
-        current_data = get_current_data()
-        return [stock for stock in stock_list
-                if not current_data[stock].is_st
-                and 'ST' not in current_data[stock].name
-                and '*' not in current_data[stock].name
-                and '退' not in current_data[stock].name]
-
-    # 过滤涨停的股票
-    def filter_highlimit_stock(self, context, stock_list):
-        log.info(self.name, '--filter_highlimit_stock过滤涨停的股票函数--',
-                 str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
-
-        subportfolio = context.subportfolios[self.subportfolio_index]
-        last_prices = history(1, unit='1m', field='close', security_list=stock_list)
-        current_data = get_current_data()
-
-        return [stock for stock in stock_list if stock in subportfolio.long_positions
-                or last_prices[stock][-1] < current_data[stock].high_limit]
-
-    # 过滤跌停的股票
-    def filter_lowlimit_stock(self, context, stock_list):
-        log.info(self.name, '--filter_lowlimit_stock过滤跌停的股票函数--',
-                 str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
-
-        subportfolio = context.subportfolios[self.subportfolio_index]
-        last_prices = history(1, unit='1m', field='close', security_list=stock_list)
-        current_data = get_current_data()
-
-        return [stock for stock in stock_list if stock in subportfolio.long_positions
-                or last_prices[stock][-1] > current_data[stock].low_limit]
-
-    # 过滤次新股（小市值专用）
-    def filter_new_stock(self, context, stock_list, days):
-        log.info(self.name, '--filter_new_stock过滤次新股函数--',
-                 str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
-
-        return [stock for stock in stock_list if
-                not context.previous_date - get_security_info(stock).start_date < datetime.timedelta(days=days)]
-
-    # 过滤大幅解禁（小市值专用）
-    def filter_locked_shares(self, context, stock_list, days):
-        log.info(self.name, '--filter_locked_shares过滤解禁股函数--',
-                 str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
-
-        # 获取指定日期区间内的限售解禁数据
-        df = get_locked_shares(stock_list=stock_list, start_date=context.previous_date.strftime('%Y-%m-%d'),
-                               forward_count=days)
-        # 过滤出解禁数量占总股本的百分比超过 20% 的股票
-        df = df[df['rate1'] > 0.2]
-        filterlist = list(df['code'])
-        # 从股票池中排除这些股票
-        return [stock for stock in stock_list if stock not in filterlist]
-
-    ###################################  公用函数群 ##################################
-    # 获取个股行业
-    def get_industry_name(self, i_Constituent_Stocks, value):
-        return [k for k, v in i_Constituent_Stocks.items() if value in v]
+                self.utilstool.close_position(context, stock)
 
     # 计算夏普系数的函数
     def cal_sharpe_ratio(self, returns, rf, type):  # portfolio_daily_returns 是一个包含每日收益的列表
@@ -651,7 +462,7 @@ class Strategy:
         content_log = ''
         content_wx = ''
         if transaction > 0:
-            content_wx = content_wx + '#############<br><br><br>' + f"{self.name} 策略当日交易信息: <br>{self.pretty_table_to_kv_string(trade_table)}<br>"
+            content_wx = content_wx + '#############<br><br><br>' + f"{self.name} 策略当日交易信息: <br>{self.utilstool.pretty_table_to_kv_string(trade_table)}<br>"
             content_log = content_log + '#############\n\n\n' + f"{self.name} 策略当日交易信息: \n{trade_table}\n"
 
             # write_file(g.logfile,f'\n{trade_table}', append=True)
@@ -684,7 +495,7 @@ class Strategy:
                                    f"{profit_percent_hold:.3f}%", amount, f"{value:.3f}万"])
             # print(f'\n{pos_table}')
 
-            content_wx = content_wx + "#############<br><br><br>" + f"{self.name} 策略当日持仓信息: <br>{self.pretty_table_to_kv_string(pos_table)}<br>"
+            content_wx = content_wx + "#############<br><br><br>" + f"{self.name} 策略当日持仓信息: <br>{self.utilstool.pretty_table_to_kv_string(pos_table)}<br>"
             content_log = content_log + "#############\n\n\n" + f"{self.name} 策略当日持仓信息: \n{pos_table}\n"
 
             # write_file(g.logfile,f'\n{pos_table}', append=True)
@@ -732,73 +543,13 @@ class Strategy:
                                f"{max_draw_down:.3f}%", f"{start_date}到{end_date}"])
         self.previous_portfolio_value = subportfolio.total_value
 
-        content_wx = content_wx + "#############<br><br><br>" + f"{self.name} 策略当日账户信息: <br>{self.pretty_table_to_kv_string(account_table)}<br>"
+        content_wx = content_wx + "#############<br><br><br>" + f"{self.name} 策略当日账户信息: <br>{self.utilstool.pretty_table_to_kv_string(account_table)}<br>"
         content_log = content_log + "#############\n\n\n" + f"{self.name} 策略当日账户信息: \n{account_table}\n"
 
         # write_file(g.logfile,f'\n{account_table}', append=True)
 
         log.info(content_log)
-        self.send_wx_message(context, item, content_wx)
+        self.utilstool.send_wx_message(context, item, content_wx)
         log.info('-------------分割线-------------')
         # write_file(g.logfile,'-'*20+date+'日志终结'+'-'*20+'\n'+'\n', append=True)
         self.inout_cash = 0
-
-    # 4-1 打印每日持仓信息,暂无使用
-    def print_position_info(self, context):
-        log.info(self.name, '--print_position_info函数--',
-                 str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
-
-        # 打印当天成交记录
-        trades = get_trades()
-        for _trade in trades.values():
-            log.info('成交记录：' + str(_trade))
-        # 打印账户信息
-        for position in list(context.portfolio.positions.values()):
-            securities = position.security
-            cost = position.avg_cost
-            price = position.price
-            ret = 100 * (price / cost - 1)
-            value = position.value
-            amount = position.total_amount
-            log.info('代码:{}'.format(securities))
-            log.info('成本价:{}'.format(format(cost, '.2f')))
-            log.info('现价:{}'.format(price))
-            log.info('收益率:{}%'.format(format(ret, '.2f')))
-            log.info('持仓(股):{}'.format(amount))
-            log.info('市值:{}'.format(format(value, '.2f')))
-            log.info('———————————————————————————————————')
-        log.info('———————————————————————————————————————分割线————————————————————————————————————————')
-
-    # 把prettytable对象转换成键值对字符串
-    def pretty_table_to_kv_string(self, table):
-        headers = table.field_names
-        result = ""
-        data_rows = table._rows  # 直接获取表格内部存储的数据行列表，避免格式干扰
-        for row in data_rows:
-            for header, cell in zip(headers, row):
-                result += f"{header}: {cell}\n<br>"
-            result += "\n<br>"
-        return result.rstrip()
-
-    # 发送微信消息
-    def send_wx_message(self, context, item, message):
-        if context.is_send_wx_message != 1:
-            return
-        url = "https://wxpusher.zjiecode.com/api/send/message"
-
-        data = {
-            "appToken": "AT_B7CVGazuAWXoqBoIlGAzlIwkunQuXIQM",
-            "content": f"<h1>{item}</h1><br/><p style=\"color:red;\">{message}</p>",
-            "summary": item,
-            "contentType": 2,
-            "topicIds": [
-                36105
-            ],
-            "url": "https://wxpusher.zjiecode.com",
-            "verifyPay": False,
-            "verifyPayType": 0
-        }
-        response = requests.post(url, json=data)
-        # 可以根据需要查看响应的状态码、内容等信息
-        # print(response.status_code)
-        # print(response.text)

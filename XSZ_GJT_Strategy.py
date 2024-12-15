@@ -21,6 +21,7 @@ import requests
 import datetime as datet
 from prettytable import PrettyTable
 import inspect
+from UtilsToolClass import UtilsToolClass
 
 
 class XSZ_GJT_Strategy(Strategy):
@@ -49,9 +50,9 @@ class XSZ_GJT_Strategy(Strategy):
         # 获得初始列表
         initial_list = self.stockpool_index(context, '399101.XSHE')
         # 过滤次新股
-        initial_list = self.filter_new_stock(context, initial_list, self.new_days)
+        initial_list = self.utilstool.filter_new_stock(context, initial_list, self.new_days)
         # 过滤120天内即将大幅解禁
-        initial_list = self.filter_locked_shares(context, initial_list, 120)
+        initial_list = self.utilstool.filter_locked_shares(context, initial_list, 120)
 
         final_list_1 = []
         # 市值5-30亿，并且在列表中，按市值从小到大到排序
@@ -65,11 +66,11 @@ class XSZ_GJT_Strategy(Strategy):
         # log.info(self.name, '--没过滤停盘/涨停/跌停之前，前100股票的财务数据:', df_fun)
         initial_list = list(df_fun.code)
         # 过滤停牌股票
-        initial_list = self.filter_paused_stock(context, initial_list)
+        initial_list = self.utilstool.filter_paused_stock(context, initial_list)
         # 过滤涨停的股票
-        initial_list = self.filter_highlimit_stock(context, initial_list)
+        initial_list = self.utilstool.filter_highlimit_stock(context, initial_list)
         # 过滤跌停股票
-        initial_list = self.filter_lowlimit_stock(context, initial_list)
+        initial_list = self.utilstool.filter_lowlimit_stock(context, initial_list)
         # log.info('initial_list中含有{}个元素'.format(len(initial_list)))
         q = (query(valuation.code, valuation.market_cap)
              .filter(valuation.code.in_(initial_list))
@@ -82,9 +83,9 @@ class XSZ_GJT_Strategy(Strategy):
         # 获得初始列表
         lists = self.stockpool_index(context, '399101.XSHE')
         # 过滤次新股
-        lists = self.filter_new_stock(context, lists, self.new_days)
+        lists = self.utilstool.filter_new_stock(context, lists, self.new_days)
         # 过滤120天内即将大幅解禁
-        lists = self.filter_locked_shares(context, lists, 120)
+        lists = self.utilstool.filter_locked_shares(context, lists, 120)
         final_list_2 = []
         # 国九更新：过滤近一年净利润为负且营业收入小于1亿的
         # 国九更新：过滤近一年期末净资产为负的 (经查询没有为负数的，所以直接pass这条)
