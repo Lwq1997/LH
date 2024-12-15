@@ -112,20 +112,19 @@ def stop_loss(context):
                 NOW = (context.portfolio.positions[stock].price - context.portfolio.positions[stock].avg_cost) / \
                       context.portfolio.positions[stock].avg_cost
                 SS.append(np.array(NOW))
-    else:
-        if num >= 1:
-            if len(SS) > 0:
-                # 清空记录
-                num = 3
-                min_values = sorted(SS)[:num]
-                min_indices = [SS.index(value) for value in min_values]
-                min_strings = [S[index] for index in min_indices]
-                cash = context.portfolio.cash / num
-                for ss in min_strings:
-                    order_value(ss, cash)
-                    log.debug("补跌最多的N支 Order %s" % (ss))
-                    if ss not in g.bought_stocks:
-                        g.bought_stocks[ss] = cash
+    if num >= 1:
+        if len(SS) > 0:
+            # 清空记录
+            num = 3
+            min_values = sorted(SS)[:num]
+            min_indices = [SS.index(value) for value in min_values]
+            min_strings = [S[index] for index in min_indices]
+            cash = context.portfolio.cash / num
+            for ss in min_strings:
+                order_value(ss, cash)
+                log.debug("补跌最多的N支 Order %s" % (ss))
+                if ss not in g.bought_stocks:
+                    g.bought_stocks[ss] = cash
 
 
 def filter_roic(context, stock_list):
