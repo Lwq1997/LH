@@ -64,7 +64,7 @@ class UtilsToolClass:
         now = str(context.current_dt.date()) + ' ' + str(context.current_dt.time())
         if value == 0:
             order_info = order_target_value(security, value, pindex=self.subportfolio_index)
-        else
+        else:
             order_info = order_value(security, value, pindex=self.subportfolio_index)
         method_name = inspect.getframeinfo(inspect.currentframe()).function
         item = f"分仓策略:{self.name}<br>-函数名称:{method_name}<br>-时间:{now}"
