@@ -103,7 +103,7 @@ def XSZMX_select(context):
 
 
 def XSZMX_adjust(context):
-    g.strategys['明曦小市值策略'].adjust(context)
+    g.strategys['明曦小市值策略'].adjustwithnoRM(context)
 
 
 def XSZMX_open_market(context):
@@ -123,7 +123,7 @@ def DSZMX_select(context):
 
 
 def DSZMX_adjust(context):
-    g.strategys['明曦大市值策略'].adjust(context)
+    g.strategys['明曦大市值策略'].adjustwithnoRM(context)
 
 
 def DSZMX_open_market(context):
