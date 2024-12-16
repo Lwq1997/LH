@@ -34,8 +34,8 @@ class WPETF_Strategy(Strategy):
             '159866.XSHE',  # 日本
 
             '513500.XSHG',  # 标普500
-            '159915.XSHE',  # 创业板100
-            '161716.XSHE',#招商双债
+            '159915.XSHE'  # 创业板100
+            # '161716.XSHE',#招商双债
         ]
         self.deltaday = 20  # 上市天数
         self.days = 14  # 计算ATR的序列长度
