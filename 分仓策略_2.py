@@ -49,7 +49,7 @@ def initialize(context):
 
     ### 股票相关设定 ###
     # 股票类每笔交易时的手续费是：买入时佣金万分之三，卖出时佣金万分之三加千分之一印花税, 每笔交易佣金最低扣5块钱
-    set_order_cost(OrderCost(close_tax=0.001, open_commission=0.0001, close_commission=0.0001, min_commission=0),
+    set_order_cost(OrderCost(close_tax=0.0005, open_commission=0.0001, close_commission=0.0001, min_commission=0),
                    type='stock')
 
     # 为股票设定滑点为百分比滑点
@@ -78,8 +78,8 @@ def initialize(context):
     # 是否发送微信消息，回测环境不发送，模拟环境发送
     context.is_send_wx_message = 0
     params = {
-        'max_hold_count': 1,  # 最大持股数
-        'max_select_count': 3,  # 最大输出选股数
+        'max_hold_count': 2,  # 最大持股数
+        'max_select_count': 4,  # 最大输出选股数
     }
     # 白马策略，第一个仓
     bmzh_strategy = BMZH_Strategy(context, subportfolio_index=0, name='白马股攻防转换策略', params=params)
@@ -87,15 +87,15 @@ def initialize(context):
 
     params = {
         'max_hold_count': 2,  # 最大持股数
-        'max_select_count': 2,  # 最大输出选股数
+        'max_select_count': 4,  # 最大输出选股数
     }
     # ETF 策略，第二个仓
     wpetf_strategy = WPETF_Strategy(context, subportfolio_index=1, name='外盘ETF轮动策略', params=params)
     g.strategys[wpetf_strategy.name] = wpetf_strategy
 
     params = {
-        'max_hold_count': 5,  # 最大持股数
-        'max_select_count': 10,  # 最大输出选股数
+        'max_hold_count': 3,  # 最大持股数
+        'max_select_count': 6,  # 最大输出选股数
         'use_empty_month': True,  # 是否在指定月份空仓
         'empty_month': [1, 4]  # 指定空仓的月份列表
         # 'use_stoplost': True,  # 是否使用止损
@@ -110,13 +110,13 @@ def initialize(context):
     # # 白马，按月运行 TODO
     if g.portfolio_value_proportion[0] > 0:
         run_monthly(bmzh_select, 1, time='7:40')  # 阅读完成，测试完成
-        run_monthly(bmzh_adjust, 1, time='10:00')  # 阅读完成，测试完成
+        run_monthly(bmzh_adjust, 1, time='09:30')  # 阅读完成，测试完成
         run_daily(bmzh_after_market_close, 'after_close')
     #
     # # ETF轮动，按天运行
     if g.portfolio_value_proportion[1] > 0:
         run_daily(wpetf_select, time='7:42')  # 阅读完成，测试完成
-        run_daily(wpetf_adjust, time='10:00')  # 阅读完成，测试完成
+        run_daily(wpetf_adjust, time='09:30')  # 阅读完成，测试完成
         run_daily(wpetf_after_market_close, 'after_close')
 
     # # 小市值，按天/周运行
@@ -124,7 +124,7 @@ def initialize(context):
         run_daily(xszgjt_day_prepare, time='7:33')
         run_weekly(xszgjt_select, 1, time='7:43')
         run_daily(xszgjt_open_market, time='9:30')
-        run_weekly(xszgjt_adjust, 1, time='9:35')
+        run_weekly(xszgjt_adjust, 1, time='9:30')
         # run_daily(xszgjt_sell_when_highlimit_open, time='11:27')
         run_daily(xszgjt_sell_when_highlimit_open, time='14:00')
         run_daily(xszgjt_sell_when_highlimit_open, time='14:50')
