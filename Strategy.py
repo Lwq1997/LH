@@ -579,7 +579,10 @@ class Strategy:
                                      self.portfolio_value['total_value'].iloc[-2] - 1
 
         self.sharp = self.cal_sharpe_ratio(daily_returns, rf=0.04, type='CAGR')
-        total_return = subportfolio.total_value / subportfolio_startcash - 1
+        if subportfolio_startcash != 0:
+            total_return = subportfolio.total_value / subportfolio_startcash - 1
+        else:
+            total_return = 0
         account_table.add_row([date, self.name, f"{total_assets:.3f}万", f"{pos_value:.3f}万", f"{cash:.3f}万",
                                f"{self.inout_cash / 10000:.3f}万", f"{daily_returns.iloc[-1] * 100:.3f}%",
                                f"{total_return * 100:.3f}%", f"{self.win_lose_rate:.3f}", f"{self.sharp:.3f}",
