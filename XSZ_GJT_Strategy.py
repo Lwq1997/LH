@@ -61,22 +61,7 @@ class XSZ_GJT_Strategy(Strategy):
              .order_by(valuation.market_cap.asc()))
 
         # 获取财务数据
-        df_fun = get_fundamentals(q)
-        df_fun = df_fun[:100]
-        # log.info(self.name, '--没过滤停盘/涨停/跌停之前，前100股票的财务数据:', df_fun)
-        initial_list = list(df_fun.code)
-        # 过滤停牌股票
-        initial_list = self.utilstool.filter_paused_stock(context, initial_list)
-        # 过滤涨停的股票
-        initial_list = self.utilstool.filter_highlimit_stock(context, initial_list)
-        # 过滤跌停股票
-        initial_list = self.utilstool.filter_lowlimit_stock(context, initial_list)
-        # log.info('initial_list中含有{}个元素'.format(len(initial_list)))
-        q = (query(valuation.code, valuation.market_cap)
-             .filter(valuation.code.in_(initial_list))
-             .order_by(valuation.market_cap.asc()))
-        df_fun = get_fundamentals(q)
-        df_fun = df_fun[:50]
+        df_fun = get_fundamentals(q)[:50]
         # log.info(self.name, '过滤停盘/涨停/跌停之后，--前50股票的财务数据:', df_fun)
         final_list_1 = list(df_fun.code)
 
