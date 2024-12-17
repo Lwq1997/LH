@@ -240,6 +240,7 @@ class UtilsToolClass:
         # 计算市场高度：通过计算最近5天收盘价的平均值与过去220天收盘价的最小值之差，再除以过去220天收盘价的最大值与最小值之差，得到市场高度（market_height)。
         market_height = (mean(index300[-5:]) - min(index300)) / (max(index300) - min(index300))
 
+        market_temperature = 'warm'
         # 判断市场温度：根据市场高度的值，将市场温度分为三种状态：
         # ·如果市场高度小于0.20, 则市场温度为"cold"。
         # ·如果市场高度大于0.90, 则市场温度为"hot"。
