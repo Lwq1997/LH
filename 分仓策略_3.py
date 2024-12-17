@@ -49,13 +49,11 @@ def initialize(context):
 
     ### 股票相关设定 ###
     # 股票类每笔交易时的手续费是：买入时佣金万分之三，卖出时佣金万分之三加千分之一印花税, 每笔交易佣金最低扣5块钱
-    set_order_cost(OrderCost(close_tax=0.001, open_commission=0.0001, close_commission=0.0001, min_commission=0),
+    set_order_cost(OrderCost(close_tax=0.0005, open_commission=0.0001, close_commission=0.0001, min_commission=0),
                    type='stock')
 
     # 为股票设定滑点为百分比滑点
     set_slippage(PriceRelatedSlippage(0.01), type='stock')
-
-    # 临时变量
 
     # 持久变量
     g.strategys = {}
@@ -79,6 +77,18 @@ def initialize(context):
     dxw_strategy = DXW_Strategy(context, subportfolio_index=0, name='大小外综合策略', params=params)
     g.strategys[dxw_strategy.name] = dxw_strategy
 
+
+# 模拟盘在每天的交易时间结束后会休眠，第二天开盘时会恢复，如果在恢复时发现代码已经发生了修改，则会在恢复时执行这个函数。 具体的使用场景：可以利用这个函数修改一些模拟盘的数据。
+def after_code_changed(context):  # 输出运行时间
+    log.info('函数运行时间(after_code_changed)：' + str(context.current_dt.time()))
+
+    g.n_days_limit_up_list = []  # 重新初始化列表
+
+    # 是否发送微信消息，回测环境不发送，模拟环境发送
+    context.is_send_wx_message = 0
+
+    unschedule_all()  # 取消所有定时运行
+
     if g.portfolio_value_proportion[0] > 0:
         # 准备工作
         run_daily(dxw_day_prepare, time='7:30')
@@ -95,9 +105,11 @@ def initialize(context):
         run_daily(dxw_sell_when_highlimit_open, time='14:00')
         # run_daily(dxw_sell_when_highlimit_open, time='14:50')
         # 补仓买入
-        run_daily(dxw_append_buy_stock, time='14:51')
+        run_daily(dxw_append_buy_stock, time='14:00')
         # 收盘
         run_daily(dxw_after_market_close, 'after_close')
+
+
 
 
 def dxw_day_prepare(context):

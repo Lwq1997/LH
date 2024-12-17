@@ -635,12 +635,12 @@ class Strategy:
         if self.is_stoplost_or_highlimit and append_buy_dict:
             self.is_stoplost_or_highlimit = False
             # 清空记录
-            num = 2
+            num = 3
             sorted_items = sorted(append_buy_dict.items(), key=lambda x: x[1])  # 按照值进行排序，返回包含(key, value)元组的列表
             result_stock = [item[0] for item in sorted_items[:num]]  # 取前N个元组中的key
 
             cash = subportfolios.available_cash / len(result_stock)
-            log.info("补跌最多的2支 股票代码: %s" % result_stock)
+            log.info("补跌最多的3支 股票代码: %s" % result_stock)
             for stock in result_stock:
                 self.utilstool.open_position(context, stock, cash, False)
                 if stock not in self.bought_stocks:
