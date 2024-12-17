@@ -415,7 +415,6 @@ class Strategy:
                     if index >= buy_count:
                         break
 
-
     # 卖出多只股票
     def sell(self, context, sell_stocks):
 

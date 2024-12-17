@@ -49,10 +49,10 @@ class DXW_Strategy(Strategy):
         log.info(self.name, '--singal函数开始运行--',
                  str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
 
-        B_stocks = self.stockpool_index(context, '000300.XSHG')
+        B_stocks = self.stockpool(context, 1, "000300.XSHG")
         # 过滤次新股
         B_stocks = self.utilstool.filter_new_stock(context, B_stocks, self.new_days)
-        S_stocks = self.stockpool_index(context, '399101.XSHE')
+        S_stocks = self.stockpool(context, 1, '399101.XSHE')
 
         # 过滤次新股
         S_stocks = self.utilstool.filter_new_stock(context, S_stocks, self.new_days)
@@ -298,7 +298,6 @@ class DXW_Strategy(Strategy):
         final_list_2 = [stock for stock in final_list_2 if
                         stock in self.hold_list or last_prices[stock][-1] <= self.highest]
 
-
         target_list = list(dict.fromkeys(final_list_1 + final_list_2))
         target_list = target_list[:self.max_select_count * 3]
         final_list = get_fundamentals(query(
@@ -311,7 +310,6 @@ class DXW_Strategy(Strategy):
         ).order_by(
             valuation.market_cap.asc()
         )).set_index('code').index.tolist()
-
 
         return final_list
 

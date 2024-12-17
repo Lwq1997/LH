@@ -1,4 +1,4 @@
-#-*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 # 如果你的文件包含中文, 请在文件的第一行使用上面的语句指定你的文件编码
 
 # 用到策略及数据相关API请加入下面的语句(如果要兼容研究使用可以使用 try except导入
@@ -48,7 +48,7 @@ class XSZ_GJT_Strategy(Strategy):
         log.info(self.name, '--get_rank函数--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
 
         # 获得初始列表
-        initial_list = self.stockpool_index(context, '399101.XSHE')
+        initial_list = self.stockpool(context, 1, '399101.XSHE')
         # 过滤次新股
         initial_list = self.utilstool.filter_new_stock(context, initial_list, self.new_days)
         # 过滤120天内即将大幅解禁
@@ -66,7 +66,7 @@ class XSZ_GJT_Strategy(Strategy):
         final_list_1 = list(df_fun.code)
 
         # 获得初始列表
-        lists = self.stockpool_index(context, '399101.XSHE')
+        lists = self.stockpool(context, 1, '399101.XSHE')
         # 过滤次新股
         lists = self.utilstool.filter_new_stock(context, lists, self.new_days)
         # 过滤120天内即将大幅解禁
