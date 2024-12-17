@@ -99,9 +99,8 @@ def stop_loss(context):
                 num = num + 1
             else:
                 log.info("[%s]涨停，继续持有" % (stock))
-
-    append_buy_dict = {}
-
+    SS = []
+    S = []
     for stock in g.hold_list:
         if stock in list(context.portfolio.positions.keys()):
             if context.portfolio.positions[stock].price < context.portfolio.positions[stock].avg_cost * 0.92:
@@ -109,23 +108,24 @@ def stop_loss(context):
                 log.debug("止损 Selling out %s" % (stock))
                 num = num + 1
             else:
-
-                rate = (context.portfolio.positions[stock].price - context.portfolio.positions[stock].avg_cost) / \
+                S.append(stock)
+                NOW = (context.portfolio.positions[stock].price - context.portfolio.positions[stock].avg_cost) / \
                       context.portfolio.positions[stock].avg_cost
-                append_buy_dict[stock] = rate
-
-    if num >= 1 and append_buy_dict:
-            # 清空记录
-            num = 3
-            sorted_items = sorted(append_buy_dict.items(), key=lambda x: x[1]) # 按照值进行排序，返回包含(key, value)元组的列表
-            result_stock = [item[0] for item in sorted_items[:num]]  # 取前N个元组中的key
-            print(result_stock)
-            cash = context.portfolio.cash / num
-            for stock in result_stock:
-                order_value(stock, cash)
-                log.debug("补跌的最多的N支 Order %s" % (stock))
-                if stock not in g.bought_stocks:
-                    g.bought_stocks[stock] = cash
+                SS.append(np.array(NOW))
+    else:
+        if num >= 1:
+            if len(SS) > 0:
+                # 清空记录
+                num = 3
+                min_values = sorted(SS)[:num]
+                min_indices = [SS.index(value) for value in min_values]
+                min_strings = [S[index] for index in min_indices]
+                cash = context.portfolio.cash / num
+                for ss in min_strings:
+                    order_value(ss, cash)
+                    log.debug("补跌最多的N支 Order %s" % (ss))
+                    if ss not in g.bought_stocks:
+                        g.bought_stocks[ss] = cash
 
 
 def filter_roic(context, stock_list):
