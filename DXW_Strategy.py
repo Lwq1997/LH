@@ -49,7 +49,7 @@ class DXW_Strategy(Strategy):
     def singal(self, context):
         dt_last = context.previous_date
         log.info(self.name, '--singal函数开始运行--',
-                    str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+                 str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
 
         self.B_stocks = self.stockpool_index(context, '000300.XSHG')
         # 过滤次新股
@@ -57,9 +57,6 @@ class DXW_Strategy(Strategy):
         self.S_stocks = self.stockpool_index(context, '399101.XSHE')
         # 过滤次新股
         self.S_stocks = self.utilstool.filter_new_stock(context, self.S_stocks, self.new_days)
-
-        self.select_list = self.__get_rank(context)[:self.max_select_count]
-        self.print_trade_plan(context, self.select_list)
 
         q = query(
             valuation.code, valuation.circulating_market_cap
@@ -145,6 +142,7 @@ class DXW_Strategy(Strategy):
 
     def select(self, context):
         self.select_list = self.__get_rank(context)[:self.max_select_count]
+        log.error('选股列表:',self.select_list)
         self.print_trade_plan(context, self.select_list)
 
     def __get_rank(self, context):
@@ -164,8 +162,11 @@ class DXW_Strategy(Strategy):
 
     ## 开盘前运行函数
     def White_Horse(self, context):
+
         self.market_temperature = self.utilstool.Market_temperature(context)
 
+        log.info(self.name, '--White_Horse函数开始运行，当前时长温度:', self.market_temperature, '--now--',
+                 str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
         all_stocks = self.B_stocks
         if self.market_temperature == "cold":
             q = query(
@@ -255,6 +256,8 @@ class DXW_Strategy(Strategy):
     def SMALL(self, context):
         all_stocks1 = self.S_stocks
         all_stocks2 = self.S_stocks
+        log.info(self.name, '--SMALL函数开始运行--',
+                 str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
 
         q = query(valuation.code, valuation.market_cap).filter(valuation.code.in_(all_stocks1),
                                                                valuation.market_cap.between(5, 30)).order_by(
@@ -304,6 +307,8 @@ class DXW_Strategy(Strategy):
 
     ####
     def fun_delNewShare(self, context, equity, deltaday):
+        log.info(self.name, '--fun_delNewShare函数开始运行--',
+                 str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
         deltaDate = context.current_dt.date() - dt.timedelta(deltaday)
         tmpList = []
         for stock in equity:

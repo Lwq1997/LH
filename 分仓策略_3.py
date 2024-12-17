@@ -74,8 +74,8 @@ def initialize(context):
     # 是否发送微信消息，回测环境不发送，模拟环境发送
     context.is_send_wx_message = 0
     params = {
-        'max_hold_count': 10,  # 最大持股数
-        'max_select_count': 30,  # 最大输出选股数
+        'max_hold_count': 5,  # 最大持股数
+        'max_select_count': 10,  # 最大输出选股数
     }
     dxw_strategy = DXW_Strategy(context, subportfolio_index=0, name='大小外综合策略', params=params)
     g.strategys[dxw_strategy.name] = dxw_strategy

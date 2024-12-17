@@ -190,11 +190,10 @@ class Strategy:
         value_amount = subportfolio.available_cash
         # 遍历当前持仓的股票列表 subportfolio.long_positions,如果某只股票不在选股列表select_list的前self.max_hold_count只股票中，则将其标记为卖出。
 
-
         # 实时过滤部分股票，否则也买不了，放出去也没有意义
-        target_list = self.utilstool.filter_lowlimit_stock(context,self.select_list)
-        target_list = self.utilstool.filter_highlimit_stock(context,target_list)
-        target_list = self.utilstool.filter_paused_stock(context,target_list)
+        target_list = self.utilstool.filter_lowlimit_stock(context, self.select_list)
+        target_list = self.utilstool.filter_highlimit_stock(context, target_list)
+        target_list = self.utilstool.filter_paused_stock(context, target_list)
         # 股票卖出的条件
         # 1. 有持仓
         # 2. 在目标列表中--不卖
@@ -211,10 +210,12 @@ class Strategy:
                     value_amount = value_amount + positions[stock].value
                     positions_count = positions_count - 1
 
-
         # 计算买入金额
         # 如果买入数量buy_count大于0,则将可用现金除以买入数量，得到每只股票的买入金额。
-        buy_count = self.max_hold_count - positions_count
+        if len(target_list) > self.max_hold_count:
+            buy_count = self.max_hold_count - positions_count
+        else:
+            buy_count = len(target_list) - positions_count
         if buy_count > 0:
             value_amount = value_amount / buy_count
 
@@ -352,9 +353,9 @@ class Strategy:
         # 售卖列表：不在select_list前max_hold_count中的股票都要被卖掉
         sell_stocks = []
         # 实时过滤部分股票，否则也买不了，放出去也没有意义
-        target_list = self.utilstool.filter_lowlimit_stock(context,self.select_list)
-        target_list = self.utilstool.filter_highlimit_stock(context,target_list)
-        target_list = self.utilstool.filter_paused_stock(context,target_list)
+        target_list = self.utilstool.filter_lowlimit_stock(context, self.select_list)
+        target_list = self.utilstool.filter_highlimit_stock(context, target_list)
+        target_list = self.utilstool.filter_paused_stock(context, target_list)
         # 股票卖出的条件
         # 1. 有持仓
         # 2. 在目标列表中--不卖
@@ -395,7 +396,10 @@ class Strategy:
         log.info(self.name, '--buy函数--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
 
         subportfolio = context.subportfolios[self.subportfolio_index]
-        buy_count = self.max_hold_count - len(subportfolio.long_positions)
+        if len(buy_stocks) > self.max_hold_count:
+            buy_count = self.max_hold_count - len(subportfolio.long_positions)
+        else:
+            buy_count = len(buy_stocks) - len(subportfolio.long_positions)
         if buy_count > 0:
             value = subportfolio.available_cash / buy_count
             index = 0
