@@ -70,7 +70,7 @@ class Strategy:
         self.no_trading_today_signal = self.params[
             'no_trading_today_signal'] if 'no_trading_today_signal' in self.params else False
 
-    # 每天准备工作（小市值专属）
+    # 每天准备工作
     def day_prepare(self, context):
         log.info(self.name, '--day_prepare选股前的准备工作函数--',
                  str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
@@ -80,17 +80,17 @@ class Strategy:
         # 获取昨日持股列表
         self.hold_list = list(subportfolio.long_positions)
 
-        # 获取最近一段时间持有过的股票列表，放入一个新的列表中
-        self.history_hold_list.append(self.hold_list)
-        # 这个列表只维护最近hold_limit_days天的股票池
-        if len(self.history_hold_list) >= self.hold_limit_days:
-            self.history_hold_list = self.history_hold_list[-self.hold_limit_days:]
-        temp_set = set()
-        for lists in self.history_hold_list:
-            for stock in lists:
-                temp_set.add(stock)
-        # 用于记录最近一段时间内曾经持有的股票，避免重复买入。
-        self.not_buy_again_list = list(temp_set)
+        # # 获取最近一段时间持有过的股票列表，放入一个新的列表中
+        # self.history_hold_list.append(self.hold_list)
+        # # 这个列表只维护最近hold_limit_days天的股票池
+        # if len(self.history_hold_list) >= self.hold_limit_days:
+        #     self.history_hold_list = self.history_hold_list[-self.hold_limit_days:]
+        # temp_set = set()
+        # for lists in self.history_hold_list:
+        #     for stock in lists:
+        #         temp_set.add(stock)
+        # # 用于记录最近一段时间内曾经持有的股票，避免重复买入。
+        # self.not_buy_again_list = list(temp_set)
 
         # 获取昨日持股中的涨停列表
         if self.hold_list != []:
