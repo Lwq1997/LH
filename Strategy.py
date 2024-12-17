@@ -204,7 +204,7 @@ class Strategy:
         #     涨停：不卖
         #     不涨停：卖
         for stock in positions:
-            if stock not in target_list[:self.max_hold_count]:
+            if stock not in target_list[:self.max_hold_count] and stock not in self.yestoday_high_limit_list:
                 last_prices = history(1, unit='1m', field='close', security_list=stock)
                 current_data = get_current_data()
                 if last_prices[stock][-1] < current_data[stock].high_limit:
@@ -367,7 +367,7 @@ class Strategy:
         #     不涨停：卖
 
         for stock in hold_list:
-            if stock not in target_list[:self.max_hold_count]:
+            if stock not in target_list[:self.max_hold_count] and stock not in self.yestoday_high_limit_list:
                 last_prices = history(1, unit='1m', field='close', security_list=stock)
                 current_data = get_current_data()
                 if last_prices[stock][-1] < current_data[stock].high_limit:
