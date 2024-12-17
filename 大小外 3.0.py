@@ -360,6 +360,7 @@ def monthly_adjustment(context):
             close_position(position)
     position_count = len(context.portfolio.positions)
     target_num = len(target_list)
+    log.error("选股列表",target_list)
     if target_num > position_count:
         value = context.portfolio.cash / (target_num - position_count)
         for stock in target_list:

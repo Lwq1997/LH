@@ -335,11 +335,24 @@ class Strategy:
         hold_list = list(context.subportfolios[self.subportfolio_index].long_positions)
         # 售卖列表：不在select_list前max_hold_count中的股票都要被卖掉
         sell_stocks = []
+        # 实时过滤部分股票，否则也买不了，放出去也没有意义
+        target_list = self.utilstool.filter_lowlimit_stock(context,self.select_list)
+        target_list = self.utilstool.filter_highlimit_stock(context,target_list)
+        target_list = self.utilstool.filter_paused_stock(context,target_list)
+        # 股票卖出的条件
+        # 1. 有持仓
+        # 2. 在目标列表中--不卖
+        # 3. 不在目标列表中
+        #     涨停：不卖
+        #     不涨停：卖
         for stock in hold_list:
-            if stock not in self.select_list[:self.max_hold_count]:
-                sell_stocks.append(stock)
+            if stock not in target_list[:self.max_hold_count]:
+                current_data = get_price(stock, end_date=context.current_dt, frequency='1m', fields=['close', 'high_limit'],
+                                         skip_paused=False, fq='pre', count=1, panel=False, fill_paused=True)
+                if current_data[stock].high_limit > current_data[stock].close:
+                    sell_stocks.append(stock)
         self.sell(context, sell_stocks)
-        self.buy(context, self.select_list)
+        self.buy(context, target_list)
 
     # 涨停打开卖出
     def sell_when_highlimit_open(self, context):
@@ -560,8 +573,10 @@ class Strategy:
         self.inout_cash = 0
 
     def clear_append_buy_dict(self, context):  # 卖出补跌的仓位
-        print(self.bought_stocks)
-        if self.bought_stocks != {}:
+        now = str(context.current_dt.date()) + ' ' + str(context.current_dt.time())
+        log.info(self.name, '--clear_append_buy_dict函数--', now)
+
+        if self.bought_stocks:
             for stock, amount in self.bought_stocks.items():
                 positions = context.subportfolios[self.subportfolio_index].long_positions
                 if stock in positions:
