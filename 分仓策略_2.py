@@ -109,7 +109,6 @@ def initialize(context):
     # 执行函数--adjust：白马和 ETF 轮动共用一个
     # # 白马，按月运行 TODO
     if g.portfolio_value_proportion[0] > 0:
-        run_monthly(bmzh_market_temperature, 1, time='5:00')  # 阅读完成，测试完成
         run_monthly(bmzh_select, 1, time='7:40')  # 阅读完成，测试完成
         run_monthly(bmzh_adjust, 1, time='10:00')  # 阅读完成，测试完成
         run_daily(bmzh_after_market_close, 'after_close')
@@ -154,11 +153,6 @@ def initialize(context):
 #                  context.subportfolios[key].total_value)
 #
 #     log.warn('##############################################################')
-
-
-# 白马股市场温度测试
-def bmzh_market_temperature(context):
-    g.strategys['白马股攻防转换策略'].Market_temperature(context)
 
 
 # 选股

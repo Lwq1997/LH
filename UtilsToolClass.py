@@ -230,6 +230,31 @@ class UtilsToolClass:
         # print(response.status_code)
         # print(response.text)
 
+
+    def Market_temperature(self, context):
+        log.info(self.name, '--Market_temperature函数--',
+                 str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+        # 获取数据：使用attribute_history函数获取沪深300指数过去220天的收盘价数据。
+        index300 = attribute_history('000300.XSHG', 220, '1d', ('close'), df=False)['close']
+
+        # 计算市场高度：通过计算最近5天收盘价的平均值与过去220天收盘价的最小值之差，再除以过去220天收盘价的最大值与最小值之差，得到市场高度（market_height)。
+        market_height = (mean(index300[-5:]) - min(index300)) / (max(index300) - min(index300))
+
+        # 判断市场温度：根据市场高度的值，将市场温度分为三种状态：
+        # ·如果市场高度小于0.20, 则市场温度为"cold"。
+        # ·如果市场高度大于0.90, 则市场温度为"hot"。
+        # ·如果过去60天内的最高收盘价与最低收盘价之比大于1.20, 则市场温度为"warm"
+        if market_height < 0.20:
+            market_temperature = "cold"
+        elif market_height > 0.90:
+            market_temperature = "hot"
+        elif max(index300[-60:]) / min(index300) > 1.20:
+            market_temperature = "warm"
+
+        return market_temperature
+
+
+
     # 4-1 打印每日持仓信息,暂无使用
     def print_position_info(self, context):
         log.info(self.name, '--print_position_info函数--',
