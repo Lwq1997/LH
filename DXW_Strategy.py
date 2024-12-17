@@ -36,8 +36,6 @@ class DXW_Strategy(Strategy):
         self.buy_stock_count = 5
         self.singal_str = 'Unknown'
         self.ETF_pool = []
-        self.B_stocks = []
-        self.S_stocks = []
         self.foreign_ETF = [
             '518880.XSHG',
             '513030.XSHG',
@@ -51,17 +49,18 @@ class DXW_Strategy(Strategy):
         log.info(self.name, '--singal函数开始运行--',
                  str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
 
-        self.B_stocks = self.stockpool_index(context, '000300.XSHG')
+        B_stocks = self.stockpool_index(context, '000300.XSHG')
         # 过滤次新股
-        self.B_stocks = self.utilstool.filter_new_stock(context, self.B_stocks, self.new_days)
-        self.S_stocks = self.stockpool_index(context, '399101.XSHE')
+        B_stocks = self.utilstool.filter_new_stock(context, B_stocks, self.new_days)
+        S_stocks = self.stockpool_index(context, '399101.XSHE')
+
         # 过滤次新股
-        self.S_stocks = self.utilstool.filter_new_stock(context, self.S_stocks, self.new_days)
+        S_stocks = self.utilstool.filter_new_stock(context, S_stocks, self.new_days)
 
         q = query(
             valuation.code, valuation.circulating_market_cap
         ).filter(
-            valuation.code.in_(self.B_stocks)
+            valuation.code.in_(B_stocks)
         ).order_by(
             valuation.circulating_market_cap.desc()
         )
@@ -71,7 +70,7 @@ class DXW_Strategy(Strategy):
         q = query(
             valuation.code, valuation.circulating_market_cap
         ).filter(
-            valuation.code.in_(self.S_stocks)
+            valuation.code.in_(S_stocks)
         ).order_by(
             valuation.circulating_market_cap.asc()
         )
@@ -142,7 +141,7 @@ class DXW_Strategy(Strategy):
 
     def select(self, context):
         self.select_list = self.__get_rank(context)[:self.max_select_count]
-        log.error('选股列表:',self.select_list)
+        log.error('选股列表:', self.select_list)
         self.print_trade_plan(context, self.select_list)
 
     def __get_rank(self, context):
@@ -151,23 +150,31 @@ class DXW_Strategy(Strategy):
 
         target_list = []
 
+        B_stocks = self.stockpool(context, 1, '000300.XSHG')
+        # 过滤次新股
+        B_stocks = self.utilstool.filter_new_stock(context, B_stocks, self.new_days)
+
+        S_stocks = self.stockpool(context, 1, '399101.XSHE')
+        # 过滤次新股
+        S_stocks = self.utilstool.filter_new_stock(context, S_stocks, self.new_days)
+
         if self.singal_str == 'big':
-            target_list = self.White_Horse(context)
+            target_list = self.White_Horse(context, B_stocks)
         elif self.singal_str == 'small':
-            target_list = self.SMALL(context)
+            target_list = self.SMALL(context, S_stocks)
         elif self.singal_str == 'etf':
             # target_list = self.foreign_ETF
             target_list = self.ETF_pool
         return target_list
 
     ## 开盘前运行函数
-    def White_Horse(self, context):
+    def White_Horse(self, context, B_stocks):
 
         self.market_temperature = self.utilstool.Market_temperature(context)
 
         log.info(self.name, '--White_Horse函数开始运行，当前时长温度:', self.market_temperature, '--now--',
                  str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
-        all_stocks = self.B_stocks
+        all_stocks = B_stocks
         if self.market_temperature == "cold":
             q = query(
                 valuation.code,
@@ -253,9 +260,9 @@ class DXW_Strategy(Strategy):
         check_out_lists = list(get_fundamentals(q).code)
         return check_out_lists
 
-    def SMALL(self, context):
-        all_stocks1 = self.S_stocks
-        all_stocks2 = self.S_stocks
+    def SMALL(self, context, S_stocks):
+        all_stocks1 = S_stocks
+        all_stocks2 = S_stocks
         log.info(self.name, '--SMALL函数开始运行--',
                  str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
 
@@ -291,6 +298,7 @@ class DXW_Strategy(Strategy):
         final_list_2 = [stock for stock in final_list_2 if
                         stock in self.hold_list or last_prices[stock][-1] <= self.highest]
 
+
         target_list = list(dict.fromkeys(final_list_1 + final_list_2))
         target_list = target_list[:self.max_select_count * 3]
         final_list = get_fundamentals(query(
@@ -303,6 +311,8 @@ class DXW_Strategy(Strategy):
         ).order_by(
             valuation.market_cap.asc()
         )).set_index('code').index.tolist()
+
+
         return final_list
 
     ####
