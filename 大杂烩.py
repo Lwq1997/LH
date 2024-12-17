@@ -64,7 +64,7 @@ def initialize(context):
     # 是否发送微信消息，回测环境不发送，模拟环境发送
     context.is_send_wx_message = 0
 
-    g.portfolio_value_proportion = [0.25, 0.25, 0.25,0.25]
+    g.portfolio_value_proportion = [0.25, 0.25, 0.25, 0.25]
 
     # 创建策略实例
     # 初始化策略子账户 subportfolios
@@ -83,19 +83,11 @@ def initialize(context):
     }
     # 是否发送微信消息，回测环境不发送，模拟环境发送
     context.is_send_wx_message = 0
+
     params = {
         'max_hold_count': 2,  # 最大持股数
         'max_select_count': 4,  # 最大输出选股数
     }
-
-    params = {
-        'max_hold_count': 5,  # 最大持股数
-        'max_select_count': 10,  # 最大输出选股数
-    }
-    dxw_strategy = DXW_Strategy(context, subportfolio_index=0, name='大小外综合策略', params=params)
-    g.strategys[dxw_strategy.name] = dxw_strategy
-
-
     # 白马策略，第一个仓
     bmzh_strategy = BMZH_Strategy(context, subportfolio_index=0, name='白马股攻防转换策略', params=params)
     g.strategys[bmzh_strategy.name] = bmzh_strategy
@@ -118,6 +110,13 @@ def initialize(context):
     # 小世值，第三个仓
     xszgjt_strategy = XSZ_GJT_Strategy(context, subportfolio_index=2, name='国九条小市值策略', params=params)
     g.strategys[xszgjt_strategy.name] = xszgjt_strategy
+
+    params = {
+        'max_hold_count': 5,  # 最大持股数
+        'max_select_count': 10,  # 最大输出选股数
+    }
+    dxw_strategy = DXW_Strategy(context, subportfolio_index=3, name='大小外综合策略', params=params)
+    g.strategys[dxw_strategy.name] = dxw_strategy
 
     # 执行计划
     # 选股函数--Select：白马和 ETF 分开使用
@@ -202,7 +201,6 @@ def dxw_after_market_close(context):
     g.strategys['大小外综合策略'].after_market_close(context)
 
 
-
 # 选股
 def bmzh_select(context):
     g.strategys['白马股攻防转换策略'].select(context)
@@ -251,8 +249,10 @@ def xszgjt_open_market(context):
 def xszgjt_sell_when_highlimit_open(context):
     g.strategys['国九条小市值策略'].sell_when_highlimit_open(context)
 
+
 def xszgjt_append_buy_stock(context):
     g.strategys['国九条小市值策略'].append_buy_dict(context)
+
 
 def xszgjt_after_market_close(context):
     g.strategys['国九条小市值策略'].after_market_close(context)
