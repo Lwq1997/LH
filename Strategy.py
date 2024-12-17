@@ -107,10 +107,13 @@ class Strategy:
         self.check_stoplost(context)
 
     # 基础股票池-全市场选股
-    def stockpool(self, context, pool_id=1):
+    def stockpool(self, context, pool_id=1, index=None):
         log.info(self.name, '--stockpool函数--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+        if index is None:
+            lists = list(get_all_securities(types=['stock'], date=context.previous_date).index)
+        else:
+            lists = list(get_index_stocks(index))
 
-        lists = list(get_all_securities(types=['stock'], date=context.previous_date).index)
         if pool_id == 0:
             pass
         elif pool_id == 1:
@@ -122,7 +125,7 @@ class Strategy:
 
         return lists
 
-    # 按指数选股票（白马股+小市值专用）
+    # 按指数选股票，有未来函数，不建议用
     def stockpool_index(self, context, index, pool_id=1):
         log.info(self.name, '--stockpool_index获取指数成分股函数--',
                  str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
@@ -406,10 +409,12 @@ class Strategy:
             for stock in buy_stocks:
                 if stock in subportfolio.long_positions:
                     continue
-                self.utilstool.open_position(context, stock, value)
-                index = index + 1
-                if index >= buy_count:
-                    break
+                # 如果买入失败，顺延买下一个
+                if self.utilstool.open_position(context, stock, value):
+                    index = index + 1
+                    if index >= buy_count:
+                        break
+
 
     # 卖出多只股票
     def sell(self, context, sell_stocks):
@@ -633,8 +638,8 @@ class Strategy:
             result_stock = [item[0] for item in sorted_items[:num]]  # 取前N个元组中的key
 
             cash = subportfolios.available_cash / len(result_stock)
+            log.info("补跌最多的2支 股票代码: %s" % result_stock)
             for stock in result_stock:
                 self.utilstool.open_position(context, stock, cash, False)
-                log.info("补跌最多的N支 Order %s" % (stock))
                 if stock not in self.bought_stocks:
                     self.bought_stocks[stock] = cash
