@@ -345,11 +345,12 @@ class Strategy:
         # 3. 不在目标列表中
         #     涨停：不卖
         #     不涨停：卖
+
         for stock in hold_list:
             if stock not in target_list[:self.max_hold_count]:
-                current_data = get_price(stock, end_date=context.current_dt, frequency='1m', fields=['close', 'high_limit'],
-                                         skip_paused=False, fq='pre', count=1, panel=False, fill_paused=True)
-                if current_data[stock].high_limit > current_data[stock].close:
+                last_prices = history(1, unit='1m', field='close', security_list=stock)
+                current_data = get_current_data()
+                if last_prices[stock][-1] < current_data[stock].high_limit:
                     sell_stocks.append(stock)
         self.sell(context, sell_stocks)
         self.buy(context, target_list)
