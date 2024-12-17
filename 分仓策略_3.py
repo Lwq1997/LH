@@ -7,7 +7,7 @@ linlin2018，ZLH：低波全天候策略（外盘ETF策略）
 '''
 
 # 导入函数库
-#-*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 # 如果你的文件包含中文, 请在文件的第一行使用上面的语句指定你的文件编码
 
 # 用到策略及数据相关API请加入下面的语句(如果要兼容研究使用可以使用 try except导入
@@ -70,7 +70,6 @@ def initialize(context):
         SubPortfolioConfig(context.portfolio.starting_cash * g.portfolio_value_proportion[2], 'stock'),
     ])
 
-
     # 是否发送微信消息，回测环境不发送，模拟环境发送
     context.is_send_wx_message = 0
     params = {
@@ -79,7 +78,6 @@ def initialize(context):
     }
     dxw_strategy = DXW_Strategy(context, subportfolio_index=0, name='大小外综合策略', params=params)
     g.strategys[dxw_strategy.name] = dxw_strategy
-
 
     if g.portfolio_value_proportion[0] > 0:
         # 准备工作
@@ -94,7 +92,7 @@ def initialize(context):
         run_weekly(dxw_adjust, 1, time='9:30')
         # run_daily(dxw_sell_when_highlimit_open, time='11:27')
         # 非涨停出售
-        # run_daily(dxw_sell_when_highlimit_open, time='14:00')
+        run_daily(dxw_sell_when_highlimit_open, time='14:00')
         # run_daily(dxw_sell_when_highlimit_open, time='14:50')
         # 补仓买入
         run_daily(dxw_append_buy_stock, time='14:51')
@@ -127,8 +125,10 @@ def dxw_open_market(context):
 def dxw_sell_when_highlimit_open(context):
     g.strategys['大小外综合策略'].sell_when_highlimit_open(context)
 
+
 def dxw_append_buy_stock(context):
     g.strategys['大小外综合策略'].append_buy_dict(context)
+
 
 def dxw_after_market_close(context):
     g.strategys['大小外综合策略'].after_market_close(context)
