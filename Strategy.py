@@ -189,12 +189,28 @@ class Strategy:
         # 仓位可用余额
         value_amount = subportfolio.available_cash
         # 遍历当前持仓的股票列表 subportfolio.long_positions,如果某只股票不在选股列表select_list的前self.max_hold_count只股票中，则将其标记为卖出。
+
+
+        # 实时过滤部分股票，否则也买不了，放出去也没有意义
+        target_list = self.utilstool.filter_lowlimit_stock(context,self.select_list)
+        target_list = self.utilstool.filter_highlimit_stock(context,target_list)
+        target_list = self.utilstool.filter_paused_stock(context,target_list)
+        # 股票卖出的条件
+        # 1. 有持仓
+        # 2. 在目标列表中--不卖
+        # 3. 不在目标列表中
+        #     涨停：不卖
+        #     不涨停：卖
         for stock in positions:
-            if stock not in select_list[:self.max_hold_count]:
-                content = content + stock + ' ' + current_data[stock].name + ' 卖出-- ' + str(
-                    positions[stock].value) + '\n<br> '
-                value_amount = value_amount + positions[stock].value
-                positions_count = positions_count - 1
+            if stock not in target_list[:self.max_hold_count]:
+                last_prices = history(1, unit='1m', field='close', security_list=stock)
+                current_data = get_current_data()
+                if last_prices[stock][-1] < current_data[stock].high_limit:
+                    content = content + stock + ' ' + current_data[stock].name + ' 未涨停卖出-- ' + str(
+                        positions[stock].value) + '\n<br> '
+                    value_amount = value_amount + positions[stock].value
+                    positions_count = positions_count - 1
+
 
         # 计算买入金额
         # 如果买入数量buy_count大于0,则将可用现金除以买入数量，得到每只股票的买入金额。
