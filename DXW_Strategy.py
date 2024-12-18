@@ -33,7 +33,8 @@ class DXW_Strategy(Strategy):
         self.no_trading_today_signal = False
         self.market_temperature = "warm"
         self.highest = 50
-        self.buy_stock_count = 5
+        self.small_stock_count = 9
+        self.big_stock_count = 6
         self.singal_str = 'Unknown'
         self.ETF_pool = []
         self.foreign_ETF = [
@@ -201,7 +202,7 @@ class DXW_Strategy(Strategy):
             ).order_by(
                 (indicator.roa / valuation.pb_ratio).desc()
             ).limit(
-                self.max_select_count + 1
+                self.big_stock_count
             )
         elif self.market_temperature == "warm":
             q = query(
@@ -229,7 +230,7 @@ class DXW_Strategy(Strategy):
             ).order_by(
                 (indicator.roa / valuation.pb_ratio).desc()
             ).limit(
-                self.max_select_count + 1
+                self.big_stock_count
             )
         elif self.market_temperature == "hot":
             q = query(
@@ -254,7 +255,7 @@ class DXW_Strategy(Strategy):
             ).order_by(
                 indicator.roa.desc()
             ).limit(
-                self.max_select_count + 1
+                self.big_stock_count
             )
 
         check_out_lists = list(get_fundamentals(q).code)
@@ -299,7 +300,7 @@ class DXW_Strategy(Strategy):
                         stock in self.hold_list or last_prices[stock][-1] <= self.highest]
 
         target_list = list(dict.fromkeys(final_list_1 + final_list_2))
-        target_list = target_list[:self.max_select_count * 3]
+        target_list = target_list[:self.small_stock_count]
         final_list = get_fundamentals(query(
             valuation.code,
             indicator.roe,
