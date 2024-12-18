@@ -170,7 +170,7 @@ class DXW_Strategy(Strategy):
     ## 开盘前运行函数
     def White_Horse(self, context, B_stocks):
 
-        self.market_temperature = self.utilstool.Market_temperature(context)
+        self.market_temperature = self.utilstool.Market_temperature(context, self.market_temperature)
 
         log.info(self.name, '--White_Horse函数开始运行，当前时长温度:', self.market_temperature, '--now--',
                  str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))

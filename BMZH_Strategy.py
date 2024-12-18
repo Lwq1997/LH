@@ -32,7 +32,7 @@ class BMZH_Strategy(Strategy):
     def select(self, context):
         log.info(self.name, '--select函数--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
 
-        self.market_temperature = self.utilstool.Market_temperature(context)
+        self.market_temperature = self.utilstool.Market_temperature(context,self.market_temperature)
         # 根据市场温度设置选股条件，选出股票
         self.select_list = self.__get_rank(context)[:self.max_select_count]
         # 编写操作计划
