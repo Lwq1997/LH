@@ -9,8 +9,8 @@ user.connect(r'F:\soft\同花顺\xiadan.exe')  # 家庭win
 
 print("获取账户信息", user.balance)
 print("获取持仓情况", user.position)
-print(user.buy('162411', price=0, amount=100))
-print(user.sell('162411', price=0, amount=100))
+print(user.buy('600255', price=0, amount=100))
+print(user.sell('600255', price=0, amount=100))
 
 # target = 'jq'  # joinquant
 # follower = easytrader.follower(target)
