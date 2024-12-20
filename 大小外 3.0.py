@@ -25,11 +25,15 @@ def initialize(context):
     set_option('use_real_price', True)
     # 打开防未来函数
     set_option("avoid_future_data", True)
-    # 将滑点设置为0
-    set_slippage(FixedSlippage(0))
-    # 设置交易成本万分之三，不同滑点影响可在归因分析中查看
-    set_order_cost(OrderCost(open_tax=0, close_tax=0.001, open_commission=0.0003, close_commission=0.0003,
-                             close_today_commission=0, min_commission=5), type='stock')
+
+    ### 股票相关设定 ###
+    # 股票类每笔交易时的手续费是：买入时佣金万分之三，卖出时佣金万分之三加千分之一印花税, 每笔交易佣金最低扣5块钱
+    set_order_cost(OrderCost(close_tax=0.0005, open_commission=0.0001, close_commission=0.0001, min_commission=0),
+                   type='stock')
+
+    # 为股票设定滑点为百分比滑点
+    set_slippage(PriceRelatedSlippage(0.01), type='stock')
+
     # 过滤order中低于error级别的日志
     log.set_level('order', 'error')
     # 初始化全局变量
@@ -360,7 +364,9 @@ def monthly_adjustment(context):
             close_position(position)
     position_count = len(context.portfolio.positions)
     target_num = len(target_list)
-    log.error("选股列表",target_list)
+    log.error("选股列表", target_list)
+    log.error("选股数", target_num)
+    log.error("持仓列表", context.portfolio.positions.keys())
     if target_num > position_count:
         value = context.portfolio.cash / (target_num - position_count)
         for stock in target_list:
