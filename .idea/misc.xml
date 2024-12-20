@@ -4,4 +4,7 @@
     <option name="sdkName" value="LH" />
   </component>
   <component name="ProjectRootManager" version="2" project-jdk-name="LH" project-jdk-type="Python SDK" />
+  <component name="PyPackaging">
+    <option name="earlyReleasesAsUpgrades" value="true" />
+  </component>
 </project>
