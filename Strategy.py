@@ -107,7 +107,8 @@ class Strategy:
         self.check_stoplost(context)
 
     # 基础股票池-全市场选股
-    def stockpool(self, context, pool_id=1, index=None):
+    def stockpool(self, context, pool_id=1, index=None, is_kcbj=True, is_st=True, is_paused=True, is_highlimit=True,
+                  is_lowlimit=True):
         log.info(self.name, '--stockpool函数--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
         if index is None:
             lists = list(get_all_securities(types=['stock'], date=context.previous_date).index)
@@ -117,11 +118,16 @@ class Strategy:
         if pool_id == 0:
             pass
         elif pool_id == 1:
-            lists = self.utilstool.filter_kcbj_stock(context, lists)
-            lists = self.utilstool.filter_st_stock(context, lists)
-            lists = self.utilstool.filter_paused_stock(context, lists)
-            lists = self.utilstool.filter_highlimit_stock(context, lists)
-            lists = self.utilstool.filter_lowlimit_stock(context, lists)
+            if is_kcbj:
+                lists = self.utilstool.filter_kcbj_stock(context, lists)
+            if is_st:
+                lists = self.utilstool.filter_st_stock(context, lists)
+            if is_paused:
+                lists = self.utilstool.filter_paused_stock(context, lists)
+            if is_highlimit:
+                lists = self.utilstool.filter_highlimit_stock(context, lists)
+            if is_lowlimit:
+                lists = self.utilstool.filter_lowlimit_stock(context, lists)
 
         return lists
 
@@ -639,7 +645,7 @@ class Strategy:
             sorted_items = sorted(append_buy_dict.items(), key=lambda x: x[1])  # 按照值进行排序，返回包含(key, value)元组的列表
             result_stock = [item[0] for item in sorted_items[:num]]  # 取前N个元组中的key
 
-            cash = subportfolios.available_cash / len(result_stock)
+            cash = subportfolios.available_cash / num
             log.info("补跌最多的3支 股票代码: %s" % result_stock)
             for stock in result_stock:
                 self.utilstool.open_position(context, stock, cash, False)

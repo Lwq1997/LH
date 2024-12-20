@@ -50,10 +50,12 @@ class DXW_Strategy(Strategy):
         log.info(self.name, '--singal函数开始运行--',
                  str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
 
-        B_stocks = self.stockpool(context, 1, "000300.XSHG")
+        B_stocks = self.stockpool(context, 1, "000300.XSHG", is_kcbj=True, is_st=True, is_paused=False,
+                                  is_lowlimit=False, is_highlimit=False)
         # 过滤次新股
         B_stocks = self.utilstool.filter_new_stock(context, B_stocks, self.new_days)
-        S_stocks = self.stockpool(context, 1, '399101.XSHE')
+        S_stocks = self.stockpool(context, 1, '399101.XSHE', is_kcbj=True, is_st=True, is_paused=False,
+                                  is_lowlimit=False, is_highlimit=False)
 
         # 过滤次新股
         S_stocks = self.utilstool.filter_new_stock(context, S_stocks, self.new_days)
