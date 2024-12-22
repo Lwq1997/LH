@@ -202,7 +202,7 @@ def initialize(context):
     ]
     # 设置交易运行时间
     run_daily(prepare_stock_list, '9:05')
-    run_weekly(weekly_adjustment, 1, '9:30')
+    run_weekly(weekly_adjustment, 1, '9:31')
     run_daily(check_limit_up, '14:00')  # 检查持仓中的涨停股是否需要卖出
     run_daily(close_account, '14:30')
     run_daily(print_position_info, '15:10')
