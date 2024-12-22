@@ -29,7 +29,6 @@ import datetime as dt
 class DXW_Strategy(Strategy):
     def __init__(self, context, subportfolio_index, name, params):
         super().__init__(context, subportfolio_index, name, params)
-        self.new_days = 375  # 已上市天数
         self.no_trading_today_signal = False
         self.market_temperature = "warm"
         self.highest = 50
@@ -50,15 +49,12 @@ class DXW_Strategy(Strategy):
         log.info(self.name, '--singal函数开始运行--',
                  str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
 
-        B_stocks = self.stockpool(context, 1, "000300.XSHG", is_kcbj=True, is_st=True, is_paused=False,
-                                  is_lowlimit=False, is_highlimit=False)
-        # 过滤次新股
-        B_stocks = self.utilstool.filter_new_stock(context, B_stocks, self.new_days)
-        S_stocks = self.stockpool(context, 1, '399101.XSHE', is_kcbj=True, is_st=True, is_paused=False,
-                                  is_lowlimit=False, is_highlimit=False)
-
-        # 过滤次新股
-        S_stocks = self.utilstool.filter_new_stock(context, S_stocks, self.new_days)
+        B_stocks = self.stockpool(context, 1, "000300.XSHG", is_filter_kcbj=True, is_filter_st=True,
+                                  is_filter_paused=False,
+                                  is_filter_lowlimit=False, is_filter_highlimit=False, is_filter_new=True)
+        S_stocks = self.stockpool(context, 1, '399101.XSHE', is_filter_kcbj=True, is_filter_st=True,
+                                  is_filter_paused=False,
+                                  is_filter_lowlimit=False, is_filter_highlimit=False, is_filter_new=True)
 
         q = query(
             valuation.code, valuation.circulating_market_cap
@@ -154,12 +150,8 @@ class DXW_Strategy(Strategy):
         target_list = []
 
         B_stocks = self.stockpool(context, 1, '000300.XSHG')
-        # 过滤次新股
-        B_stocks = self.utilstool.filter_new_stock(context, B_stocks, self.new_days)
 
         S_stocks = self.stockpool(context, 1, '399101.XSHE')
-        # 过滤次新股
-        S_stocks = self.utilstool.filter_new_stock(context, S_stocks, self.new_days)
 
         if self.singal_str == 'big':
             target_list = self.White_Horse(context, B_stocks)

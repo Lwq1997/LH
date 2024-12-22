@@ -27,7 +27,6 @@ from UtilsToolClass import UtilsToolClass
 class XSZ_GJT_Strategy(Strategy):
     def __init__(self, context, subportfolio_index, name, params):
         super().__init__(context, subportfolio_index, name, params)
-        self.new_days = 375  # 400 # 已上市天数
         self.highest = 50
 
     def select(self, context):
@@ -49,8 +48,6 @@ class XSZ_GJT_Strategy(Strategy):
 
         # 获得初始列表
         initial_list = self.stockpool(context, 1, '399101.XSHE')
-        # 过滤次新股
-        initial_list = self.utilstool.filter_new_stock(context, initial_list, self.new_days)
         # 过滤120天内即将大幅解禁
         initial_list = self.utilstool.filter_locked_shares(context, initial_list, 120)
 
@@ -67,8 +64,6 @@ class XSZ_GJT_Strategy(Strategy):
 
         # 获得初始列表
         lists = self.stockpool(context, 1, '399101.XSHE')
-        # 过滤次新股
-        lists = self.utilstool.filter_new_stock(context, lists, self.new_days)
         # 过滤120天内即将大幅解禁
         lists = self.utilstool.filter_locked_shares(context, lists, 120)
         final_list_2 = []
