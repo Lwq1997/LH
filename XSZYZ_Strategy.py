@@ -35,12 +35,11 @@ class XSZYZ_Strategy(Strategy):
 
         # 根据市场温度设置选股条件，选出股票
         self.select_list = self.__get_rank(context)[:self.max_select_count]
-        log.error('选股列表:', self.select_list)
         # 编写操作计划
         self.print_trade_plan(context, self.select_list)
 
     def __get_rank(self, context):
-        log.info(self.name, '--get_rank函数--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+        log.info(self.name, '--get_rank函数--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()),'--当前策略因子:',self.factor_list)
 
         # TODO
         initial_list = super().stockpool(context)
@@ -67,7 +66,7 @@ class XSZYZ_Strategy(Strategy):
             # lst = filter_limitup_stock(context, lst)
             # lst = filter_limitdown_stock(context, lst)
             lst = lst[:min(self.per_factor_max_select_count, len(lst))]
-            log.error('factor_list:', factor_list, '选股列表:', lst)
+            log.error(self.name,'--factor_list:', factor_list, '选股列表:', lst)
             for stock in lst:
                 if stock not in final_list:
                     final_list.append(stock)

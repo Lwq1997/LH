@@ -47,7 +47,8 @@ def initialize(context):
     # 持久变量
     g.strategys = {}
     # 子账户 分仓
-    g.portfolio_value_proportion = [1, 0, 0]
+    g.portfolio_value_proportion = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1,
+                                    0, 0, 0]
 
     # 创建策略实例
     # 初始化策略子账户 subportfolios
@@ -55,6 +56,16 @@ def initialize(context):
         SubPortfolioConfig(context.portfolio.starting_cash * g.portfolio_value_proportion[0], 'stock'),
         SubPortfolioConfig(context.portfolio.starting_cash * g.portfolio_value_proportion[1], 'stock'),
         SubPortfolioConfig(context.portfolio.starting_cash * g.portfolio_value_proportion[2], 'stock'),
+        SubPortfolioConfig(context.portfolio.starting_cash * g.portfolio_value_proportion[3], 'stock'),
+        SubPortfolioConfig(context.portfolio.starting_cash * g.portfolio_value_proportion[4], 'stock'),
+        SubPortfolioConfig(context.portfolio.starting_cash * g.portfolio_value_proportion[5], 'stock'),
+        SubPortfolioConfig(context.portfolio.starting_cash * g.portfolio_value_proportion[6], 'stock'),
+        SubPortfolioConfig(context.portfolio.starting_cash * g.portfolio_value_proportion[7], 'stock'),
+        SubPortfolioConfig(context.portfolio.starting_cash * g.portfolio_value_proportion[8], 'stock'),
+        SubPortfolioConfig(context.portfolio.starting_cash * g.portfolio_value_proportion[9], 'stock'),
+        SubPortfolioConfig(context.portfolio.starting_cash * g.portfolio_value_proportion[10], 'stock'),
+        SubPortfolioConfig(context.portfolio.starting_cash * g.portfolio_value_proportion[11], 'stock'),
+        SubPortfolioConfig(context.portfolio.starting_cash * g.portfolio_value_proportion[12], 'stock')
     ])
 
     # 是否发送微信消息，回测环境不发送，模拟环境发送
@@ -82,11 +93,11 @@ def initialize(context):
             ],
             [
                 -5.305338739321596e-13,
-                 0.0028018907262207246,
-                 3.445005190225511e-13
+                0.0028018907262207246,
+                3.445005190225511e-13
             ]
         ),
-        (  #ITR-StPR-STM-NLoMC.txt
+        (  # ITR-StPR-STM-NLoMC.txt
             [
                 'inventory_turnover_rate',
                 'sales_to_price_ratio',
@@ -97,11 +108,11 @@ def initialize(context):
                 2.758707919895875e-08, 0.02830291416983057, -0.033608724791129085, 0.0013219161779863542
             ]
         ),
-        (  #Liquidity-VCPttm-ROAttm.txt
+        (  # Liquidity-VCPttm-ROAttm.txt
             [
-                'liquidity', #风格因子 流动性因子
-                'value_change_profit_ttm', #基础科目及衍生类因子 价值变动净收益TTM
-                'roa_ttm' #质量类因子 资产回报率TTM
+                'liquidity',  # 风格因子 流动性因子
+                'value_change_profit_ttm',  # 基础科目及衍生类因子 价值变动净收益TTM
+                'roa_ttm'  # 质量类因子 资产回报率TTM
             ],
             [
                 -0.04963427582597701,
@@ -109,17 +120,17 @@ def initialize(context):
                 -0.04698060391789672
             ]
         ),
-        (  #NCAR-AER-ATR6-VOL20.txt
+        (  # NCAR-AER-ATR6-VOL20.txt
             [
-                'non_current_asset_ratio', #质量类因子 非流动资产比率
-                'admin_expense_rate', #质量类因子 管理费用与营业总收入之比
-                'ATR6', #情绪类因子 6日均幅指标
-                'VOL20' #情绪类因子 20日平均换手率
+                'non_current_asset_ratio',  # 质量类因子 非流动资产比率
+                'admin_expense_rate',  # 质量类因子 管理费用与营业总收入之比
+                'ATR6',  # 情绪类因子 6日均幅指标
+                'VOL20'  # 情绪类因子 20日平均换手率
             ],
-            [238.1242, -347.1289, 4.2208,  -19.8349
-            ]
+            [238.1242, -347.1289, 4.2208, -19.8349
+             ]
         ),
-        (  #ORGR-SRFps-VSTD20-NOCFtOI.txt
+        (  # ORGR-SRFps-VSTD20-NOCFtOI.txt
             [
                 'operating_revenue_growth_rate',  # 成长类因子 营业收入增长率
                 'surplus_reserve_fund_per_share',  # 每股指标因子 每股盈余公积金
@@ -133,7 +144,7 @@ def initialize(context):
                 6.483698165689134e-05
             ]
         ),
-        (  #ORGR-TPGR-NPGR-EGR-EPS.txt
+        (  # ORGR-TPGR-NPGR-EGR-EPS.txt
             [
                 'operating_revenue_growth_rate',  # 成长类因子 营业收入增长率
                 'total_profit_growth_rate',  # 成长类因子 利润总额增长率
@@ -142,10 +153,11 @@ def initialize(context):
                 'eps_ttm'  # 每股指标因子 每股收益TTM
             ],
             [
-                -0.0019079645149417137, -6.027115922691245e-05, -1.8580428418195642e-05, -0.005293892163117587, -0.010077397467005972
+                -0.0019079645149417137, -6.027115922691245e-05, -1.8580428418195642e-05, -0.005293892163117587,
+                -0.010077397467005972
             ]
         ),
-        (  #PNF-TPtCR-ITR.txt
+        (  # PNF-TPtCR-ITR.txt
             [
                 'price_no_fq',  # 技术指标因子 不复权价格因子
                 'total_profit_to_cost_ratio',  # 质量类因子 成本费用利润率
@@ -157,7 +169,7 @@ def initialize(context):
                 -2.194257357346814e-06
             ]
         ),
-        (  #SQR-CoS-CtE.txt
+        (  # SQR-CoS-CtE.txt
             [
                 'super_quick_ratio',  # 质量类因子 超速动比率
                 'cube_of_size',  # 风险因子 市值立方
@@ -167,7 +179,7 @@ def initialize(context):
                 -26.6636, -2.6880, 1242.3598
             ]
         ),
-        (  #VSTD20-ARTR-LTDtAR-OC.txt
+        (  # VSTD20-ARTR-LTDtAR-OC.txt
             [
                 'VSTD20',  # 情绪类因子 20日成交量标准差
                 'account_receivable_turnover_rate',  # 质量类因子 应收账款周转率
@@ -177,8 +189,8 @@ def initialize(context):
             [
                 -1.3783e-09, -4.8282e-16, -4.6013e-02, 2.4878e-09
             ]
-        ),
-        (  # P1Y-TPtCR-VOL120
+        )
+        , (  # P1Y-TPtCR-VOL120
             [
                 'Price1Y',  # 动量类因子 当前股价除以过去一年股价均值再减1
                 'total_profit_to_cost_ratio',  # 质量类因子 成本费用利润率
@@ -221,14 +233,17 @@ def initialize(context):
             ]
         )
     ]
-    params = {
-        'max_hold_count': 500,  # 最大持股数
-        'max_select_count': 100,  # 最大输出选股数
-        'per_factor_max_select_count': 1,  # 最大输出选股数
-        'factor_list' : factor_list
-    }
-    xszyz_strategy = XSZYZ_Strategy(context, subportfolio_index=0, name='小市值聚宽因子策略', params=params)
-    g.strategys[xszyz_strategy.name] = xszyz_strategy
+
+    for i in range(12):
+        params = {
+            'max_hold_count': 500,  # 最大持股数
+            'max_select_count': 100,  # 最大输出选股数
+            'per_factor_max_select_count': 1,  # 最大输出选股数
+            'factor_list': [list(factor_list[i])]
+        }
+        xszyz_strategy = XSZYZ_Strategy(context, subportfolio_index=i, name='小市值聚宽因子策略_' + str(i),
+                                        params=params)
+        g.strategys["小市值聚宽因子策略_" + str(i)] = xszyz_strategy
 
 
 # 模拟盘在每天的交易时间结束后会休眠，第二天开盘时会恢复，如果在恢复时发现代码已经发生了修改，则会在恢复时执行这个函数。 具体的使用场景：可以利用这个函数修改一些模拟盘的数据。
@@ -241,37 +256,404 @@ def after_code_changed(context):  # 输出运行时间
     unschedule_all()  # 取消所有定时运行
 
     if g.portfolio_value_proportion[0] > 0:
-        # 准备
-        run_daily(xszyz_day_prepare, time='09:00')
+        run_daily(xszyz_day_prepare_0, time='09:00')
         # 选股
-        run_daily(xszyz_select, time='09:31')
+        run_daily(xszyz_select_0, time='09:31')
         # 卖出
-        run_daily(xszyz_adjust, time='09:31')
+        run_daily(xszyz_adjust_0, time='09:31')
         # 非涨停卖出
-        run_daily(xszyz_sell_when_highlimit_open, time='14:00')
+        run_daily(xszyz_sell_when_highlimit_open_0, time='14:00')
         # 收盘
-        run_daily(xszyz_after_market_close, 'after_close')
+        run_daily(xszyz_after_market_close_0, 'after_close')
+
+    if g.portfolio_value_proportion[1] > 0:
+        run_daily(xszyz_day_prepare_1, time='09:00')
+        # 选股
+        run_daily(xszyz_select_1, time='09:31')
+        # 卖出
+        run_daily(xszyz_adjust_1, time='09:31')
+        # 非涨停卖出
+        run_daily(xszyz_sell_when_highlimit_open_1, time='14:00')
+        # 收盘
+        run_daily(xszyz_after_market_close_1, 'after_close')
+
+    if g.portfolio_value_proportion[2] > 0:
+        run_daily(xszyz_day_prepare_2, time='09:00')
+        # 选股
+        run_daily(xszyz_select_2, time='09:31')
+        # 卖出
+        run_daily(xszyz_adjust_2, time='09:31')
+        # 非涨停卖出
+        run_daily(xszyz_sell_when_highlimit_open_2, time='14:00')
+        # 收盘
+        run_daily(xszyz_after_market_close_2, 'after_close')
+
+    if g.portfolio_value_proportion[3] > 0:
+        run_daily(xszyz_day_prepare_3, time='09:00')
+        # 选股
+        run_daily(xszyz_select_3, time='09:31')
+        # 卖出
+        run_daily(xszyz_adjust_3, time='09:31')
+        # 非涨停卖出
+        run_daily(xszyz_sell_when_highlimit_open_3, time='14:00')
+        # 收盘
+        run_daily(xszyz_after_market_close_3, 'after_close')
+
+    if g.portfolio_value_proportion[4] > 0:
+        run_daily(xszyz_day_prepare_4, time='09:00')
+        # 选股
+        run_daily(xszyz_select_4, time='09:31')
+        # 卖出
+        run_daily(xszyz_adjust_4, time='09:31')
+        # 非涨停卖出
+        run_daily(xszyz_sell_when_highlimit_open_4, time='14:00')
+        # 收盘
+        run_daily(xszyz_after_market_close_4, 'after_close')
+
+    if g.portfolio_value_proportion[5] > 0:
+        run_daily(xszyz_day_prepare_5, time='09:00')
+        # 选股
+        run_daily(xszyz_select_5, time='09:31')
+        # 卖出
+        run_daily(xszyz_adjust_5, time='09:31')
+        # 非涨停卖出
+        run_daily(xszyz_sell_when_highlimit_open_5, time='14:00')
+        # 收盘
+        run_daily(xszyz_after_market_close_5, 'after_close')
+
+    if g.portfolio_value_proportion[6] > 0:
+        run_daily(xszyz_day_prepare_6, time='09:00')
+        # 选股
+        run_daily(xszyz_select_6, time='09:31')
+        # 卖出
+        run_daily(xszyz_adjust_6, time='09:31')
+        # 非涨停卖出
+        run_daily(xszyz_sell_when_highlimit_open_6, time='14:00')
+        # 收盘
+        run_daily(xszyz_after_market_close_6, 'after_close')
+
+    if g.portfolio_value_proportion[7] > 0:
+        run_daily(xszyz_day_prepare_7, time='09:00')
+        # 选股
+        run_daily(xszyz_select_7, time='09:31')
+        # 卖出
+        run_daily(xszyz_adjust_7, time='09:31')
+        # 非涨停卖出
+        run_daily(xszyz_sell_when_highlimit_open_7, time='14:00')
+        # 收盘
+        run_daily(xszyz_after_market_close_7, 'after_close')
+
+    if g.portfolio_value_proportion[8] > 0:
+        run_daily(xszyz_day_prepare_8, time='09:00')
+        # 选股
+        run_daily(xszyz_select_8, time='09:31')
+        # 卖出
+        run_daily(xszyz_adjust_8, time='09:31')
+        # 非涨停卖出
+        run_daily(xszyz_sell_when_highlimit_open_8, time='14:00')
+        # 收盘
+        run_daily(xszyz_after_market_close_8, 'after_close')
+
+    if g.portfolio_value_proportion[9] > 0:
+        run_daily(xszyz_day_prepare_9, time='09:00')
+        # 选股
+        run_daily(xszyz_select_9, time='09:31')
+        # 卖出
+        run_daily(xszyz_adjust_9, time='09:31')
+        # 非涨停卖出
+        run_daily(xszyz_sell_when_highlimit_open_9, time='14:00')
+        # 收盘
+        run_daily(xszyz_after_market_close_9, 'after_close')
+
+    if g.portfolio_value_proportion[10] > 0:
+        run_daily(xszyz_day_prepare_10, time='09:00')
+        # 选股
+        run_daily(xszyz_select_10, time='09:31')
+        # 卖出
+        run_daily(xszyz_adjust_10, time='09:31')
+        # 非涨停卖出
+        run_daily(xszyz_sell_when_highlimit_open_10, time='14:00')
+        # 收盘
+        run_daily(xszyz_after_market_close_10, 'after_close')
+
+    if g.portfolio_value_proportion[11] > 0:
+        run_daily(xszyz_day_prepare_11, time='09:00')
+        # 选股
+        run_daily(xszyz_select_11, time='09:31')
+        # 卖出
+        run_daily(xszyz_adjust_11, time='09:31')
+        # 非涨停卖出
+        run_daily(xszyz_sell_when_highlimit_open_11, time='14:00')
+        # 收盘
+        run_daily(xszyz_after_market_close_11, 'after_close')
+
+    if g.portfolio_value_proportion[12] > 0:
+        run_daily(xszyz_day_prepare_12, time='09:00')
+        # 选股
+        run_daily(xszyz_select_12, time='09:31')
+        # 卖出
+        run_daily(xszyz_adjust_12, time='09:31')
+        # 非涨停卖出
+        run_daily(xszyz_sell_when_highlimit_open_12, time='14:00')
+        # 收盘
+        run_daily(xszyz_after_market_close_12, 'after_close')
 
 
-def xszyz_day_prepare(context):
-    g.strategys['小市值聚宽因子策略'].day_prepare(context)
+def xszyz_day_prepare_0(context):
+    g.strategys["小市值聚宽因子策略_0"].day_prepare(context)
 
 
-def xszyz_select(context):
-    g.strategys['小市值聚宽因子策略'].select(context)
+def xszyz_select_0(context):
+    g.strategys["小市值聚宽因子策略_0"].select(context)
 
 
-def xszyz_adjust(context):
-    g.strategys['小市值聚宽因子策略'].adjustwithnoRM(context)
+def xszyz_adjust_0(context):
+    g.strategys["小市值聚宽因子策略_0"].adjustwithnoRM(context)
 
 
-def xszyz_sell_when_highlimit_open(context):
-    g.strategys['小市值聚宽因子策略'].sell_when_highlimit_open(context)
+def xszyz_sell_when_highlimit_open_0(context):
+    g.strategys["小市值聚宽因子策略_0"].sell_when_highlimit_open(context)
 
 
-def xszyz_sell_when_highlimit_open(context):
-    g.strategys['小市值聚宽因子策略'].sell_when_highlimit_open(context)
+def xszyz_after_market_close_0(context):
+    g.strategys["小市值聚宽因子策略_0"].after_market_close(context)
 
 
-def xszyz_after_market_close(context):
-    g.strategys['小市值聚宽因子策略'].after_market_close(context)
+def xszyz_day_prepare_1(context):
+    g.strategys["小市值聚宽因子策略_1"].day_prepare(context)
+
+
+def xszyz_select_1(context):
+    g.strategys["小市值聚宽因子策略_1"].select(context)
+
+
+def xszyz_adjust_1(context):
+    g.strategys["小市值聚宽因子策略_1"].adjustwithnoRM(context)
+
+
+def xszyz_sell_when_highlimit_open_1(context):
+    g.strategys["小市值聚宽因子策略_1"].sell_when_highlimit_open(context)
+
+
+def xszyz_after_market_close_1(context):
+    g.strategys["小市值聚宽因子策略_1"].after_market_close(context)
+
+
+def xszyz_day_prepare_2(context):
+    g.strategys["小市值聚宽因子策略_2"].day_prepare(context)
+
+
+def xszyz_select_2(context):
+    g.strategys["小市值聚宽因子策略_2"].select(context)
+
+
+def xszyz_adjust_2(context):
+    g.strategys["小市值聚宽因子策略_2"].adjustwithnoRM(context)
+
+
+def xszyz_sell_when_highlimit_open_2(context):
+    g.strategys["小市值聚宽因子策略_2"].sell_when_highlimit_open(context)
+
+
+def xszyz_after_market_close_2(context):
+    g.strategys["小市值聚宽因子策略_2"].after_market_close(context)
+
+
+def xszyz_day_prepare_3(context):
+    g.strategys["小市值聚宽因子策略_3"].day_prepare(context)
+
+
+def xszyz_select_3(context):
+    g.strategys["小市值聚宽因子策略_3"].select(context)
+
+
+def xszyz_adjust_3(context):
+    g.strategys["小市值聚宽因子策略_3"].adjustwithnoRM(context)
+
+
+def xszyz_sell_when_highlimit_open_3(context):
+    g.strategys["小市值聚宽因子策略_3"].sell_when_highlimit_open(context)
+
+
+def xszyz_after_market_close_3(context):
+    g.strategys["小市值聚宽因子策略_3"].after_market_close(context)
+
+
+def xszyz_day_prepare_4(context):
+    g.strategys["小市值聚宽因子策略_4"].day_prepare(context)
+
+
+def xszyz_select_4(context):
+    g.strategys["小市值聚宽因子策略_4"].select(context)
+
+
+def xszyz_adjust_4(context):
+    g.strategys["小市值聚宽因子策略_4"].adjustwithnoRM(context)
+
+
+def xszyz_sell_when_highlimit_open_4(context):
+    g.strategys["小市值聚宽因子策略_4"].sell_when_highlimit_open(context)
+
+
+def xszyz_after_market_close_4(context):
+    g.strategys["小市值聚宽因子策略_4"].after_market_close(context)
+
+
+def xszyz_day_prepare_5(context):
+    g.strategys["小市值聚宽因子策略_5"].day_prepare(context)
+
+
+def xszyz_select_5(context):
+    g.strategys["小市值聚宽因子策略_5"].select(context)
+
+
+def xszyz_adjust_5(context):
+    g.strategys["小市值聚宽因子策略_5"].adjustwithnoRM(context)
+
+
+def xszyz_sell_when_highlimit_open_5(context):
+    g.strategys["小市值聚宽因子策略_5"].sell_when_highlimit_open(context)
+
+
+def xszyz_after_market_close_5(context):
+    g.strategys["小市值聚宽因子策略_5"].after_market_close(context)
+
+
+def xszyz_day_prepare_6(context):
+    g.strategys["小市值聚宽因子策略_6"].day_prepare(context)
+
+
+def xszyz_select_6(context):
+    g.strategys["小市值聚宽因子策略_6"].select(context)
+
+
+def xszyz_adjust_6(context):
+    g.strategys["小市值聚宽因子策略_6"].adjustwithnoRM(context)
+
+
+def xszyz_sell_when_highlimit_open_6(context):
+    g.strategys["小市值聚宽因子策略_6"].sell_when_highlimit_open(context)
+
+
+def xszyz_after_market_close_6(context):
+    g.strategys["小市值聚宽因子策略_6"].after_market_close(context)
+
+
+def xszyz_day_prepare_7(context):
+    g.strategys["小市值聚宽因子策略_7"].day_prepare(context)
+
+
+def xszyz_select_7(context):
+    g.strategys["小市值聚宽因子策略_7"].select(context)
+
+
+def xszyz_adjust_7(context):
+    g.strategys["小市值聚宽因子策略_7"].adjustwithnoRM(context)
+
+
+def xszyz_sell_when_highlimit_open_7(context):
+    g.strategys["小市值聚宽因子策略_7"].sell_when_highlimit_open(context)
+
+
+def xszyz_after_market_close_7(context):
+    g.strategys["小市值聚宽因子策略_7"].after_market_close(context)
+
+
+def xszyz_day_prepare_8(context):
+    g.strategys["小市值聚宽因子策略_8"].day_prepare(context)
+
+
+def xszyz_select_8(context):
+    g.strategys["小市值聚宽因子策略_8"].select(context)
+
+
+def xszyz_adjust_8(context):
+    g.strategys["小市值聚宽因子策略_8"].adjustwithnoRM(context)
+
+
+def xszyz_sell_when_highlimit_open_8(context):
+    g.strategys["小市值聚宽因子策略_8"].sell_when_highlimit_open(context)
+
+
+def xszyz_after_market_close_8(context):
+    g.strategys["小市值聚宽因子策略_8"].after_market_close(context)
+
+
+def xszyz_day_prepare_9(context):
+    g.strategys["小市值聚宽因子策略_9"].day_prepare(context)
+
+
+def xszyz_select_9(context):
+    g.strategys["小市值聚宽因子策略_9"].select(context)
+
+
+def xszyz_adjust_9(context):
+    g.strategys["小市值聚宽因子策略_9"].adjustwithnoRM(context)
+
+
+def xszyz_sell_when_highlimit_open_9(context):
+    g.strategys["小市值聚宽因子策略_9"].sell_when_highlimit_open(context)
+
+
+def xszyz_after_market_close_9(context):
+    g.strategys["小市值聚宽因子策略_9"].after_market_close(context)
+
+
+def xszyz_day_prepare_10(context):
+    g.strategys["小市值聚宽因子策略_10"].day_prepare(context)
+
+
+def xszyz_select_10(context):
+    g.strategys["小市值聚宽因子策略_10"].select(context)
+
+
+def xszyz_adjust_10(context):
+    g.strategys["小市值聚宽因子策略_10"].adjustwithnoRM(context)
+
+
+def xszyz_sell_when_highlimit_open_10(context):
+    g.strategys["小市值聚宽因子策略_10"].sell_when_highlimit_open(context)
+
+
+def xszyz_after_market_close_10(context):
+    g.strategys["小市值聚宽因子策略_10"].after_market_close(context)
+
+
+def xszyz_day_prepare_11(context):
+    g.strategys["小市值聚宽因子策略_11"].day_prepare(context)
+
+
+def xszyz_select_11(context):
+    g.strategys["小市值聚宽因子策略_11"].select(context)
+
+
+def xszyz_adjust_11(context):
+    g.strategys["小市值聚宽因子策略_11"].adjustwithnoRM(context)
+
+
+def xszyz_sell_when_highlimit_open_11(context):
+    g.strategys["小市值聚宽因子策略_11"].sell_when_highlimit_open(context)
+
+
+def xszyz_after_market_close_11(context):
+    g.strategys["小市值聚宽因子策略_11"].after_market_close(context)
+
+
+def xszyz_day_prepare_12(context):
+    g.strategys["小市值聚宽因子策略_12"].day_prepare(context)
+
+
+def xszyz_select_12(context):
+    g.strategys["小市值聚宽因子策略_12"].select(context)
+
+
+def xszyz_adjust_12(context):
+    g.strategys["小市值聚宽因子策略_12"].adjustwithnoRM(context)
+
+
+def xszyz_sell_when_highlimit_open_12(context):
+    g.strategys["小市值聚宽因子策略_12"].sell_when_highlimit_open(context)
+
+
+def xszyz_after_market_close_12(context):
+    g.strategys["小市值聚宽因子策略_12"].after_market_close(context)
