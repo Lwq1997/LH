@@ -31,3 +31,6 @@ print(new_list)
 
 for factor_list, coef_list in new_list:
     print(factor_list, coef_list)
+
+for i in range(13):
+    print(i)
