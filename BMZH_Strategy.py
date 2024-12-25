@@ -1,4 +1,4 @@
-#-*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 # 如果你的文件包含中文, 请在文件的第一行使用上面的语句指定你的文件编码
 
 # 用到策略及数据相关API请加入下面的语句(如果要兼容研究使用可以使用 try except导入
@@ -32,17 +32,18 @@ class BMZH_Strategy(Strategy):
     def select(self, context):
         log.info(self.name, '--select函数--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
 
-        self.market_temperature = self.utilstool.Market_temperature(context,self.market_temperature)
+        self.market_temperature = self.utilstool.Market_temperature(context, self.market_temperature)
         # 根据市场温度设置选股条件，选出股票
         self.select_list = self.__get_rank(context)[:self.max_select_count]
+        log.info('当前市场温度:', self.market_temperature, '当前选股:', self.select_list)
         # 编写操作计划
         self.print_trade_plan(context, self.select_list)
 
     def __get_rank(self, context):
         log.info(self.name, '--get_rank函数--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
 
-        initial_list = super().stockpool(context, 1, "000300.XSHG")
-
+        initial_list = super().stockpool(context, 1, "000300.XSHG", is_filter_new=False)
+        # log.info(initial_list)
         # 2.根据市场温度进行选股
         # ·如果市场温度为"cold",则筛选条件包括：
         #   市净率（PB ratio)大于0且小于1
