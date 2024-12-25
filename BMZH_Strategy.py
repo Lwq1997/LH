@@ -42,7 +42,7 @@ class BMZH_Strategy(Strategy):
     def __get_rank(self, context):
         log.info(self.name, '--get_rank函数--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
 
-        initial_list = super().stockpool(context, 1, "000300.XSHG", is_filter_new=False)
+        initial_list = super().stockpool(context, 1, "000300.XSHG")
         # log.info(initial_list)
         # 2.根据市场温度进行选股
         # ·如果市场温度为"cold",则筛选条件包括：
