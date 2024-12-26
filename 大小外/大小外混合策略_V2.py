@@ -10,14 +10,15 @@ linlin2018，ZLH：低波全天候策略（外盘ETF策略）
 # -*- coding: utf-8 -*-
 # 如果你的文件包含中文, 请在文件的第一行使用上面的语句指定你的文件编码
 
-# 用到策略及数据相关API请加入下面的语句(如果要兼容研究使用可以使用 try except导入
-
 from kuanke.user_space_api import *
 from kuanke.wizard import *
 from jqdata import *
 from jqfactor import *
 from jqlib.technical_analysis import *
 from 策略合集.DXW_Strategy import DXW_Strategy
+
+import warnings
+from datetime import date as dt
 
 
 # 初始化函数，设定基准等等
@@ -57,8 +58,8 @@ def initialize(context):
     # 是否发送微信消息，回测环境不发送，模拟环境发送
     context.is_send_wx_message = 0
     params = {
-        'max_hold_count': 5,  # 最大持股数
-        'max_select_count': 10,  # 最大输出选股数
+        'max_hold_count': 100,  # 最大持股数
+        'max_select_count': 100,  # 最大输出选股数
     }
     dxw_strategy = DXW_Strategy(context, subportfolio_index=0, name='大小外综合策略', params=params)
     g.strategys[dxw_strategy.name] = dxw_strategy
@@ -81,7 +82,7 @@ def after_code_changed(context):  # 输出运行时间
         # 选择大小外的其中一个
         run_monthly(dxw_singal, 1, time='08:00')
         # 选股
-        run_weekly(dxw_select, 1, time='08:30')
+        run_weekly(dxw_select, 1, time='09:30')
         # 空仓/止损
         # run_daily(dxw_open_market, time='9:30')
         # 补仓卖出

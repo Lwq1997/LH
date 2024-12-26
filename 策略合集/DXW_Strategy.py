@@ -246,7 +246,6 @@ class DXW_Strategy(Strategy):
 
     def SMALL(self, context, S_stocks):
         all_stocks1 = S_stocks
-        all_stocks2 = S_stocks
         log.info(self.name, '--SMALL函数开始运行--',
                  str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
 
@@ -267,7 +266,7 @@ class DXW_Strategy(Strategy):
             income.operating_revenue  # 营业收入
             # security_indicator.net_assets
         ).filter(
-            valuation.code.in_(all_stocks2),
+            valuation.code.in_(all_stocks1),
             valuation.market_cap.between(5, 30),
             income.np_parent_company_owners > 0,
             income.net_profit > 0,
