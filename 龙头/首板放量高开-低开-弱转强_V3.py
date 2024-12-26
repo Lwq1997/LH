@@ -34,6 +34,7 @@ def initialize(context):
     set_option('use_real_price', True)
     # 过滤掉order系列API产生的比error级别低的log
     log.set_level('order', 'error')
+    log.set_level('strategy', 'info')
     # 关闭未来函数
     set_option('avoid_future_data', True)
 
@@ -48,7 +49,7 @@ def initialize(context):
     # 持久变量
     g.strategys = {}
     # 子账户 分仓
-    g.portfolio_value_proportion = [0.33, 0.33, 0.34]
+    g.portfolio_value_proportion = [0, 0.5, 0.5]
 
     # 创建策略实例
     # 初始化策略子账户 subportfolios
@@ -71,14 +72,14 @@ def initialize(context):
         'max_hold_count': 100,  # 最大持股数
         'max_select_count': 100,  # 最大输出选股数
     }
-    sbgk_strategy = SBGK_Strategy(context, subportfolio_index=0, name='首板高开', params=params)
+    sbgk_strategy = SBGK_Strategy(context, subportfolio_index=1, name='首板高开', params=params)
     g.strategys[sbgk_strategy.name] = sbgk_strategy
 
     params = {
         'max_hold_count': 100,  # 最大持股数
         'max_select_count': 100,  # 最大输出选股数
     }
-    rzq_strategy = RZQ_Strategy(context, subportfolio_index=0, name='弱转强', params=params)
+    rzq_strategy = RZQ_Strategy(context, subportfolio_index=2, name='弱转强', params=params)
     g.strategys[rzq_strategy.name] = rzq_strategy
 
 
