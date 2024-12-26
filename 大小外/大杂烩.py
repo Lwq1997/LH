@@ -1,37 +1,26 @@
 '''
 多策略分子账户并行
 用到的策略：
-蚂蚁量化,东哥：白马股攻防转换策略（BMZH策略）
+蚂蚁量化,东哥：白马股攻防转换策略（dxw策略）
 linlin2018，ZLH：低波全天候策略（外盘ETF策略）
-@荒唐的方糖大佬:国九条小市值（XSZGJT）（还可以改进）
+@荒唐的方糖大佬:国九条小市值（dxw）（还可以改进）
 '''
 
 # 导入函数库
-#-*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 # 如果你的文件包含中文, 请在文件的第一行使用上面的语句指定你的文件编码
 
 # 用到策略及数据相关API请加入下面的语句(如果要兼容研究使用可以使用 try except导入
+
 from kuanke.user_space_api import *
-from jqdata import *
-from jqfactor import get_factor_values
-import datetime
 from kuanke.wizard import *
-import numpy as np
-import pandas as pd
-import talib
-from datetime import date as dt
-import math
-import talib as tl
+from jqdata import *
+from jqfactor import *
 from jqlib.technical_analysis import *
-from scipy.linalg import inv
-import pickle
-import requests
-import datetime as datet
-from prettytable import PrettyTable
-import inspect
-from BMZH_Strategy import BMZH_Strategy
-from WPETF_Strategy import WPETF_Strategy
-from XSZ_GJT_Strategy import XSZ_GJT_Strategy
+from 策略合集.WPETF_Strategy import WPETF_Strategy
+from 策略合集.XSZ_GJT_Strategy import XSZ_GJT_Strategy
+from 策略合集.DXW_Strategy import DXW_Strategy
+from 策略合集.BMZH_Strategy import BMZH_Strategy
 
 
 # 初始化函数，设定基准等等
@@ -49,7 +38,7 @@ def initialize(context):
 
     ### 股票相关设定 ###
     # 股票类每笔交易时的手续费是：买入时佣金万分之三，卖出时佣金万分之三加千分之一印花税, 每笔交易佣金最低扣5块钱
-    set_order_cost(OrderCost(close_tax=0.0005, open_commission=0.0001, close_commission=0.0001, min_commission=0),
+    set_order_cost(OrderCost(close_tax=0.001, open_commission=0.0001, close_commission=0.0001, min_commission=0),
                    type='stock')
 
     # 为股票设定滑点为百分比滑点
@@ -59,8 +48,11 @@ def initialize(context):
 
     # 持久变量
     g.strategys = {}
-    # 子账户 分仓
-    g.portfolio_value_proportion = [0.35, 0.15, 0.5]
+
+    # 是否发送微信消息，回测环境不发送，模拟环境发送
+    context.is_send_wx_message = 0
+
+    g.portfolio_value_proportion = [0.25, 0.25, 0.25, 0.25]
 
     # 创建策略实例
     # 初始化策略子账户 subportfolios
@@ -68,15 +60,18 @@ def initialize(context):
         SubPortfolioConfig(context.portfolio.starting_cash * g.portfolio_value_proportion[0], 'stock'),
         SubPortfolioConfig(context.portfolio.starting_cash * g.portfolio_value_proportion[1], 'stock'),
         SubPortfolioConfig(context.portfolio.starting_cash * g.portfolio_value_proportion[2], 'stock'),
+        SubPortfolioConfig(context.portfolio.starting_cash * g.portfolio_value_proportion[3], 'stock')
     ])
 
     context.subportfolios_name_map = {
         0: '白马策略',
         1: 'ETF策略',
-        2: '小市值策略'
+        2: '小市值策略',
+        3: '大小外'
     }
     # 是否发送微信消息，回测环境不发送，模拟环境发送
     context.is_send_wx_message = 0
+
     params = {
         'max_hold_count': 2,  # 最大持股数
         'max_select_count': 4,  # 最大输出选股数
@@ -103,6 +98,13 @@ def initialize(context):
     # 小世值，第三个仓
     xszgjt_strategy = XSZ_GJT_Strategy(context, subportfolio_index=2, name='国九条小市值策略', params=params)
     g.strategys[xszgjt_strategy.name] = xszgjt_strategy
+
+    params = {
+        'max_hold_count': 5,  # 最大持股数
+        'max_select_count': 10,  # 最大输出选股数
+    }
+    dxw_strategy = DXW_Strategy(context, subportfolio_index=3, name='大小外综合策略', params=params)
+    g.strategys[dxw_strategy.name] = dxw_strategy
 
     # 执行计划
     # 选股函数--Select：白马和 ETF 分开使用
@@ -132,27 +134,59 @@ def initialize(context):
         run_daily(xszgjt_after_market_close, 'after_close')
         # run_daily(xszgjt_print_position_info, time='15:10')
 
+    if g.portfolio_value_proportion[3] > 0:
+        # 准备工作
+        run_daily(dxw_day_prepare, time='7:30')
+        # 选择大小外的其中一个
+        run_monthly(dxw_singal, 1, time='08:00')
+        # 选股
+        run_weekly(dxw_select, 1, time='08:30')
+        # 空仓/止损
+        # run_daily(dxw_open_market, time='9:30')
+        # 补仓卖出
+        run_weekly(dxw_adjust, 1, time='9:30')
+        # run_daily(dxw_sell_when_highlimit_open, time='11:27')
+        # 非涨停出售
+        run_daily(dxw_sell_when_highlimit_open, time='14:00')
+        # run_daily(dxw_sell_when_highlimit_open, time='14:50')
+        # 补仓买入
+        run_daily(dxw_append_buy_stock, time='14:51')
+        # 收盘
+        run_daily(dxw_after_market_close, 'after_close')
 
-# # 每个交易日结束运行
-# def after_trading_end(context):
-#     log.warn('##############################################################')
-#     # 得到当天所有成交记录
-#     trades = get_trades()
-#     for _trade in trades.values():
-#         log.warn('成交记录：' + str(_trade))
-#     now = str(context.current_dt.date()) + ' ' + str(context.current_dt.time())
-#     log.warn('--after_trading_end函数--', now)
-#
-#     # print(context.subportfolios_name_map)
-#     for key, value in context.subportfolios_name_map.items():
-#         log.warn('after_trading_end函数----', now, ':账户,', value, '的余额:',
-#                  context.subportfolios[key].available_cash)
-#         log.warn('after_trading_end函数----', now, ':账户,', value, '的当前持仓:',
-#                  context.subportfolios[key].long_positions)
-#         log.warn('after_trading_end函数----', now, ':账户,', value, '的账户总资产:',
-#                  context.subportfolios[key].total_value)
-#
-#     log.warn('##############################################################')
+
+def dxw_day_prepare(context):
+    g.strategys['大小外综合策略'].day_prepare(context)
+
+
+def dxw_singal(context):
+    g.strategys['大小外综合策略'].singal(context)
+
+
+def dxw_select(context):
+    g.strategys['大小外综合策略'].select(context)
+
+
+def dxw_adjust(context):
+    g.strategys['大小外综合策略'].clear_append_buy_dict(context)
+    g.strategys['大小外综合策略'].adjustwithnoRM(context)
+
+
+def dxw_open_market(context):
+    g.strategys['大小外综合策略'].close_for_empty_month(context)
+    g.strategys['大小外综合策略'].close_for_stoplost(context)
+
+
+def dxw_sell_when_highlimit_open(context):
+    g.strategys['大小外综合策略'].sell_when_highlimit_open(context)
+
+
+def dxw_append_buy_stock(context):
+    g.strategys['大小外综合策略'].append_buy_dict(context)
+
+
+def dxw_after_market_close(context):
+    g.strategys['大小外综合策略'].after_market_close(context)
 
 
 # 选股
@@ -203,8 +237,10 @@ def xszgjt_open_market(context):
 def xszgjt_sell_when_highlimit_open(context):
     g.strategys['国九条小市值策略'].sell_when_highlimit_open(context)
 
+
 def xszgjt_append_buy_stock(context):
     g.strategys['国九条小市值策略'].append_buy_dict(context)
+
 
 def xszgjt_after_market_close(context):
     g.strategys['国九条小市值策略'].after_market_close(context)

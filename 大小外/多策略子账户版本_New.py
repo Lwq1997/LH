@@ -13,26 +13,12 @@ XSZMX_strategy：明曦小市值策略
 # 用到策略及数据相关API请加入下面的语句(如果要兼容研究使用可以使用 try except导入
 from kuanke.user_space_api import *
 from jqdata import *
-from jqfactor import get_factor_values
-import datetime
 from kuanke.wizard import *
-import numpy as np
-import pandas as pd
-import talib
-from datetime import date as dt
-import math
-import talib as tl
 from jqlib.technical_analysis import *
-from scipy.linalg import inv
-import pickle
-import requests
-import datetime as datet
-from prettytable import PrettyTable
-import inspect
-from BMZH_Strategy import BMZH_Strategy
-from XSZ_GJT_Strategy import XSZ_GJT_Strategy
-from XSZ_MX_Strategy import XSZ_MX_Strategy
-from DSZ_MX_Strategy import DSZ_MX_Strategy
+from 策略合集.BMZH_Strategy import BMZH_Strategy
+from 策略合集.XSZ_GJT_Strategy import XSZ_GJT_Strategy
+from 策略合集.XSZ_MX_Strategy import XSZ_MX_Strategy
+from 策略合集.DSZ_MX_Strategy import DSZ_MX_Strategy
 
 # 初始化函数，设定基准等等
 def initialize(context):

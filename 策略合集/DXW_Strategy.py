@@ -2,26 +2,15 @@
 # 如果你的文件包含中文, 请在文件的第一行使用上面的语句指定你的文件编码
 
 # 用到策略及数据相关API请加入下面的语句(如果要兼容研究使用可以使用 try except导入
-import datetime
-import math
 import numpy as np
-import pandas as pd
-import pickle
-import requests
-import talib
 
 from kuanke.user_space_api import *
 from kuanke.wizard import *
 from jqdata import *
 from jqfactor import *
 from jqlib.technical_analysis import *
-from scipy.linalg import inv
-from prettytable import PrettyTable
-from WPETF_Strategy import WPETF_Strategy
-from XSZ_GJT_Strategy import XSZ_GJT_Strategy
-from Strategy import Strategy
+from 策略合集.Strategy import Strategy
 
-import warnings
 import datetime as dt
 
 
