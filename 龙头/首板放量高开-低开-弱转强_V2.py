@@ -15,7 +15,7 @@ from kuanke.wizard import *
 from jqdata import *
 from jqfactor import *
 from jqlib.technical_analysis import *
-from SBGK_Strategy import SBGK_Strategy
+from 策略合集.SBGK_Strategy import SBGK_Strategy
 
 import warnings
 from datetime import date as dt
