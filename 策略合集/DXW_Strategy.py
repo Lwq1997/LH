@@ -9,7 +9,7 @@ from kuanke.wizard import *
 from jqdata import *
 from jqfactor import *
 from jqlib.technical_analysis import *
-from 策略合集.Strategy import Strategy
+from Strategy import Strategy
 
 import datetime as dt
 

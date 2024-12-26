@@ -4,7 +4,7 @@
 
 # 用到策略及数据相关API请加入下面的语句(如果要兼容研究使用可以使用 try except导入
 from kuanke.user_space_api import *
-from 策略合集.Strategy import Strategy
+from Strategy import Strategy
 from jqdata import *
 from jqfactor import get_factor_values
 from kuanke.wizard import *
