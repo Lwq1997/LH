@@ -104,6 +104,16 @@ def initialize(context):
     xszgjt_strategy = XSZ_GJT_Strategy(context, subportfolio_index=2, name='国九条小市值策略', params=params)
     g.strategys[xszgjt_strategy.name] = xszgjt_strategy
 
+
+# 模拟盘在每天的交易时间结束后会休眠，第二天开盘时会恢复，如果在恢复时发现代码已经发生了修改，则会在恢复时执行这个函数。 具体的使用场景：可以利用这个函数修改一些模拟盘的数据。
+def after_code_changed(context):  # 输出运行时间
+    log.info('函数运行时间(after_code_changed)：' + str(context.current_dt.time()))
+
+    # 是否发送微信消息，回测环境不发送，模拟环境发送
+    context.is_send_wx_message = 1
+
+    unschedule_all()  # 取消所有定时运行
+
     # 执行计划
     # 选股函数--Select：白马和 ETF 分开使用
     # 执行函数--adjust：白马和 ETF 轮动共用一个
@@ -131,6 +141,7 @@ def initialize(context):
         # run_daily(xszgjt_append_buy_stock, time='14:51')
         run_daily(xszgjt_after_market_close, 'after_close')
         # run_daily(xszgjt_print_position_info, time='15:10')
+
 
 
 # 选股
