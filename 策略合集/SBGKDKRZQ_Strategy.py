@@ -12,7 +12,7 @@ from jqlib.technical_analysis import *
 
 
 # 白马股攻防转换策略（BMZH策略）
-class SBGK_Strategy(Strategy):
+class SBGKDKRZQ_Strategy(Strategy):
     def __init__(self, context, subportfolio_index, name, params):
         super().__init__(context, subportfolio_index, name, params)
         self.n_days_limit_up_list = []

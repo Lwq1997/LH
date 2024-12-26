@@ -1,9 +1,9 @@
 '''
 多策略分子账户并行
 用到的策略：
-蚂蚁量化,东哥：白马股攻防转换策略（sbgk策略）
+蚂蚁量化,东哥：白马股攻防转换策略（sbgkdkrzq策略）
 linlin2018，ZLH：低波全天候策略（外盘ETF策略）
-@荒唐的方糖大佬:国九条小市值（sbgk）（还可以改进）
+@荒唐的方糖大佬:国九条小市值（sbgkdkrzq）（还可以改进）
 '''
 
 # 导入函数库
@@ -15,7 +15,7 @@ from kuanke.wizard import *
 from jqdata import *
 from jqfactor import *
 from jqlib.technical_analysis import *
-from 策略合集.SBGK_Strategy import SBGK_Strategy
+from 策略合集.SBGKDKRZQ_Strategy import SBGKDKRZQ_Strategy
 
 import warnings
 from datetime import date as dt
@@ -61,8 +61,8 @@ def initialize(context):
         'max_hold_count': 100,  # 最大持股数
         'max_select_count': 100,  # 最大输出选股数
     }
-    sbgk_strategy = SBGK_Strategy(context, subportfolio_index=0, name='首板放量高开-低开-弱转强', params=params)
-    g.strategys[sbgk_strategy.name] = sbgk_strategy
+    sbgkdkrzq_strategy = SBGKDKRZQ_Strategy(context, subportfolio_index=0, name='首板放量高开-低开-弱转强', params=params)
+    g.strategys[sbgkdkrzq_strategy.name] = sbgkdkrzq_strategy
 
 
 # 模拟盘在每天的交易时间结束后会休眠，第二天开盘时会恢复，如果在恢复时发现代码已经发生了修改，则会在恢复时执行这个函数。 具体的使用场景：可以利用这个函数修改一些模拟盘的数据。
@@ -78,27 +78,27 @@ def after_code_changed(context):  # 输出运行时间
 
     if g.portfolio_value_proportion[0] > 0:
         # 选股
-        run_daily(sbgk_select, time='09:26')
+        run_daily(sbgkdkrzq_select, time='09:26')
         # 买入
-        run_daily(sbgk_buy, time='9:26')
+        run_daily(sbgkdkrzq_buy, time='9:26')
         # 卖出
-        run_daily(sbgk_sell, time='11:25')
-        run_daily(sbgk_sell, time='14:50')
+        run_daily(sbgkdkrzq_sell, time='11:25')
+        run_daily(sbgkdkrzq_sell, time='14:50')
         # 收盘
-        run_daily(sbgk_after_market_close, 'after_close')
+        run_daily(sbgkdkrzq_after_market_close, 'after_close')
 
 
-def sbgk_select(context):
+def sbgkdkrzq_select(context):
     g.strategys['首板放量高开-低开-弱转强'].select(context)
 
 
-def sbgk_buy(context):
+def sbgkdkrzq_buy(context):
     g.strategys['首板放量高开-低开-弱转强'].adjustwithnoRM(context, only_buy=True)
 
 
-def sbgk_sell(context):
+def sbgkdkrzq_sell(context):
     g.strategys['首板放量高开-低开-弱转强'].specialSell(context)
 
 
-def sbgk_after_market_close(context):
+def sbgkdkrzq_after_market_close(context):
     g.strategys['首板放量高开-低开-弱转强'].after_market_close(context)
