@@ -15,10 +15,13 @@ from kuanke.wizard import *
 from jqdata import *
 from jqfactor import *
 from jqlib.technical_analysis import *
-from 策略合集.SBGK_Strategy import SBGK_Strategy
 
 import warnings
 from datetime import date as dt
+
+from 策略合集.RZQ_Strategy import RZQ_Strategy
+from 策略合集.SBDK_Strategy import SBDK_Strategy
+from 策略合集.SBGK_Strategy import SBGK_Strategy
 
 
 # 初始化函数，设定基准等等
@@ -37,7 +40,7 @@ def initialize(context):
     ### 股票相关设定 ###
     # 股票类每笔交易时的手续费是：买入时佣金万分之三，卖出时佣金万分之三加千分之一印花税, 每笔交易佣金最低扣5块钱
     set_order_cost(OrderCost(close_tax=0.0005, open_commission=0.0001, close_commission=0.0001, min_commission=0),
-                  type='stock')
+                   type='stock')
 
     # 为股票设定滑点为百分比滑点
     set_slippage(PriceRelatedSlippage(0), type='stock')
@@ -61,22 +64,23 @@ def initialize(context):
         'max_hold_count': 100,  # 最大持股数
         'max_select_count': 100,  # 最大输出选股数
     }
-    sbgk_strategy = SBGK_Strategy(context, subportfolio_index=0, name='首板放量高开-低开-弱转强', params=params)
+    sbdk_strategy = SBDK_Strategy(context, subportfolio_index=0, name='首板低开', params=params)
+    g.strategys[sbdk_strategy.name] = sbdk_strategy
+
+    params = {
+        'max_hold_count': 100,  # 最大持股数
+        'max_select_count': 100,  # 最大输出选股数
+    }
+    sbgk_strategy = SBGK_Strategy(context, subportfolio_index=0, name='首板高开', params=params)
     g.strategys[sbgk_strategy.name] = sbgk_strategy
 
     params = {
         'max_hold_count': 100,  # 最大持股数
         'max_select_count': 100,  # 最大输出选股数
     }
-    sbgk_strategy = SBGK_Strategy(context, subportfolio_index=0, name='首板放量高开-低开-弱转强', params=params)
-    g.strategys[sbgk_strategy.name] = sbgk_strategy
+    rzq_strategy = RZQ_Strategy(context, subportfolio_index=0, name='弱转强', params=params)
+    g.strategys[rzq_strategy.name] = rzq_strategy
 
-    params = {
-        'max_hold_count': 100,  # 最大持股数
-        'max_select_count': 100,  # 最大输出选股数
-    }
-    sbgk_strategy = SBGK_Strategy(context, subportfolio_index=0, name='首板放量高开-低开-弱转强', params=params)
-    g.strategys[sbgk_strategy.name] = sbgk_strategy
 
 # 模拟盘在每天的交易时间结束后会休眠，第二天开盘时会恢复，如果在恢复时发现代码已经发生了修改，则会在恢复时执行这个函数。 具体的使用场景：可以利用这个函数修改一些模拟盘的数据。
 def after_code_changed(context):  # 输出运行时间
@@ -91,27 +95,81 @@ def after_code_changed(context):  # 输出运行时间
 
     if g.portfolio_value_proportion[0] > 0:
         # 选股
+        run_daily(sbdk_select, time='09:26')
+        # 买入
+        run_daily(sbdk_buy, time='9:26')
+        # 卖出
+        run_daily(sbdk_sell, time='11:28')
+        run_daily(sbdk_sell, time='14:50')
+        # 收盘
+        run_daily(sbdk_after_market_close, 'after_close')
+
+    if g.portfolio_value_proportion[1] > 0:
+        # 选股
         run_daily(sbgk_select, time='09:26')
         # 买入
         run_daily(sbgk_buy, time='9:26')
         # 卖出
-        run_daily(sbgk_sell, time='11:25')
+        run_daily(sbgk_sell, time='11:28')
         run_daily(sbgk_sell, time='14:50')
         # 收盘
         run_daily(sbgk_after_market_close, 'after_close')
 
+    if g.portfolio_value_proportion[2] > 0:
+        # 选股
+        run_daily(rzq_select, time='09:26')
+        # 买入
+        run_daily(rzq_buy, time='9:26')
+        # 卖出
+        run_daily(rzq_sell, time='11:28')
+        run_daily(rzq_sell, time='14:50')
+        # 收盘
+        run_daily(rzq_after_market_close, 'after_close')
+
+
+def sbdk_select(context):
+    g.strategys['首板低开'].select(context)
+
+
+def sbdk_buy(context):
+    g.strategys['首板低开'].adjustwithnoRM(context, only_buy=True, is_single_buy=True)
+
+
+def sbdk_sell(context):
+    g.strategys['首板低开'].specialSell(context)
+
+
+def sbdk_after_market_close(context):
+    g.strategys['首板低开'].after_market_close(context)
+
 
 def sbgk_select(context):
-    g.strategys['首板放量高开-低开-弱转强'].select(context)
+    g.strategys['首板高开'].select(context)
 
 
 def sbgk_buy(context):
-    g.strategys['首板放量高开-低开-弱转强'].adjustwithnoRM(context, only_buy=True)
+    g.strategys['首板高开'].adjustwithnoRM(context, only_buy=True, is_single_buy=True)
 
 
 def sbgk_sell(context):
-    g.strategys['首板放量高开-低开-弱转强'].specialSell(context)
+    g.strategys['首板高开'].specialSell(context)
 
 
 def sbgk_after_market_close(context):
-    g.strategys['首板放量高开-低开-弱转强'].after_market_close(context)
+    g.strategys['首板高开'].after_market_close(context)
+
+
+def rzq_select(context):
+    g.strategys['弱转强'].select(context)
+
+
+def rzq_buy(context):
+    g.strategys['弱转强'].adjustwithnoRM(context, only_buy=True, is_single_buy=True)
+
+
+def rzq_sell(context):
+    g.strategys['弱转强'].specialSell(context)
+
+
+def rzq_after_market_close(context):
+    g.strategys['弱转强'].after_market_close(context)

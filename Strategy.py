@@ -347,7 +347,7 @@ class Strategy:
 
     ##################################  交易函数群 ##################################
     # 调仓
-    def adjustwithnoRM(self, context, only_buy=False, only_sell=False, together=True):
+    def adjustwithnoRM(self, context, only_buy=False, only_sell=False, together=True, is_single_buy=False):
         log.info(self.name, '--adjustwithnoRM调仓函数--',
                  str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
 
@@ -383,14 +383,14 @@ class Strategy:
                     sell_stocks.append(stock)
 
         if only_buy:
-            self.buy(context, target_list)
+            self.buy(context, target_list, is_single_buy)
             return
         if only_sell:
             self.sell(context, sell_stocks)
             return
         if together:
             self.sell(context, sell_stocks)
-            self.buy(context, target_list)
+            self.buy(context, target_list, is_single_buy)
             return
 
     def specialSell(self, context):
@@ -437,12 +437,14 @@ class Strategy:
                         log.info(content)
 
     # 买入多只股票
-    def buy(self, context, buy_stocks):
+    def buy(self, context, buy_stocks, is_single_buy=False):
 
         log.info(self.name, '--buy函数--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
 
         subportfolio = context.subportfolios[self.subportfolio_index]
-        if len(buy_stocks) > self.max_hold_count:
+        if is_single_buy and len(subportfolio.long_positions) > 0:
+            buy_count = 0
+        elif len(buy_stocks) > self.max_hold_count:
             buy_count = self.max_hold_count - len(subportfolio.long_positions)
         else:
             buy_count = len(buy_stocks) - len(subportfolio.long_positions)
