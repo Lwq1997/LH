@@ -347,7 +347,7 @@ class Strategy:
 
     ##################################  交易函数群 ##################################
     # 调仓
-    def adjustwithnoRM(self, context):
+    def adjustwithnoRM(self, context, only_buy=False, only_sell=False, together=True):
         log.info(self.name, '--adjustwithnoRM调仓函数--',
                  str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
 
@@ -381,8 +381,42 @@ class Strategy:
                 current_data = get_current_data()
                 if last_prices[stock][-1] < current_data[stock].high_limit:
                     sell_stocks.append(stock)
+
+        if only_buy:
+            self.buy(context, target_list)
+            return
+        if only_sell:
+            self.sell(context, sell_stocks)
+            return
+        if together:
+            self.sell(context, sell_stocks)
+            self.buy(context, target_list)
+            return
+
+    def specialSell(self, context):
+        log.info(self.name, '--SpecialSell调仓函数--',
+                 str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+
+        # 持仓列表
+        hold_positions = context.subportfolios[self.subportfolio_index].long_positions
+        hold_list = list(hold_positions)
+        # 售卖列表：不在select_list前max_hold_count中的股票都要被卖掉
+        sell_stocks = []
+        for stock in hold_list:
+            current_data = get_current_data()
+            MA5 = MA(stock, check_date=context.current_dt, timeperiod=5)  #
+            position = hold_positions[stock]
+
+            # 有可卖出的仓位  &  当前股票没有涨停 & 当前的价格大于持仓价（有收益）
+            if ((position.closeable_amount != 0) and (
+                    current_data[stock].last_price < current_data[stock].high_limit) and (
+                    current_data[stock].last_price > 1 * position.avg_cost)):  # avg_cost当前持仓成本
+                sell_stocks.append(stock)
+            # 有可卖出的仓位  &  跌破5日线止损
+            if ((position.closeable_amount != 0) and (current_data[stock].last_price < MA5[stock])):
+                sell_stocks.append(stock)
+
         self.sell(context, sell_stocks)
-        self.buy(context, target_list)
 
     # 涨停打开卖出
     def sell_when_highlimit_open(self, context):

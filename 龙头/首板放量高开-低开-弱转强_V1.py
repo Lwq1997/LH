@@ -80,6 +80,8 @@ def sell(context):
 # 选股
 def get_stock_list(context):
     target_list, target_list2 = prepare_stock_list(context)
+    log.info('yes_first_hl_list:', target_list)
+    log.info('yes_first_no_hl_list:', target_list2)
     qualified_stocks = []
     sbdk_stocks = []
     sbgk_stocks = []

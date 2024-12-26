@@ -32,10 +32,16 @@ class UtilsToolClass:
     # 开仓单只
     def open_position(self, context, security, value, target=True):
         now = str(context.current_dt.date()) + ' ' + str(context.current_dt.time())
+        now_time = context.current_dt.time()
+        current_data = get_current_data()
+        before_buy = datetime.time(9, 30) > now_time
+        # log.info('before_buy:',before_buy)
+        style_arg = MarketOrderStyle(current_data[security].day_open) if before_buy else None
         if target:
-            order_info = order_target_value(security, value, pindex=self.subportfolio_index)
+            order_info = order_target_value(security, value, style=style_arg, pindex=self.subportfolio_index)
         else:
-            order_info = order_value(security, value, pindex=self.subportfolio_index)
+            # log.info('S:', security, "--value:", value)
+            order_info = order_value(security, value, style=style_arg, pindex=self.subportfolio_index)
 
         method_name = inspect.getframeinfo(inspect.currentframe()).function
         item = f"分仓策略:{self.name}<br>-函数名称:{method_name}<br>-时间:{now}"
@@ -56,6 +62,7 @@ class UtilsToolClass:
         content = (f"策略: {self.name} "
                    f"--操作时间: {now} "
                    f"--买入股票，交易失败！！股票: {security} "
+                   f"--失败原因: {order_info} "
                    f"--计划买入金额: {value}\n<br>")
         log.error(content)
         send_message(content)
@@ -92,6 +99,7 @@ class UtilsToolClass:
             return True
         content = (f"策略: {self.name} "
                    f"--操作时间: {now} "
+                   f"--失败原因: {order_info} "
                    f"--卖出股票，交易失败！！！股票: {security} \n<br>")
         log.error(content)
         send_message(content)
@@ -277,3 +285,28 @@ class UtilsToolClass:
             log.info('市值:{}'.format(format(value, '.2f')))
             log.info('———————————————————————————————————')
         log.info('———————————————————————————————————————分割线————————————————————————————————————————')
+
+    # 筛选出某一日涨停的股票
+    def get_hl_stock(self, context, stock_list, end_date):
+        if not stock_list: return []
+        h_s = get_price(stock_list, end_date=end_date, frequency='daily', fields=['close', 'high_limit', 'paused'],
+                        count=1, panel=False, fill_paused=False, skip_paused=False
+                        ).query('close==high_limit and paused==0').groupby('code').size()
+        return h_s.index.tolist()
+
+    # 筛选出某一日曾经涨停的股票，含炸板的
+    def get_ever_hl_stock(self, context, stock_list, end_date):
+        if not stock_list: return []
+        h_s = get_price(stock_list, end_date=end_date, frequency='daily', fields=['high', 'high_limit', 'paused'],
+                        count=1, panel=False, fill_paused=False, skip_paused=False
+                        ).query('high==high_limit and paused==0').groupby('code').size()
+        return h_s.index.tolist()
+
+    # 筛选出某一日曾经涨停但未封板的股票
+    def get_ever_hl_stock2(self, context, stock_list, end_date):
+        if not stock_list: return []
+        h_s = get_price(stock_list, end_date=end_date, frequency='daily',
+                        fields=['close', 'high', 'high_limit', 'paused'],
+                        count=1, panel=False, fill_paused=False, skip_paused=False
+                        ).query('close!=high_limit and high==high_limit and paused==0').groupby('code').size()
+        return h_s.index.tolist()
