@@ -13,11 +13,25 @@ linlin2018，ZLH：低波全天候策略（外盘ETF策略）
 # 用到策略及数据相关API请加入下面的语句(如果要兼容研究使用可以使用 try except导入
 from kuanke.user_space_api import *
 from jqdata import *
+from jqfactor import get_factor_values
+import datetime
 from kuanke.wizard import *
+import numpy as np
+import pandas as pd
+import talib
+from datetime import date as dt
+import math
+import talib as tl
 from jqlib.technical_analysis import *
-from 策略合集.BMZH_Strategy import BMZH_Strategy
-from 策略合集.WPETF_Strategy import WPETF_Strategy
-from 策略合集.XSZ_GJT_Strategy import XSZ_GJT_Strategy
+from scipy.linalg import inv
+import pickle
+import requests
+import datetime as datet
+from prettytable import PrettyTable
+import inspect
+from BMZH_Strategy import BMZH_Strategy
+from WPETF_Strategy import WPETF_Strategy
+from XSZ_GJT_Strategy import XSZ_GJT_Strategy
 
 
 # 初始化函数，设定基准等等
@@ -108,9 +122,9 @@ def initialize(context):
     # # 小市值，按天/周运行
     if g.portfolio_value_proportion[2] > 0:
         run_daily(xszgjt_day_prepare, time='7:33')
-        run_weekly(xszgjt_select, 1, time='7:43')
+        run_weekly(xszgjt_select, 2, time='7:43')
         run_daily(xszgjt_open_market, time='9:30')
-        run_weekly(xszgjt_adjust, 1, time='9:35')
+        run_weekly(xszgjt_adjust, 2, time='9:35')
         # run_daily(xszgjt_sell_when_highlimit_open, time='11:27')
         run_daily(xszgjt_sell_when_highlimit_open, time='11:20')
         run_daily(xszgjt_sell_when_highlimit_open, time='14:50')
