@@ -58,15 +58,10 @@ class XSZ_GJT_Strategy(Strategy):
              .order_by(valuation.market_cap.asc()))
 
         # 获取财务数据
-        df_fun = get_fundamentals(q)[:50]
+        df_1 = get_fundamentals(q)[:50]
         # log.info(self.name, '过滤停盘/涨停/跌停之后，--前50股票的财务数据:', df_fun)
-        final_list_1 = list(df_fun.code)
+        final_list_1 = list(df_1.code)
 
-        # 获得初始列表
-        lists = self.stockpool(context, 1, '399101.XSHE')
-        # 过滤120天内即将大幅解禁
-        lists = self.utilstool.filter_locked_shares(context, lists, 120)
-        final_list_2 = []
         # 国九更新：过滤近一年净利润为负且营业收入小于1亿的
         # 国九更新：过滤近一年期末净资产为负的 (经查询没有为负数的，所以直接pass这条)
         # 国九更新：过滤近一年审计建议无法出具或者为负面建议的 (经过净利润等筛选，审计意见几乎不会存在异常)
@@ -78,16 +73,16 @@ class XSZ_GJT_Strategy(Strategy):
             income.operating_revenue  # 营业收入
             # security_indicator.net_assets
         ).filter(
-            valuation.code.in_(lists),
+            valuation.code.in_(initial_list),
             valuation.market_cap.between(5, 30),
             income.np_parent_company_owners > 0,
             income.net_profit > 0,
             income.operating_revenue > 1e8
         ).order_by(valuation.market_cap.asc()).limit(50)
 
-        df = get_fundamentals(q)
+        df_2 = get_fundamentals(q)
 
-        final_list_2 = list(df.code)
+        final_list_2 = list(df_2.code)
         last_prices = history(1, unit='1d', field='close', security_list=final_list_2)
         # 过滤价格低于最高价50元/股的股票  ｜  再持仓列表中的股票
         final_list_2 = [stock for stock in final_list_2 if
