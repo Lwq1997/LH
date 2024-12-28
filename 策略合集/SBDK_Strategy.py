@@ -61,7 +61,9 @@ class SBDK_Strategy(Strategy):
         return sbdk_stocks
 
     def prepare_stock_list(self, context):
-        initial_list = super().stockpool(context)
+        initial_list = super().stockpool(context, is_filter_highlimit=False,
+                                         is_filter_lowlimit=False)
+        log.debug('002511.XSHE in initial_list:', '002511.XSHE' in initial_list)
         yesterday = context.previous_date
 
         # 首次运行，添加前2天的数据
@@ -73,13 +75,16 @@ class SBDK_Strategy(Strategy):
 
         # 昨日涨停
         yes_hl_list = self.utilstool.get_hl_stock(context, initial_list, yesterday)
+        log.debug('002511.XSHE in yes_hl_list:', '002511.XSHE' in yes_hl_list)
         self.n_days_limit_up_list.append(yes_hl_list)
 
         # print(self.n_days_limit_up_list)
         # 前1日曾涨停
         hl1_list = set(self.n_days_limit_up_list[-2])
+        log.debug('002511.XSHE in hl1_list:', '002511.XSHE' in hl1_list)
         # 昨日首板
         yes_first_hl_list = [stock for stock in yes_hl_list if stock not in hl1_list]
+        log.debug('002511.XSHE in yes_first_hl_list:', '002511.XSHE' in yes_first_hl_list)
 
         # 昨日曾涨停但未封板
         hl_list2 = self.utilstool.get_ever_hl_stock2(context, initial_list, yesterday)
