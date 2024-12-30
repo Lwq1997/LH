@@ -40,7 +40,7 @@ def initialize(context):
                    type='stock')
 
     # 为股票设定滑点为百分比滑点
-    set_slippage(PriceRelatedSlippage(0.01), type='stock')
+    set_slippage(PriceRelatedSlippage(0.002), type='stock')
 
     # 持久变量
     g.strategys = {}
