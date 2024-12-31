@@ -1,3 +1,11 @@
+high_prices = [10, 20, 30, 40, 50, 25, 25, 35]
+for index, price in enumerate(high_prices[-3::-1], 2):
+    print(index, price)
+
+prev_high = 35
+
+print(next((i - 1 for i, high in enumerate(high_prices[-3::-1], 2) if high >= prev_high), 100))
+
 factor_list = [
     (  # ARBR-SGAI-NPTTOR-RPPS.txt
         [
@@ -38,6 +46,7 @@ for i in range(13):
 import numpy as np
 import pandas as pd
 
+
 # 定义原方法
 def __calculate_bollinger_width(prices, period=20, nbdev=2):
     ma = np.mean(prices[-period:])
@@ -49,7 +58,8 @@ def __calculate_bollinger_width(prices, period=20, nbdev=2):
     width = (upper - lower) / ma
     return width
 
-def calculate_RSI( close_prices, period=14):
+
+def calculate_RSI(close_prices, period=14):
     # 计算价格变动
     delta = np.diff(close_prices)
     # 分离上涨和下跌的变动
@@ -70,7 +80,8 @@ def calculate_RSI( close_prices, period=14):
     rsi = 100 - 100 / (1 + rs)
     return rsi
 
-def calculate_RSI_1( prices, period=14):
+
+def calculate_RSI_1(prices, period=14):
     """ 计算RSI指标 """
     deltas = np.diff(prices)
     ups = deltas[deltas > 0].sum()
@@ -79,6 +90,7 @@ def calculate_RSI_1( prices, period=14):
         return 100
     rs = ups / downs
     return 100 - (100 / (1 + rs))
+
 
 # 定义之前提供的方法
 def bollinger_band_width(close_prices, window=20, num_std=2):
@@ -89,6 +101,7 @@ def bollinger_band_width(close_prices, window=20, num_std=2):
     band_width = (upper_band - lower_band) / ma
     return band_width
 
+
 # 示例数据
 prices = np.random.rand(100)
 print("原始RSI提供方法结果:", calculate_RSI_1(prices))
@@ -96,4 +109,4 @@ print("RSI提供方法结果:", calculate_RSI(prices))
 print("RSI提供方法结果2:", calculate_RSI(prices)[-1])
 print("原方法结果:", __calculate_bollinger_width(prices))
 print("提供方法结果:", bollinger_band_width(prices))
-print("提供方法结果1:", bollinger_band_width(prices)[len(bollinger_band_width(prices))-1])
+print("提供方法结果1:", bollinger_band_width(prices)[len(bollinger_band_width(prices)) - 1])

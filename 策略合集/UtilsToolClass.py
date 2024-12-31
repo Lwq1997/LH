@@ -27,6 +27,14 @@ class UtilsToolClass:
         self.name = name
         self.subportfolio_index = subportfolio_index
 
+    # 计算左压天数
+    def calculate_zyts(self, context, stock):
+        high_prices = attribute_history(stock, 101, '1d', fields=['high'], skip_paused=True)['high']
+        prev_high = high_prices.iloc[-1]
+        zyts_0 = next((i - 1 for i, high in enumerate(high_prices[-3::-1], 2) if high >= prev_high), 100)
+        zyts = zyts_0 + 5
+        return zyts
+
     def transform_date(self, context, date, date_type):
         if type(date) == str:
             str_date = date

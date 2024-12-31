@@ -20,17 +20,15 @@ class SBGK_Strategy_V2(Strategy):
     def select(self, context):
         log.info(self.name, '--select函数--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
 
-        log.info(' context.yes_first_hl_list:', context.yes_first_hl_list)
-        log.info(' context.yes_first_no_hl_list:', context.yes_first_no_hl_list)
         # 根据市场温度设置选股条件，选出股票
-        # self.select_list = self.__get_rank(context)
+        self.select_list = self.__get_rank(context)
         # 编写操作计划
-        # self.print_trade_plan(context, self.select_list)
+        self.print_trade_plan(context, self.select_list)
 
     def __get_rank(self, context):
         log.info(self.name, '--get_rank函数--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
 
-        yes_first_hl_list, yes_first_no_hl_list = context.yes_first_hl_list, context.yes_first_no_hl_list
+        yes_first_hl_list = context.yes_first_hl_list
         log.info(self.name, '--yes_first_hl_list:', yes_first_hl_list)
         sbgk_stocks = []
         date_now = context.current_dt.strftime("%Y-%m-%d")
@@ -41,37 +39,39 @@ class SBGK_Strategy_V2(Strategy):
 
         # 首板高开/低开
         for s in yes_first_hl_list:
+            zyts = self.utilstool.calculate_zyts(context, s)
 
+            his_day = 4 if zyts > 4 else zyts
+            all_date = attribute_history(s, his_day, '1d', fields=['close', 'volume', 'money'], skip_paused=True)
+            # 获取前一日数据
+            # prev_day_data = attribute_history(s, 1, '1d', fields=['close', 'volume', 'money'], skip_paused=True)
             # 条件一：均价，金额，市值，换手率 收盘获利比例低于7%，成交额小于5.5亿或者大于20亿，或市值小于70亿，大于520亿，过滤
-            prev_day_data = attribute_history(s, 1, '1d', fields=['close', 'volume', 'money'], skip_paused=True)
-            avg_price_increase_value = prev_day_data['money'][0] / prev_day_data['volume'][0] / prev_day_data['close'][
-                0] * 1.1 - 1
-            if avg_price_increase_value < 0.07 or prev_day_data['money'][0] < 5.5e8 or prev_day_data['money'][0] > 20e8:
+            avg_price_increase_value = all_date['money'][-1] / all_date['volume'][-1] / all_date['close'][
+                -1] * 1.1 - 1
+            if avg_price_increase_value < 0.07 or all_date['money'][-1] < 5e8 or all_date['money'][-1] > 20e8:
                 continue
+
             turnover_ratio_data = get_valuation(s, start_date=context.previous_date, end_date=context.previous_date,
                                                 fields=['turnover_ratio', 'market_cap', 'circulating_market_cap'])
-            if turnover_ratio_data.empty or turnover_ratio_data['market_cap'][0] < 70 or \
-                    turnover_ratio_data['circulating_market_cap'][0] > 520:
+            # 合并条件一剩余的市值等判断，简化空值和范围判断写法
+            if turnover_ratio_data.empty or not (70 <= turnover_ratio_data['market_cap'][0] <= 520):
                 continue
 
-            # 条件二：高开,开比
+            # 条件二：左压
+            # 简化成交量同步放大判断
+            if zyts < 2 or all_date['volume'][-1] <= max(all_date['volume'][:-1]) * 0.9:
+                continue
+
+            # 条件三：高开,开比
             auction_data = get_call_auction(s, start_date=start, end_date=end, fields=['time', 'volume', 'current'])
-            # print([s,auction_data['volume'][0],prev_day_data['volume'][-1]])
-            if auction_data.empty or auction_data['volume'][0] / prev_day_data['volume'][-1] < 0.03:
+            if auction_data.empty or auction_data['volume'][0] / all_date['volume'][-1] < 0.03:
                 continue
-            current_ratio = auction_data['current'][0] / prev_day_data['close'][-1]
-            if current_ratio <= 1 or current_ratio >= 1.06:
+            current_ratio = auction_data['current'][0] / all_date['close'][-1]
+            if not (1 < current_ratio < 1.06):
                 continue
 
-            # 条件三：左压
-            hst = attribute_history(s, 101, '1d', fields=['high', 'volume'], skip_paused=True)  # 获取历史数据
-            prev_high = hst['high'].iloc[-1]  # 计算前一天的高点
-            zyts_0 = next((i - 1 for i, high in enumerate(hst['high'][-3::-1], 2) if high >= prev_high),
-                          100)  # 计算zyts_0
-            zyts = zyts_0 + 5
-            volume_data = hst['volume'][-zyts:]  # 获取高点以来的成交量数据
-            # 检查今天的成交量是否同步放大
-            if len(volume_data) < 2 or volume_data[-1] <= max(volume_data[:-1]) * 0.9:
+            # 条件四：过滤前面三天涨幅超过25%的票
+            if len(all_date) < 4 or (all_date['close'][-1] - all_date['close'][-3]) / all_date['close'][0] > 0.25:
                 continue
 
             # 如果股票满足所有条件，则添加到列表中
