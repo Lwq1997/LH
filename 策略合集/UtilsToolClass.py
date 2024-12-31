@@ -1,19 +1,19 @@
 from kuanke.user_space_api import *
 from jqdata import *
-from jqfactor import get_factor_values
 import datetime
 from kuanke.wizard import *
 import numpy as np
 import pandas as pd
 import talib
-from datetime import date as dt
 import math
 import talib as tl
 from jqlib.technical_analysis import *
 from scipy.linalg import inv
 import pickle
 import requests
-import datetime as datet
+from datetime import datetime
+import datetime as dt
+from datetime import timedelta
 from prettytable import PrettyTable
 import inspect
 
@@ -26,6 +26,71 @@ class UtilsToolClass:
     def set_params(self, name, subportfolio_index):
         self.name = name
         self.subportfolio_index = subportfolio_index
+
+    def transform_date(self, context, date, date_type):
+        if type(date) == str:
+            str_date = date
+            dt_date = dt.datetime.strptime(date, '%Y-%m-%d')
+            d_date = dt_date.date()
+        elif type(date) == dt.datetime:
+            str_date = date.strftime('%Y-%m-%d')
+            dt_date = date
+            d_date = dt_date.date()
+        elif type(date) == dt.date:
+            str_date = date.strftime('%Y-%m-%d')
+            dt_date = dt.datetime.strptime(str_date, '%Y-%m-%d')
+            d_date = date
+        dct = {'str': str_date, 'dt': dt_date, 'd': d_date}
+        return dct[date_type]
+
+    def get_shifted_date(self, context, date, days, days_type='T'):
+        # 获取上一个自然日
+        d_date = self.transform_date(context, date, 'd')
+        yesterday = d_date + dt.timedelta(-1)
+        # 移动days个自然日
+        if days_type == 'N':
+            shifted_date = yesterday + dt.timedelta(days + 1)
+        # 移动days个交易日
+        if days_type == 'T':
+            all_trade_days = [i.strftime('%Y-%m-%d') for i in list(get_all_trade_days())]
+            # 如果上一个自然日是交易日，根据其在交易日列表中的index计算平移后的交易日
+            if str(yesterday) in all_trade_days:
+                shifted_date = all_trade_days[all_trade_days.index(str(yesterday)) + days + 1]
+            # 否则，从上一个自然日向前数，先找到最近一个交易日，再开始平移
+            else:
+                for i in range(100):
+                    last_trade_date = yesterday - dt.timedelta(i)
+                    if str(last_trade_date) in all_trade_days:
+                        shifted_date = all_trade_days[all_trade_days.index(str(last_trade_date)) + days + 1]
+                        break
+        return str(shifted_date)
+
+    def stockpool(self, context, pool_id=1, index=None, is_filter_kcbj=True, is_filter_st=True, is_filter_paused=True,
+                  is_filter_highlimit=True,
+                  is_filter_lowlimit=True, is_filter_new=True):
+        log.info(self.name, '--stockpool函数--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+        if index is None:
+            lists = list(get_all_securities(types=['stock'], date=context.previous_date).index)
+        else:
+            lists = list(get_index_stocks(index))
+
+        if pool_id == 0:
+            pass
+        elif pool_id == 1:
+            if is_filter_kcbj:
+                lists = self.filter_kcbj_stock(context, lists)
+            if is_filter_st:
+                lists = self.filter_st_stock(context, lists)
+            if is_filter_paused:
+                lists = self.filter_paused_stock(context, lists)
+            if is_filter_highlimit:
+                lists = self.filter_highlimit_stock(context, lists)
+            if is_filter_lowlimit:
+                lists = self.filter_lowlimit_stock(context, lists)
+            if is_filter_new:
+                lists = self.filter_new_stock(context, lists, days=375)
+
+        return lists
 
     ##################################  交易函数群 ##################################
 
@@ -183,7 +248,7 @@ class UtilsToolClass:
                  str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
 
         return [stock for stock in stock_list if
-                not context.previous_date - get_security_info(stock).start_date < datetime.timedelta(days=days)]
+                not context.previous_date - get_security_info(stock).start_date < dt.timedelta(days=days)]
 
     # 过滤大幅解禁（小市值专用）
     def filter_locked_shares(self, context, stock_list, days):

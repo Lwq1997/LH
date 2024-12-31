@@ -55,9 +55,9 @@ def get_stock_list(context):
     initial_list = prepare_stock_list(date)
     # 昨日涨停
     hl_list = get_hl_stock(initial_list, date)
-    # 前日曾涨停（不一定炸板）
+    # 前日曾涨停过
     hl1_list = get_ever_hl_stock(initial_list, date_1)
-    # 前前日曾涨停（不一定炸板）
+    # 前前日曾涨停过
     hl2_list = get_ever_hl_stock(initial_list, date_2)
     # 合并 hl1_list 和 hl2_list 为一个集合，用于快速查找需要剔除的元素
     elements_to_remove = set(hl1_list + hl2_list)
