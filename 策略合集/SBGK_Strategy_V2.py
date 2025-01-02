@@ -46,8 +46,7 @@ class SBGK_Strategy_V2(Strategy):
             # 获取前一日数据
             # prev_day_data = attribute_history(s, 1, '1d', fields=['close', 'volume', 'money'], skip_paused=True)
             # 条件一：均价，金额，市值，换手率 收盘获利比例低于7%，成交额小于5.5亿或者大于20亿，或市值小于70亿，大于520亿，过滤
-            avg_price_increase_value = all_date['money'][-1] / all_date['volume'][-1] / all_date['close'][
-                -1] * 1.1 - 1
+            avg_price_increase_value = all_date['money'][-1] / all_date['volume'][-1] / all_date['close'][-1] * 1.1 - 1
             if avg_price_increase_value < 0.07 or all_date['money'][-1] < 5e8 or all_date['money'][-1] > 20e8:
                 continue
 
