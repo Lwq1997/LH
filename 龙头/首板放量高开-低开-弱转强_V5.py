@@ -53,7 +53,7 @@ def initialize(context):
     # 持久变量
     g.strategys = {}
     # 子账户 分仓
-    g.portfolio_value_proportion = [0.5, 0.5, 0, 0]
+    g.portfolio_value_proportion = [0.8, 0.2, 0, 0]
 
     # 创建策略实例
     # 初始化策略子账户 subportfolios
@@ -153,7 +153,7 @@ def rzq_select(context):
 
 
 def rzq_buy(context):
-    g.strategys['弱转强'].adjustwithnoRM(context, only_buy=True, is_single_buy=True)
+    g.strategys['弱转强'].specialBuy(context)
 
 
 def rzq_sell(context):
@@ -169,7 +169,7 @@ def sbgk_select(context):
 
 
 def sbgk_buy(context):
-    g.strategys['首板高开'].adjustwithnoRM(context, only_buy=True, is_single_buy=True)
+    g.strategys['首板高开'].specialBuy(context)
 
 
 def sbgk_sell(context):

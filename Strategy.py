@@ -393,6 +393,27 @@ class Strategy:
             self.buy(context, target_list, is_single_buy)
             return
 
+    def specialBuy(self, context):
+        log.info(self.name, '--specialBuy调仓函数--',
+                 str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+        # 实时过滤部分股票，否则也买不了，放出去也没有意义
+        target_list = self.utilstool.filter_lowlimit_stock(context, self.select_list)
+        target_list = self.utilstool.filter_highlimit_stock(context, target_list)
+        target_list = self.utilstool.filter_paused_stock(context, target_list)
+
+        # 持仓列表
+        subportfolios = context.subportfolios[self.subportfolio_index]
+        log.debug('当前持仓:', subportfolios.long_positions)
+        if target_list:
+            if subportfolios.long_positions:
+                value = subportfolios.available_cash / len(target_list)
+                for stock in target_list:
+                    self.utilstool.open_position(context, stock, value)
+            else:
+                value = subportfolios.total_value * 0.5 / len(target_list)
+                for stock in target_list:
+                    self.utilstool.open_position(context, stock, value)
+
     def specialSell(self, context):
         log.info(self.name, '--SpecialSell调仓函数--',
                  str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
