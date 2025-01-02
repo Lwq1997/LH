@@ -74,8 +74,8 @@ class SBGK_Strategy_V2(Strategy):
             if not (1 < current_ratio < 1.06):
                 continue
 
-            # 条件四：过滤前面三天涨幅超过25%的票
-            if len(all_date) < 4 or (all_date['close'][-1] - all_date['close'][-3]) / all_date['close'][0] > 0.25:
+            # 条件四：过滤前面三天涨幅超过20%的票
+            if len(all_date) < 4 or (all_date['close'][-1] - all_date['close'][-4]) / all_date['close'][0] > 0.20:
                 continue
 
             # 如果股票满足所有条件，则添加到列表中
