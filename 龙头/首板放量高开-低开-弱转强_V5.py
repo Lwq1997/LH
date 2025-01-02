@@ -36,6 +36,7 @@ def initialize(context):
     set_option('use_real_price', True)
     # 过滤掉order系列API产生的比error级别低的log
     log.set_level('order', 'error')
+    log.set_level('strategy', 'info')
     # 关闭未来函数
     set_option('avoid_future_data', True)
 
@@ -96,23 +97,23 @@ def after_code_changed(context):  # 输出运行时间
         # 选股
         run_daily(sbgk_select, time='09:26')
         # 买入
-        # run_daily(sbdk_buy, time='9:26')
+        run_daily(sbgk_buy, time='9:26')
         # # 卖出
-        # run_daily(sbdk_sell, time='11:28')
-        # run_daily(sbdk_sell, time='14:50')
+        run_daily(sbgk_sell, time='11:28')
+        run_daily(sbgk_sell, time='14:50')
         # # 收盘
-        # run_daily(sbdk_after_market_close, 'after_close')
+        run_daily(sbgk_after_market_close, 'after_close')
 
     if g.portfolio_value_proportion[1] > 0:
         # 选股
         run_daily(rzq_select, time='09:26')
         # # 买入
-        # run_daily(sbdk_buy, time='9:26')
+        run_daily(rzq_buy, time='9:26')
         # # 卖出
-        # run_daily(sbdk_sell, time='11:28')
-        # run_daily(sbdk_sell, time='14:50')
+        run_daily(rzq_sell, time='11:28')
+        run_daily(rzq_sell, time='14:50')
         # # 收盘
-        # run_daily(sbdk_after_market_close, 'after_close')
+        run_daily(rzq_after_market_close, 'after_close')
 
 
 def prepare_stock_list(context):
@@ -120,7 +121,6 @@ def prepare_stock_list(context):
     utilstool.name = '总策略'
     initial_list = utilstool.stockpool(context, is_filter_highlimit=False,
                                        is_filter_lowlimit=False)
-    log.debug('002511.XSHE in initial_list:', '002511.XSHE' in initial_list)
 
     date = utilstool.transform_date(context, context.previous_date, 'str')
     # 获取上一个交易日

@@ -107,7 +107,7 @@ class UtilsToolClass:
         now = str(context.current_dt.date()) + ' ' + str(context.current_dt.time())
         now_time = context.current_dt.time()
         current_data = get_current_data()
-        before_buy = datetime.time(9, 30) > now_time
+        before_buy = dt.time(9, 30) > now_time
         # log.info('before_buy:',before_buy)
         style_arg = MarketOrderStyle(current_data[security].day_open) if before_buy else None
         if target:

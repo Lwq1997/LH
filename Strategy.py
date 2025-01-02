@@ -443,6 +443,7 @@ class Strategy:
 
         subportfolio = context.subportfolios[self.subportfolio_index]
         if is_single_buy and len(subportfolio.long_positions) > 0:
+            # 如果有持仓，还有选票就先不买了
             buy_count = 0
         elif len(buy_stocks) > self.max_hold_count:
             buy_count = self.max_hold_count - len(subportfolio.long_positions)
