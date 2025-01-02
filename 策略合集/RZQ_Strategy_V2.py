@@ -39,45 +39,54 @@ class RZQ_Strategy_V2(Strategy):
         end = date_now + end_times1
 
         # 弱转强
-        for s in yes_first_no_hl_list:
-
+        for s in yes_first_no_hl_list :
+            # if s =='000031.XSHE':
             zyts = self.utilstool.calculate_zyts(context, s)
 
             his_day = zyts if zyts > 4 else 4
-            all_date = attribute_history(s, his_day, '1d', fields=['close', 'volume', 'money'], skip_paused=True)
+            all_date = attribute_history(s, his_day, '1d', fields=['close', 'volume', 'money', 'open'],
+                                         skip_paused=True)
 
             # 过滤前面三天涨幅超过18%的票
-            if len(all_date) < 4 or (all_date['close'][-1] - all_date['close'][-4]) / all_date['close'][0] > 0.18:
+            if len(all_date) < 4 or (all_date['close'][-1] - all_date['close'][-4]) / all_date['close'][-4] > 0.18:
+                log.debug('过滤前面三天涨幅超过18%的票')
                 continue
 
             # 过滤前一日收盘价小于开盘价5%以上的票
             open_close_ratio = (all_date['close'][-1] - all_date['open'][-1]) / all_date['open'][-1]
             if open_close_ratio < -0.05:
+                log.debug('过滤前一日收盘价小于开盘价5%以上的票')
                 continue
 
             # 条件一：均价，金额，市值，换手率 收盘获利比例低于4%，成交额小于3亿或者大于19亿，或市值小于70亿，大于520亿，过滤
             avg_price_increase_value = all_date['money'][-1] / all_date['volume'][-1] / all_date['close'][-1] - 1
             if avg_price_increase_value < -0.04 or all_date['money'][-1] < 3e8 or all_date['money'][-1] > 19e8:
+
+                log.debug('均价，金额，市值，换手率')
                 continue
             turnover_ratio_data = get_valuation(s, start_date=context.previous_date, end_date=context.previous_date,
                                                 fields=['turnover_ratio', 'market_cap', 'circulating_market_cap'])
-            if turnover_ratio_data.empty or turnover_ratio_data['market_cap'][0] < 70 or turnover_ratio_data['circulating_market_cap'][0] > 520:
+            if turnover_ratio_data.empty or turnover_ratio_data['market_cap'][0] < 70 or \
+                    turnover_ratio_data['circulating_market_cap'][0] > 520:
+                log.debug('均价，金额，市值，换手率2')
                 continue
 
             # 条件二：高开,开比
             auction_data = get_call_auction(s, start_date=start, end_date=end, fields=['time', 'volume', 'current'])
             if auction_data.empty or auction_data['volume'][0] / all_date['volume'][-1] < 0.03:
+                log.debug('高开,开比1')
                 continue
             current_ratio = auction_data['current'][0] / all_date['close'][-1]
             if current_ratio <= 0.98 or current_ratio >= 1.07:
+                log.debug('高开,开比2')
                 continue
-
 
             # 条件三：左压
             if zyts < 2 or all_date['volume'][-1] <= max(all_date['volume'][:-1]) * 0.9:
+                log.debug('左压')
                 continue
             rzq_stocks.append(s)
 
-        log.info('今日弱转强选股：' + ','.join('%s%s'%(s, get_security_info(s).display_name) for s in rzq_stocks))
+        log.info('今日弱转强选股：' + ','.join('%s%s' % (s, get_security_info(s).display_name) for s in rzq_stocks))
 
         return rzq_stocks
