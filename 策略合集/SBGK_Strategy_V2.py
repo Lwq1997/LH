@@ -41,7 +41,7 @@ class SBGK_Strategy_V2(Strategy):
         for s in yes_first_hl_list:
             zyts = self.utilstool.calculate_zyts(context, s)
 
-            his_day = 4 if zyts > 4 else zyts
+            his_day = zyts if zyts > 4 else 4
             all_date = attribute_history(s, his_day, '1d', fields=['close', 'volume', 'money'], skip_paused=True)
             # 获取前一日数据
             # prev_day_data = attribute_history(s, 1, '1d', fields=['close', 'volume', 'money'], skip_paused=True)
@@ -59,6 +59,10 @@ class SBGK_Strategy_V2(Strategy):
 
             # 条件二：左压
             # 简化成交量同步放大判断
+            # if s == '002046.XSHE':
+            #     log.debug('被条件二左压过滤：zyts:', zyts, '--交易量:', all_date['volume'][-1], '--最大交易量:',
+            #               max(all_date['volume'][:-1]),'--明细:',all_date)
+
             if zyts < 2 or all_date['volume'][-1] <= max(all_date['volume'][:-1]) * 0.9:
                 continue
 
@@ -77,6 +81,6 @@ class SBGK_Strategy_V2(Strategy):
             # 如果股票满足所有条件，则添加到列表中
             sbgk_stocks.append(s)
 
-        log.info('今日首板高开选股：' + str(sbgk_stocks))
+        log.info('今日首板高开选股：' + ','.join('%s%s'%(s, get_security_info(s).display_name) for s in sbgk_stocks))
 
         return sbgk_stocks
