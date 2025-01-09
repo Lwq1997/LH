@@ -79,6 +79,7 @@ def initialize(context):
     params = {
         'max_hold_count': 1,  # 最大持股数
         'max_select_count': 3,  # 最大输出选股数
+        'use_empty_month_last_day': True  # 是否月末最后一天清仓
     }
     # 白马策略，第一个仓
     bmzh_strategy = BMZH_Strategy(context, subportfolio_index=1, name='白马股攻防转换策略', params=params)
@@ -87,6 +88,7 @@ def initialize(context):
     params = {
         'max_hold_count': 1,  # 最大持股数
         'max_select_count': 2,  # 最大输出选股数
+        'use_empty_month_last_day': True  # 是否月末最后一天清仓
     }
     # ETF 策略，第二个仓
     wpetf_strategy = WPETF_Strategy(context, subportfolio_index=2, name='外盘ETF轮动策略', params=params)
@@ -97,7 +99,8 @@ def initialize(context):
         'max_select_count': 10,  # 最大输出选股数
         'use_empty_month': True,  # 是否在指定月份空仓
         'empty_month': [1, 4] , # 指定空仓的月份列表
-        'use_stoplost': True  # 是否使用止损
+        'use_stoplost': True,  # 是否使用止损
+        'use_empty_month_last_day': True  # 是否月末最后一天清仓
     }
     # 小世值，第三个仓
     xszgjt_strategy = XSZ_GJT_Strategy(context, subportfolio_index=3, name='国九条小市值策略', params=params)
@@ -112,6 +115,9 @@ def after_code_changed(context):  # 输出运行时间
     context.is_send_wx_message = 0
 
     unschedule_all()  # 取消所有定时运行
+
+    # 月末最后一天清仓
+    run_monthly(close_for_month_last_day, -1, "14:55")
     # 定期平衡子账户资金
     run_monthly(balance_subportfolios, 1, "9:00")
 
@@ -148,6 +154,15 @@ def balance_subportfolios(context):
     utilstool = UtilsToolClass()
     utilstool.name = '总策略'
     utilstool.balance_subportfolios(context)
+
+
+# 选股
+def close_for_month_last_day(context):
+    g.strategys['白马股攻防转换策略'].close_for_month_last_day(context)
+    g.strategys['外盘ETF轮动策略'].close_for_month_last_day(context)
+    g.strategys['国九条小市值策略'].close_for_month_last_day(context)
+
+
 
 # 选股
 def bmzh_select(context):
