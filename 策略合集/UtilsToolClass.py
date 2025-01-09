@@ -383,3 +383,48 @@ class UtilsToolClass:
                         count=1, panel=False, fill_paused=False, skip_paused=False
                         ).query('close!=high_limit and high==high_limit and paused==0').groupby('code').size()
         return h_s.index.tolist()
+
+    def balance_subportfolios(self, context):
+        log.info(self.name, '--balance_subportfolios平衡账户资金函数--',
+                 str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+        length = len(context.portfolio_value_proportion)
+        # 计算平衡前仓位比例
+        log.info(
+            "仓位调整前："
+            + str(
+                [
+                    context.subportfolios[i].total_value / context.portfolio.total_value
+                    for i in range(length)
+                ]
+            )
+        )
+        # 先把所有可用资金打入一号资金仓位
+        for i in range(1, length):
+            target = context.portfolio_value_proportion[i] * context.portfolio.total_value
+            value = context.subportfolios[i].total_value
+            if context.subportfolios[i].available_cash > 0 and target < value:
+                transfer_cash(
+                    from_pindex=i,
+                    to_pindex=0,
+                    cash=min(value - target, context.subportfolios[i].available_cash),
+                )
+        # 如果子账户仓位过低，从一号仓位往其中打入资金
+        for i in range(1, length):
+            target = context.portfolio_value_proportion[i] * context.portfolio.total_value
+            value = context.subportfolios[i].total_value
+            if target > value and context.subportfolios[0].available_cash > 0:
+                transfer_cash(
+                    from_pindex=0,
+                    to_pindex=i,
+                    cash=min(target - value, context.subportfolios[0].available_cash),
+                )
+        # 计算平衡后仓位比例
+        log.info(
+            "仓位调整后："
+            + str(
+                [
+                    context.subportfolios[i].total_value / context.portfolio.total_value
+                    for i in range(length)
+                ]
+            )
+        )
