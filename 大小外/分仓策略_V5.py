@@ -63,6 +63,7 @@ def initialize(context):
     # 子账户 分仓
     g.portfolio_value_proportion = [0.35, 0.15, 0.50]
     context.portfolio_value_proportion = [0.35, 0.15, 0.50]
+    context.balance_value = {}
 
     # 创建策略实例
     # 初始化策略子账户 subportfolios
@@ -77,7 +78,8 @@ def initialize(context):
     params = {
         'max_hold_count': 1,  # 最大持股数
         'max_select_count': 3,  # 最大输出选股数
-        'use_empty_month_last_day': True  # 是否月末最后一天清仓
+        'use_empty_month_last_day': True,  # 是否月末最后一天清仓
+        'empty_month_last_day': [1, 4],  # 月末最后一天清仓列表
     }
     # 白马策略，第一个仓
     bmzh_strategy = BMZH_Strategy(context, subportfolio_index=0, name='白马股攻防转换策略', params=params)
@@ -86,7 +88,8 @@ def initialize(context):
     params = {
         'max_hold_count': 1,  # 最大持股数
         'max_select_count': 2,  # 最大输出选股数
-        'use_empty_month_last_day': True  # 是否月末最后一天清仓
+        'use_empty_month_last_day': True,  # 是否月末最后一天清仓
+        'empty_month_last_day': [1, 4],  # 月末最后一天清仓列表
     }
     # ETF 策略，第二个仓
     wpetf_strategy = WPETF_Strategy(context, subportfolio_index=1, name='外盘ETF轮动策略', params=params)
@@ -114,15 +117,12 @@ def after_code_changed(context):  # 输出运行时间
     unschedule_all()  # 取消所有定时运行
 
     # 月末最后一天清仓
-    if context.current_dt.month in (1, 4):
-        run_monthly(close_for_month_last_day, -1, "14:55")
+    run_monthly(close_for_month_last_day, -1, "14:55")
     # 定期平衡子账户资金
-    if context.current_dt.month in (1, 4):
-        # 小市值在9.31清仓后，从9.32开始分钱
-        run_monthly(balance_subportfolios_by_small, 1, "9:32")
+    # 小市值在9.31清仓后，从9.32开始分钱
+    run_monthly(balance_subportfolios_by_small, 1, "9:32")
     # 定期平衡子账户资金
-    if context.current_dt.month in (2, 5):
-        run_monthly(balance_subportfolios_by_small, 1, "7:30")
+    run_monthly(balance_subportfolios_by_small, 1, "7:30")
 
     # 执行计划
     # 选股函数--Select：白马和 ETF 分开使用

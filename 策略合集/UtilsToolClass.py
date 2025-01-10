@@ -430,6 +430,9 @@ class UtilsToolClass:
         )
 
     def balance_subportfolios_by_small(self, context):
+        current_month = context.current_dt.month
+        if current_month not in (1, 2, 4, 5):
+            return
         log.info(self.name, '--balance_subportfolios_by_small择时资金利用--',
                  str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
         length = len(context.portfolio_value_proportion)
@@ -443,32 +446,43 @@ class UtilsToolClass:
                 ]
             )
         )
-        balance_value = {}
-        if context.current_dt.month in (1,4):
+        if current_month in (1,4):
             # 把小市值仓位的资金均分到大市值和ETF
+            transfer_dict = {}
             for i in range(0, length-1):
                 value = context.subportfolios[length-1].available_cash*(context.portfolio_value_proportion[i]/0.5)
-                balance_value[i] = value
+                transfer_dict[i] = value
                 if value>0:
                     transfer_cash(
                         from_pindex=length-1, ## 小市值
                         to_pindex=i, ## 大市值 && ETF
                         cash=value
                     )
-                log.info('第',length-1,'个仓位给第',i,'个仓位转账:',value)
-        context.balance_value = balance_value
-        if  context.current_dt.month in (2,5):
-            # 把小市值仓位的资金归还回来
-            for i in range(0, length-1):
-                if len(context.balance_value) > 0:
-                    value = context.balance_value[i]
-                    if value > 0:
-                        transfer_cash(
-                            from_pindex=i,
-                            to_pindex=length-1, ## 小市值
-                            cash=value
-                        )
-                    log.info('第',i,'个仓位给第',length-1,'个仓位转账:',value)
+                    log.info('第',length-1,'个仓位给第',i,'个仓位转账:',value)
+            context.balance_value[current_month] = transfer_dict.copy()
+        if  current_month in (2,5):
+            # 获取上个月份
+            if current_month == 2:
+                last_month = 1
+            else:
+                last_month = 4
+            # 检查是否有上个月的转账记录
+            if last_month in context.balance_value:
+                transfer_dict = context.balance_value[last_month]
+                # 把小市值仓位的资金归还回来
+                for i in transfer_dict:
+                    value = transfer_dict[i]
+                        if value > 0:
+                            transfer_cash(
+                                from_pindex=i,
+                                to_pindex=length-1, ## 小市值
+                                cash=value
+                            )
+                            log.info('第',i,'个仓位给第',length-1,'个仓位转账:',value)
+                # 删除上个月的转账记录
+                del context.balance_value[last_month]
+            else:
+                log.info('没有上个月的转账记录，无需归还')
         # 计算平衡后仓位比例
         log.info(
             "仓位调整后："
