@@ -477,24 +477,51 @@ class Strategy:
         log.info(self.name, '--buy函数--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
 
         subportfolio = context.subportfolios[self.subportfolio_index]
-        buy_stocks_not_held = [stock for stock in buy_stocks if stock not in subportfolio.long_positions]
-
         if is_single_buy and len(subportfolio.long_positions) > 0:
             # 如果有持仓，还有选票就先不买了
-            buy_count = 0
-        else:
-            buy_count = min(self.max_hold_count - len(subportfolio.long_positions), len(buy_stocks_not_held))
-        if buy_count > 0:
-            value = subportfolio.available_cash / buy_count
-            bought = 0
-            for stock in buy_stocks:
-                if bought >= buy_count:
+            pass
+
+        current_holdings = subportfolio.long_positions
+        available_cash = subportfolio.available_cash
+        max_hold_count = self.max_hold_count
+        current_holding_count = len(current_holdings)
+
+        # 分离buy_stocks为已持仓和未持仓两部分
+        held_stocks = [stock for stock in buy_stocks if stock in current_holdings]
+        new_stocks = [stock for stock in buy_stocks if stock not in current_holdings]
+
+        # 计算可以买入的未持仓股票数量
+        total_new = max_hold_count - current_holding_count
+
+        total_held = len(held_stocks)
+        # 计算总的购买金额
+        total_value = available_cash
+        # 计算每只股票的购买金额比例
+        stock_value = total_value / (total_new + total_held)
+
+        # 加仓已持有的股票
+        if total_held > 0:
+            for stock in held_stocks:
+                if available_cash <= 0:
                     break
-                # 如果买入失败，顺延买下一个
-                if self.utilstool.open_position(context, stock, value):
-                    bought += 1
-        else:
-            log.info(self.name, '无需购买新股票，已达到最大持仓数或无新股票可买。')
+                value = min(stock_value, available_cash)
+                if self.utilstool.open_position(context, stock, value, False):
+                    available_cash -= value
+                    log.info(f'加仓已持有股票 {stock}，金额: {value}')
+                else:
+                    log.warning(f'加仓已持有股票 {stock} 失败，跳过。')
+
+        # 购买新股票
+        if total_new > 0:
+            for stock in new_stocks:
+                if available_cash <= 0:
+                    break
+                value = min(stock_value, available_cash)
+                if self.utilstool.open_position(context, stock, value, False):
+                    available_cash -= value
+                    log.info(f'买入新股票 {stock}，金额: {value}')
+                else:
+                    log.warning(f'买入新股票 {stock} 失败，跳过。')
 
     # 卖出多只股票
     def sell(self, context, sell_stocks):
