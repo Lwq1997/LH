@@ -67,9 +67,9 @@ def initialize(context):
     # 创建策略实例
     # 初始化策略子账户 subportfolios
     set_subportfolios([
+        SubPortfolioConfig(context.portfolio.starting_cash * g.portfolio_value_proportion[0], 'stock'),
         SubPortfolioConfig(context.portfolio.starting_cash * g.portfolio_value_proportion[1], 'stock'),
-        SubPortfolioConfig(context.portfolio.starting_cash * g.portfolio_value_proportion[2], 'stock'),
-        SubPortfolioConfig(context.portfolio.starting_cash * g.portfolio_value_proportion[3], 'stock')
+        SubPortfolioConfig(context.portfolio.starting_cash * g.portfolio_value_proportion[2], 'stock')
     ])
 
     # 是否发送微信消息，回测环境不发送，模拟环境发送
@@ -77,7 +77,7 @@ def initialize(context):
     params = {
         'max_hold_count': 1,  # 最大持股数
         'max_select_count': 3,  # 最大输出选股数
-        'use_empty_month_last_day_by_small': True  # 是否1，4月末清仓
+        'use_empty_month_last_day': True  # 是否月末最后一天清仓
     }
     # 白马策略，第一个仓
     bmzh_strategy = BMZH_Strategy(context, subportfolio_index=0, name='白马股攻防转换策略', params=params)
@@ -86,7 +86,7 @@ def initialize(context):
     params = {
         'max_hold_count': 1,  # 最大持股数
         'max_select_count': 2,  # 最大输出选股数
-        'use_empty_month_last_day_by_small': True  # 是否1，4月末清仓
+        'use_empty_month_last_day': True  # 是否月末最后一天清仓
     }
     # ETF 策略，第二个仓
     wpetf_strategy = WPETF_Strategy(context, subportfolio_index=1, name='外盘ETF轮动策略', params=params)
@@ -114,7 +114,8 @@ def after_code_changed(context):  # 输出运行时间
     unschedule_all()  # 取消所有定时运行
 
     # 月末最后一天清仓
-    run_monthly(close_for_month_last_day_by_small, -1, "14:55")
+    if context.current_dt.month in (1, 4):
+        run_monthly(close_for_month_last_day, -1, "14:55")
     # 定期平衡子账户资金
     if context.current_dt.month in (1, 4):
         # 小市值在9.31清仓后，从9.32开始分钱
@@ -162,9 +163,9 @@ def balance_subportfolios_by_small(context):
 
 
 # 选股
-def close_for_month_last_day_by_small(context):
-    g.strategys['白马股攻防转换策略'].close_for_month_last_day_by_small(context)
-    g.strategys['外盘ETF轮动策略'].close_for_month_last_day_by_small(context)
+def close_for_month_last_day(context):
+    g.strategys['白马股攻防转换策略'].close_for_month_last_day(context)
+    g.strategys['外盘ETF轮动策略'].close_for_month_last_day(context)
 
 
 # 选股

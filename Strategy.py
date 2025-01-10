@@ -45,7 +45,6 @@ class Strategy:
         self.empty_month = self.params['empty_month'] if 'empty_month' in self.params else []  # 空仓月份
         self.use_stoplost = self.params['use_stoplost'] if 'use_stoplost' in self.params else False  # 是否使用止损
         self.use_empty_month_last_day = self.params['use_empty_month_last_day'] if 'use_empty_month_last_day' in self.params else []  # 是否月末最后一天清仓
-        self.use_empty_month_last_day_by_small = self.params['use_empty_month_last_day_by_small'] if 'use_empty_month_last_day_by_small' in self.params else []  # 是否1，4月末清仓
         self.stoplost_silent_days = self.params[
             'stoplost_silent_days'] if 'stoplost_silent_days' in self.params else 20  # 止损后不交易的天数
         self.stoplost_level = self.params['stoplost_level'] if 'stoplost_level' in self.params else 0.2  # 止损的下跌幅度（按买入价）
@@ -288,16 +287,6 @@ class Strategy:
 
         subportfolio = context.subportfolios[self.subportfolio_index]
         if self.use_empty_month_last_day and len(
-                subportfolio.long_positions) > 0:
-            self.sell(context, list(subportfolio.long_positions))
-
-    # 择时月份的最后一天，需要清仓给择时策略归还账户资金
-    def close_for_month_last_day_by_small(self, context):
-        log.info(self.name, '--close_for_month_last_day函数，每月最后一天，清仓等账户均衡--',
-                 str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
-
-        subportfolio = context.subportfolios[self.subportfolio_index]
-        if self.use_empty_month_last_day_by_small and context.current_dt.month in (1,4) and len(
                 subportfolio.long_positions) > 0:
             self.sell(context, list(subportfolio.long_positions))
 
