@@ -379,9 +379,11 @@ class Strategy:
         # 售卖列表：不在select_list前max_hold_count中的股票都要被卖掉
         sell_stocks = []
         # 实时过滤部分股票，否则也买不了，放出去也没有意义
-        target_list = self.utilstool.filter_lowlimit_stock(context, self.select_list)
-        target_list = self.utilstool.filter_highlimit_stock(context, target_list)
+        target_list = self.utilstool.filter_highlimit_stock(context, self.select_list)
         target_list = self.utilstool.filter_paused_stock(context, target_list)
+        # target_list = self.utilstool.filter_lowlimit_stock(context, target_list)
+
+        log.info(self.name, '--过滤部分股票后的选股列表:', target_list)
         # 股票卖出的条件
         # 1. 有持仓
         # 2. 在目标列表中--不卖
@@ -497,9 +499,11 @@ class Strategy:
         # 计算总的购买金额
         total_value = available_cash
         # 计算每只股票的购买金额
-        stock_value = total_value / (total_new + total_held)
+        if (total_new + total_held)  > 0:
+            stock_value = total_value / (total_new + total_held)
+            log.debug('计算每只股票的购买金额比例：', stock_value)
+
         log.debug('计算总的购买金额：', total_value)
-        log.debug('计算每只股票的购买金额比例：', stock_value)
         log.debug('计算可以买入的未持仓股票数量：', total_new, '--待买入列表:', new_stocks)
         log.debug('计算可以买入的已持仓股票数量：', total_held, '--已持仓列表:', held_stocks)
         # 加仓已持有的股票
