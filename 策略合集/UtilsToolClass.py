@@ -472,13 +472,13 @@ class UtilsToolClass:
                 # 把小市值仓位的资金归还回来
                 for i in transfer_dict:
                     value = transfer_dict[i]
-                        if value > 0:
-                            transfer_cash(
-                                from_pindex=i,
-                                to_pindex=length-1, ## 小市值
-                                cash=value
-                            )
-                            log.info('第',i,'个仓位给第',length-1,'个仓位转账:',value)
+                    if value > 0:
+                        transfer_cash(
+                            from_pindex=i,
+                            to_pindex=length-1, ## 小市值
+                            cash=value
+                        )
+                        log.info('第',i,'个仓位给第',length-1,'个仓位转账:',value)
                 # 删除上个月的转账记录
                 del context.balance_value[last_month]
             else:
