@@ -428,3 +428,54 @@ class UtilsToolClass:
                 ]
             )
         )
+
+    def balance_subportfolios_by_small(self, context):
+        log.info(self.name, '--balance_subportfolios_by_small择时资金利用--',
+                 str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+        length = len(context.portfolio_value_proportion)
+        # 计算平衡前仓位比例
+        log.info(
+            "仓位调整前："
+            + str(
+                [
+                    context.subportfolios[i].total_value / context.portfolio.total_value
+                    for i in range(length)
+                ]
+            )
+        )
+        balance_value = {}
+        if context.current_dt.month in (1,4):
+            # 把小市值仓位的资金均分到大市值和ETF
+            for i in range(0, length-1):
+                value = context.subportfolios[length-1].available_cash*(context.portfolio_value_proportion[i]/0.5)
+                balance_value[i] = value
+                if value>0:
+                    transfer_cash(
+                        from_pindex=length-1, ## 小市值
+                        to_pindex=i, ## 大市值 && ETF
+                        cash=value
+                    )
+                log.info('第',length-1,'个仓位给第',i,'个仓位转账:',value)
+        context.balance_value = balance_value
+        if  context.current_dt.month in (2,5):
+            # 把小市值仓位的资金归还回来
+            for i in range(0, length-1):
+                if len(context.balance_value) > 0:
+                    value = context.balance_value[i]
+                    if value > 0:
+                        transfer_cash(
+                            from_pindex=i,
+                            to_pindex=length-1, ## 小市值
+                            cash=value
+                        )
+                    log.info('第',i,'个仓位给第',length-1,'个仓位转账:',value)
+        # 计算平衡后仓位比例
+        log.info(
+            "仓位调整后："
+            + str(
+                [
+                    context.subportfolios[i].total_value / context.portfolio.total_value
+                    for i in range(length)
+                ]
+            )
+        )
