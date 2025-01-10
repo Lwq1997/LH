@@ -44,8 +44,10 @@ class Strategy:
         self.use_empty_month = self.params['use_empty_month'] if 'use_empty_month' in self.params else False  # 是否有空仓期
         self.empty_month = self.params['empty_month'] if 'empty_month' in self.params else []  # 空仓月份
         self.use_stoplost = self.params['use_stoplost'] if 'use_stoplost' in self.params else False  # 是否使用止损
-        self.empty_month_last_day = self.params['empty_month_last_day'] if 'empty_month_last_day' in self.params else []  # 需要月末清仓的月份
-        self.use_empty_month_last_day = self.params['use_empty_month_last_day'] if 'use_empty_month_last_day' in self.params else False  # 是否月末最后一天清仓
+        self.empty_month_last_day = self.params[
+            'empty_month_last_day'] if 'empty_month_last_day' in self.params else []  # 需要月末清仓的月份
+        self.use_empty_month_last_day = self.params[
+            'use_empty_month_last_day'] if 'use_empty_month_last_day' in self.params else False  # 是否月末最后一天清仓
         self.stoplost_silent_days = self.params[
             'stoplost_silent_days'] if 'stoplost_silent_days' in self.params else 20  # 止损后不交易的天数
         self.stoplost_level = self.params['stoplost_level'] if 'stoplost_level' in self.params else 0.2  # 止损的下跌幅度（按买入价）
@@ -475,24 +477,24 @@ class Strategy:
         log.info(self.name, '--buy函数--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
 
         subportfolio = context.subportfolios[self.subportfolio_index]
+        buy_stocks_not_held = [stock for stock in buy_stocks if stock not in subportfolio.long_positions]
+
         if is_single_buy and len(subportfolio.long_positions) > 0:
             # 如果有持仓，还有选票就先不买了
             buy_count = 0
-        elif len(buy_stocks) > self.max_hold_count:
-            buy_count = self.max_hold_count - len(subportfolio.long_positions)
         else:
-            buy_count = len(buy_stocks) - len(subportfolio.long_positions)
+            buy_count = min(self.max_hold_count - len(subportfolio.long_positions), len(buy_stocks_not_held))
         if buy_count > 0:
             value = subportfolio.available_cash / buy_count
-            index = 0
+            bought = 0
             for stock in buy_stocks:
-                if stock in subportfolio.long_positions:
-                    continue
+                if bought >= buy_count:
+                    break
                 # 如果买入失败，顺延买下一个
                 if self.utilstool.open_position(context, stock, value):
-                    index = index + 1
-                    if index >= buy_count:
-                        break
+                    bought += 1
+        else:
+            log.info(self.name, '无需购买新股票，已达到最大持仓数或无新股票可买。')
 
     # 卖出多只股票
     def sell(self, context, sell_stocks):
