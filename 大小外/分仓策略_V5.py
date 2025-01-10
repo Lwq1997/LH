@@ -119,10 +119,9 @@ def after_code_changed(context):  # 输出运行时间
     # 月末最后一天清仓
     run_monthly(close_for_month_last_day, -1, "14:55")
     # 定期平衡子账户资金
-    # 小市值在9.31清仓后，从9.32开始分钱
-    run_monthly(balance_subportfolios_by_small, 1, "9:32")
-    # 定期平衡子账户资金
-    run_monthly(balance_subportfolios_by_small, 1, "7:30")
+    # 小市值在9.31清仓后，从10.32开始分钱
+    run_monthly(balance_subportfolios_by_small_to_other, 2, "8:30")
+    run_monthly(balance_subportfolios_by_other_to_small, 1, "8:30")
 
     # 执行计划
     # 选股函数--Select：白马和 ETF 分开使用
@@ -130,8 +129,8 @@ def after_code_changed(context):  # 输出运行时间
     # # 白马，按月运行
     if g.portfolio_value_proportion[0] > 0:
         # 买卖要在9.32之后
-        run_monthly(bmzh_select, 1, time='9:33')  # 阅读完成，测试完成
-        run_monthly(bmzh_adjust, 1, time='09:35')  # 阅读完成，测试完成
+        run_monthly(bmzh_select, 2, time='9:33')  # 阅读完成，测试完成
+        run_monthly(bmzh_adjust, 2, time='09:35')  # 阅读完成，测试完成
         run_daily(bmzh_after_market_close, 'after_close')
 
     # # ETF轮动，按天运行
@@ -156,10 +155,16 @@ def after_code_changed(context):  # 输出运行时间
 
 
 # 平衡子账户资金
-def balance_subportfolios_by_small(context):
+def balance_subportfolios_by_small_to_other(context):
     utilstool = UtilsToolClass()
     utilstool.name = '总策略'
-    utilstool.balance_subportfolios_by_small(context)
+    utilstool.balance_subportfolios_by_small_to_other(context)
+
+# 平衡子账户资金
+def balance_subportfolios_by_other_to_small(context):
+    utilstool = UtilsToolClass()
+    utilstool.name = '总策略'
+    utilstool.balance_subportfolios_by_other_to_small(context)
 
 
 # 选股
