@@ -26,6 +26,7 @@ class XSZ_GJT_Strategy(Strategy):
             return
 
         self.select_list = self.__get_rank(context)[:self.max_select_count]
+        log.info(self.name, '的选股列表:', self.select_list)
         self.print_trade_plan(context, self.select_list)
 
     def __get_rank(self, context):
