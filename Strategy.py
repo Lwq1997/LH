@@ -496,9 +496,12 @@ class Strategy:
         total_held = len(held_stocks)
         # 计算总的购买金额
         total_value = available_cash
-        # 计算每只股票的购买金额比例
+        # 计算每只股票的购买金额
         stock_value = total_value / (total_new + total_held)
-
+        log.debug('计算总的购买金额：', total_value)
+        log.debug('计算每只股票的购买金额比例：', stock_value)
+        log.debug('计算可以买入的未持仓股票数量：', total_new, '--待买入列表:', new_stocks)
+        log.debug('计算可以买入的已持仓股票数量：', total_held, '--已持仓列表:', held_stocks)
         # 加仓已持有的股票
         if total_held > 0:
             for stock in held_stocks:
