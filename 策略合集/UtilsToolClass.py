@@ -361,7 +361,7 @@ class UtilsToolClass:
         df_ratio = (industry_bias_sum * 100.0 / industry_bias_count).round()
 
         # 获取偏离比例最高的行业
-        top_values = df_ratio.loc[:, yesterday].nlargest(self.max_industry_name)
+        top_values = df_ratio.loc[:, yesterday].nlargest(self.max_industry_cnt)
         top_industries = top_values.index.tolist()
 
         # 计算全市场宽度的平均偏离比例

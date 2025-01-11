@@ -74,7 +74,6 @@ def initialize(context):
     context.is_send_wx_message = 0
 
     params = {
-        'max_industry_name': 1,
         'max_select_count': 6,
         'max_hold_count': 6,
         'use_empty_month': True,  # 是否在指定月份空仓

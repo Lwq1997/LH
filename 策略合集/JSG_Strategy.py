@@ -12,6 +12,7 @@ from jqlib.technical_analysis import *
 class JSG_Strategy(Strategy):
     def __init__(self, context, subportfolio_index, name, params):
         super().__init__(context, subportfolio_index, name, params)
+        self.max_industry_cnt = 1
 
     def select(self, context):
         log.info(self.name, '--select函数--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
