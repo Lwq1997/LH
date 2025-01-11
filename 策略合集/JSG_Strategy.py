@@ -17,7 +17,7 @@ class JSG_Strategy(Strategy):
     def select(self, context):
         log.info(self.name, '--select函数--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
 
-        top_industries = self.utilstool.get_market_breadth(context)
+        top_industries = self.utilstool.get_market_breadth(context, self.max_industry_cnt)
         industries = {"银行I", "有色金属I", "煤炭I", "钢铁I", "采掘I"}
         if not industries.intersection(top_industries):
             # 根据市场温度设置选股条件，选出股票

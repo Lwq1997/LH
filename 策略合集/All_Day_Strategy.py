@@ -17,7 +17,7 @@ import datetime as datet
 class All_Day_Strategy(Strategy):
     def __init__(self, context, subportfolio_index, name, params):
         super().__init__(context, subportfolio_index, name, params)
-        self.foreign_ETF = [
+        self.etf_pool = [
             "511010.XSHG",  # 国债ETF
             "518880.XSHG",  # 黄金ETF
             "513100.XSHG",  # 纳指100

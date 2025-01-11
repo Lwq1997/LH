@@ -110,12 +110,15 @@ def after_code_changed(context):  # 输出运行时间
         run_weekly(jsg_select, 1, "7:30")
         run_weekly(jsg_adjust, 1, "9:31")
         run_daily(jsg_check, "14:50")
+
     if g.portfolio_value_proportion[1] > 0:
         run_monthly(all_day_adjust, 1, "9:40")
+
     if g.portfolio_value_proportion[2] > 0:
         run_daily(rotation_etf_select, "7:30")
         run_daily(rotation_etf_adjust, "9:32")
 
+    run_daily(after_market_close, 'after_close')
 
 def jsg_prepare(context):
     g.strategys["搅屎棍策略"].day_prepare(context)
@@ -143,3 +146,10 @@ def rotation_etf_select(context):
 
 def rotation_etf_adjust(context):
     g.strategys["核心资产轮动策略"].adjustwithnoRM(context)
+
+
+def after_market_close(context):
+    g.strategys['搅屎棍策略'].after_market_close(context)
+    g.strategys['全天候策略'].after_market_close(context)
+    g.strategys['核心资产轮动策略'].after_market_close(context)
+

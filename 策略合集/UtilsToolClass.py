@@ -312,7 +312,7 @@ class UtilsToolClass:
         # print(response.text)
 
     # 计算市场宽度
-    def get_market_breadth(self, context):
+    def get_market_breadth(self, context, max_industry_cnt):
         log.info(self.name, '--get_market_breadth--计算市场宽度，选择偏离程度最高的行业--',
                  str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
         """
@@ -361,7 +361,7 @@ class UtilsToolClass:
         df_ratio = (industry_bias_sum * 100.0 / industry_bias_count).round()
 
         # 获取偏离比例最高的行业
-        top_values = df_ratio.loc[:, yesterday].nlargest(self.max_industry_cnt)
+        top_values = df_ratio.loc[:, yesterday].nlargest(max_industry_cnt)
         top_industries = top_values.index.tolist()
 
         # 计算全市场宽度的平均偏离比例
@@ -374,6 +374,15 @@ class UtilsToolClass:
         )
 
         return top_industries
+
+    def getStockIndustry(self, stocks):
+        industry = get_industry(stocks)
+        dict = {
+            stock: info["sw_l1"]["industry_name"]
+            for stock, info in industry.items()
+            if "sw_l1" in info
+        }
+        return pd.Series(dict)
 
     # 计算市场温度
     def Market_temperature(self, context, market_temperature='warm'):
@@ -570,7 +579,6 @@ class UtilsToolClass:
                 ]
             )
         )
-
 
     def balance_subportfolios_by_other_to_small(self, context):
         current_month = context.current_dt.month
