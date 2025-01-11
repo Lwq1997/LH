@@ -22,7 +22,7 @@ class JSG_Strategy(Strategy):
         if not industries.intersection(top_industries):
             # 根据市场温度设置选股条件，选出股票
             self.select_list = self.__get_rank(context)[:self.max_select_count]
-            log.info('当前选股:', self.select_list)
+            log.info(self.name, '的选股列表:', self.select_list)
             # 编写操作计划
             self.print_trade_plan(context, self.select_list)
 

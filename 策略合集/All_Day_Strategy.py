@@ -42,6 +42,7 @@ class All_Day_Strategy(Strategy):
             for etf, rate in zip(self.etf_pool, self.rates)
         }
 
+        log.info(self.name, '的选股列表:', targets)
         # 获取当前持仓
         current_positions = subportfolio.long_positions
 

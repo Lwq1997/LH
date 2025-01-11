@@ -38,7 +38,7 @@ class Rotation_ETF_Strategy(Strategy):
             target = [self.fill_stock]
 
         self.select_list = target[: min(len(target), self.max_hold_count)]
-
+        log.info(self.name, '的选股列表:', self.select_list)
         self.print_trade_plan(context, self.select_list)
 
     def MOM(self, context, etf):

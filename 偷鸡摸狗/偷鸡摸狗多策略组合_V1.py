@@ -402,7 +402,10 @@ class JSG_Strategy(Strategy):
             .order_by(valuation.market_cap.asc())
         )["code"].tolist()
         stocks = self.filter_limitup_limitdown_stock(context, stocks)
-        return stocks[: min(len(stocks), self.stock_sum)]
+        select_stock = stocks[: min(len(stocks), self.stock_sum)]
+        log.info(self.name, '的选股列表:', select_stock)
+        return select_stock
+
 
     #  判断今天是在空仓月
     def is_empty_month(self, context):
@@ -470,6 +473,7 @@ class All_Day_Strategy(Strategy):
             etf: subportfolio.total_value * rate
             for etf, rate in zip(self.etf_pool, self.rates)
         }
+        log.info(self.name, '的选股列表:', targets)
         # 首次开仓
         if not subportfolio.long_positions:
             for etf, target in targets.items():
@@ -538,7 +542,10 @@ class Rotation_ETF_Strategy(Strategy):
         target = df.index.tolist()
         if not target:
             target = [self.fill_stock]
-        return target[: min(len(target), self.stock_sum)]
+        select_stock = target[: min(len(target), self.stock_sum)]
+
+        log.info(self.name, '的选股列表:', select_stock)
+        return select_stock
 
     # 调仓
     def adjust(self, context):
