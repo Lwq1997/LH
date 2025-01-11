@@ -30,8 +30,8 @@ import datetime as datet
 from prettytable import PrettyTable
 import inspect
 from JSG_Strategy import JSG_Strategy
-from WPETF_Strategy import WPETF_Strategy
-from XSZ_GJT_Strategy import XSZ_GJT_Strategy
+from All_Day_Strategy import All_Day_Strategy
+from Rotation_ETF_Strategy import Rotation_ETF_Strategy
 
 
 # 初始化函数，设定基准等等
@@ -78,7 +78,7 @@ def initialize(context):
         'max_select_count': 6,
         'max_hold_count': 6,
         'use_empty_month': True,  # 是否在指定月份空仓
-        'empty_month': [1, 4] , # 指定空仓的月份列表
+        'empty_month': [1, 4],  # 指定空仓的月份列表
         'use_stoplost': True  # 是否使用止损
     }
     jsg_strategy = JSG_Strategy(context, subportfolio_index=0, name='搅屎棍策略', params=params)
