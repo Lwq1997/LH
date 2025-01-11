@@ -525,15 +525,18 @@ class Strategy:
         new_stocks = [stock for stock in buy_stocks if stock not in current_holdings]
 
         # 计算可以买入的未持仓股票数量
-        total_new = max_hold_count - current_holding_count
+        total_new = min(max_hold_count - current_holding_count, len(new_stocks))
 
         total_held = len(held_stocks)
         # 计算总的购买金额
         total_value = available_cash
+        if (total_new + total_held) <= 0 or total_value <= 0:
+            log.info('没有可购买的股票。')
+            return
+
         # 计算每只股票的购买金额
-        if (total_new + total_held)  > 0:
-            stock_value = total_value / (total_new + total_held)
-            log.debug('计算每只股票的购买金额比例：', stock_value)
+        stock_value = total_value / (total_new + total_held)
+        log.debug('计算每只股票的购买金额比例：', stock_value)
 
         log.debug('计算总的购买金额：', total_value)
         log.debug('计算可以买入的未持仓股票数量：', total_new, '--待买入列表:', new_stocks)
