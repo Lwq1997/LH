@@ -90,6 +90,7 @@ def initialize(context):
     g.strategys[all_day_strategy.name] = all_day_strategy
 
     params = {
+        'max_hold_count': 1
     }
     rotation_etf_strategy = Rotation_ETF_Strategy(context, subportfolio_index=2, name='核心资产轮动策略', params=params)
     g.strategys[rotation_etf_strategy.name] = rotation_etf_strategy
@@ -113,6 +114,7 @@ def after_code_changed(context):  # 输出运行时间
     if g.portfolio_value_proportion[1] > 0:
         run_monthly(all_day_adjust, 1, "9:40")
     if g.portfolio_value_proportion[2] > 0:
+        run_daily(rotation_etf_select, "7:30")
         run_daily(rotation_etf_adjust, "9:32")
 
 
@@ -136,5 +138,9 @@ def all_day_adjust(context):
     g.strategys["全天候策略"].adjust(context)
 
 
+def rotation_etf_select(context):
+    g.strategys["核心资产轮动策略"].select(context)
+
+
 def rotation_etf_adjust(context):
-    g.strategys["核心资产轮动策略"].adjust(context)
+    g.strategys["核心资产轮动策略"].adjustwithnoRM(context)
