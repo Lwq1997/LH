@@ -109,7 +109,8 @@ def initialize(context):
     g.strategys[all_day_strategy.name] = all_day_strategy
 
     params = {
-        'max_hold_count': 1
+        'max_hold_count': 1,
+        'buy_strategy_mode': 'priority'
     }
     rotation_etf_strategy = Rotation_ETF_Strategy(context, subportfolio_index=2, name='核心资产轮动策略', params=params)
     g.strategys[rotation_etf_strategy.name] = rotation_etf_strategy
@@ -126,7 +127,7 @@ def after_code_changed(context):  # 输出运行时间
 
     # 子策略执行计划
     if g.portfolio_value_proportion[0] > 0:
-        run_daily(jsg_prepare, "9:05")
+        run_daily(jsg_prepare, "7:00")
         run_weekly(jsg_select, 1, "7:30")
         run_weekly(jsg_adjust, 1, "9:31")
         run_daily(jsg_check, "14:50")
@@ -139,6 +140,7 @@ def after_code_changed(context):  # 输出运行时间
         run_daily(rotation_etf_adjust, "9:32")
 
     run_daily(after_market_close, 'after_close')
+
 
 def jsg_prepare(context):
     g.strategys["搅屎棍策略"].day_prepare(context)
@@ -172,4 +174,3 @@ def after_market_close(context):
     g.strategys['搅屎棍策略'].after_market_close(context)
     g.strategys['全天候策略'].after_market_close(context)
     g.strategys['核心资产轮动策略'].after_market_close(context)
-
