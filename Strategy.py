@@ -38,6 +38,7 @@ class Strategy:
         self.strategyID = self.params['strategyID'] if 'strategyID' in self.params else ''
         self.inout_cash = 0
 
+        self.max_industry_name = self.params['max_industry_name'] if 'max_industry_name' in self.params else 1  # 偷鸡摸狗策略中偏离度最高的行业个数
         self.max_hold_count = self.params['max_hold_count'] if 'max_hold_count' in self.params else 1  # 最大持股数
         self.max_select_count = self.params['max_select_count'] if 'max_select_count' in self.params else 5  # 最大输出选股数
         self.hold_limit_days = self.params['hold_limit_days'] if 'hold_limit_days' in self.params else 20  # 计算最近持有列表的天数

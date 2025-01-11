@@ -311,6 +311,71 @@ class UtilsToolClass:
         # print(response.status_code)
         # print(response.text)
 
+    # 计算市场宽度
+    def get_market_breadth(self, context):
+        log.info(self.name, '--get_market_breadth--计算市场宽度，选择偏离程度最高的行业--',
+                 str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+        """
+        计算市场宽度，选择偏离程度最高的行业
+        """
+        # 指定日期以防止未来数据
+        yesterday = context.previous_date
+
+        # 获取上证中小盘指数的成分股
+        stocks = get_index_stocks("000985.XSHG")
+
+        # 获取历史收盘价数据，包括20天移动平均所需的数据
+        count = 1
+        historical_prices = get_price(
+            stocks,
+            end_date=yesterday,
+            frequency="1d",
+            fields=["close"],
+            count=count + 20,
+            panel=False,
+        )
+
+        # 将时间字段转换为日期
+        historical_prices["date"] = pd.DatetimeIndex(historical_prices['time']).date
+
+        # 将数据重塑为股票代码为索引，日期为列
+        close_prices = historical_prices.pivot(index="code", columns="date", values="close")
+        close_prices = close_prices.dropna(axis=0)
+
+        # 计算20日移动平均
+        ma20 = close_prices.rolling(window=20, axis=1).mean().iloc[:, -count:]
+
+        # 获取最新一天的收盘价
+        last_close_prices = close_prices.iloc[:, -count:]
+
+        # 计算偏离程度（当前收盘价是否大于20日均线）
+        bias = last_close_prices > ma20
+
+        # 获取股票所属行业
+        industries = self.getStockIndustry(stocks)
+        bias["industry_name"] = industries
+
+        # 按行业统计偏离股票的比例
+        industry_bias_sum = bias.groupby("industry_name").sum()
+        industry_bias_count = bias.groupby("industry_name").count()
+        df_ratio = (industry_bias_sum * 100.0 / industry_bias_count).round()
+
+        # 获取偏离比例最高的行业
+        top_values = df_ratio.loc[:, yesterday].nlargest(self.max_industry_name)
+        top_industries = top_values.index.tolist()
+
+        # 计算全市场宽度的平均偏离比例
+        market_width = df_ratio.sum(axis=0).mean()
+
+        log.info(
+            [name for name in top_industries],
+            "  全市场宽度：",
+            market_width
+        )
+
+        return top_industries
+
+    # 计算市场温度
     def Market_temperature(self, context, market_temperature='warm'):
         log.info(self.name, '--Market_temperature函数--',
                  str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
