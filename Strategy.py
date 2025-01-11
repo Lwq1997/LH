@@ -183,11 +183,13 @@ class Strategy:
 
         # 空仓期控制
         if self.use_empty_month and context.current_dt.month in (self.empty_month):
+            self.select_list = ['511880.XSHG']
             return
         # 止损期控制
-        if self.stoplost_date is not None:
+        if self.use_stoplost and self.stoplost_date is not None:
+            self.select_list = ['511880.XSHG']
             return
-        select.select_list = []
+        self.select_list = []
 
     # 打印交易计划
     def print_trade_plan(self, context, select_list):
@@ -274,14 +276,27 @@ class Strategy:
             log.info(content)
 
     # 进入空仓期清仓
-    def close_for_empty_month(self, context):
-        log.info(self.name, '--close_for_empty_month函数：如果在空仓期会清仓所有股票--',
+    def close_for_empty_month(self, context, exempt_stocks=None):
+        if exempt_stocks is None:
+            exempt_stocks = ['511880.XSHG']
+
+        log.info(self.name, f'--close_for_empty_month函数：在空仓期保留{exempt_stocks}，卖出其他股票--',
                  str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
 
         subportfolio = context.subportfolios[self.subportfolio_index]
-        if self.use_empty_month and context.current_dt.month in (self.empty_month) and len(
+        if self.use_empty_month and context.current_dt.month in self.empty_month and len(
                 subportfolio.long_positions) > 0:
-            self.sell(context, list(subportfolio.long_positions))
+            # 获取当前持有的所有股票
+            positions = list(subportfolio.long_positions)
+            # 排除exempt_stocks中的股票
+            stocks_to_sell = [stock for stock in positions if stock not in exempt_stocks]
+            if stocks_to_sell:
+                self.sell(context, stocks_to_sell)
+                log.info(self.name, f'--空仓期卖出股票：{stocks_to_sell}，保留{exempt_stocks}--',
+                         str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+            else:
+                log.info(self.name, f'--空仓期没有需要卖出的股票，保留{exempt_stocks}--',
+                         str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
 
     # 每月最后一天，清仓等账户均衡
     def close_for_month_last_day(self, context):
@@ -302,7 +317,7 @@ class Strategy:
         subportfolio = context.subportfolios[self.subportfolio_index]
         if self.use_stoplost:
             if self.stoplost_date is None:
-                # 获取持仓股票的昨日收盘价
+                # 获取持仓股票的当前最新价
                 last_prices = history(1, unit='1m', field='close', security_list=subportfolio.long_positions)
                 for stock in subportfolio.long_positions:
                     position = subportfolio.long_positions[stock]
@@ -324,13 +339,26 @@ class Strategy:
                     log.info(self.name + ': ' + '退出止损')
 
     # 止损时清仓
-    def close_for_stoplost(self, context):
-        log.info(self.name, '--close_for_stoplost函数：如果在止损期会清仓所有股票--',
+    def close_for_stoplost(self, context, exempt_stocks=None):
+        if exempt_stocks is None:
+            exempt_stocks = ['511880.XSHG']
+
+        log.info(self.name, f'--close_for_stoplost函数：在止损期保留{exempt_stocks}，卖出其他股票--',
                  str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
 
         subportfolio = context.subportfolios[self.subportfolio_index]
         if self.use_stoplost and self.stoplost_date is not None and len(subportfolio.long_positions) > 0:
-            self.sell(context, list(subportfolio.long_positions))
+            # 获取当前持有的所有股票
+            positions = list(subportfolio.long_positions)
+            # 排除exempt_stocks中的股票
+            stocks_to_sell = [stock for stock in positions if stock not in exempt_stocks]
+            if stocks_to_sell:
+                self.sell(context, stocks_to_sell)
+                log.info(self.name, f'--止损期卖出股票：{stocks_to_sell}，保留{exempt_stocks}--',
+                         str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+            else:
+                log.info(self.name, f'--止损期没有需要卖出的股票，保留{exempt_stocks}--',
+                         str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
 
     # 3-8 判断今天是否为账户资金再平衡的日期(暂无使用)
     # date_flag,1-单个月，2-两个月1和4，3-三个月1和4和6
@@ -361,17 +389,21 @@ class Strategy:
 
     ##################################  交易函数群 ##################################
     # 调仓
-    def adjustwithnoRM(self, context, only_buy=False, only_sell=False, together=True, is_single_buy=False):
+    def adjustwithnoRM(self, context, only_buy=False, only_sell=False, together=True, is_single_buy=False, exempt_stocks=None):
         log.info(self.name, '--adjustwithnoRM调仓函数--',
                  str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+        if exempt_stocks is None:
+            exempt_stocks = ['511880.XSHG']
 
         # 空仓期或者止损期不再进行调仓
         if self.use_empty_month and context.current_dt.month in (self.empty_month):
             log.info('adjustwithnoRM调仓函数不再执行，因为当前月份是空仓期，空仓期月份为：', self.empty_month)
+            self.buy(context, exempt_stocks, is_single_buy)
             return
         # 止损期控制
-        if self.stoplost_date is not None:
+        if  self.use_stoplost and self.stoplost_date is not None:
             log.info('adjustwithnoRM调仓函数不再执行，因为当前时刻还处于止损期，止损期从:', self.stoplost_date, '开始')
+            self.buy(context, exempt_stocks, is_single_buy)
             return
 
         # 先卖后买
