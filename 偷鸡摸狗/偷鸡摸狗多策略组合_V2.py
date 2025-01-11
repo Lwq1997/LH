@@ -47,13 +47,33 @@ def initialize(context):
     # 关闭未来函数
     set_option('avoid_future_data', True)
 
-    ### 股票相关设定 ###
-    # 股票类每笔交易时的手续费是：买入时佣金万分之三，卖出时佣金万分之三加千分之一印花税, 每笔交易佣金最低扣5块钱
-    set_order_cost(OrderCost(close_tax=0.0005, open_commission=0.0001, close_commission=0.0001, min_commission=0),
-                   type='stock')
-
-    # 为股票设定滑点为百分比滑点
-    set_slippage(PriceRelatedSlippage(0.02), type='stock')
+    # 固定滑点设置股票0.01，基金0.001(即交易对手方一档价)
+    set_slippage(FixedSlippage(0.02), type="stock")
+    set_slippage(FixedSlippage(0.002), type="fund")
+    # 设置股票交易印花税千一，佣金万三
+    set_order_cost(
+        OrderCost(
+            open_tax=0,
+            close_tax=0.001,
+            open_commission=0.0003,
+            close_commission=0.0003,
+            close_today_commission=0,
+            min_commission=5,
+        ),
+        type="stock",
+    )
+    # 设置货币ETF交易佣金0
+    set_order_cost(
+        OrderCost(
+            open_tax=0,
+            close_tax=0,
+            open_commission=0,
+            close_commission=0,
+            close_today_commission=0,
+            min_commission=0,
+        ),
+        type="mmf",
+    )
 
     # 临时变量
 

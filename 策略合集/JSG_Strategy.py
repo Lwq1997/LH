@@ -13,6 +13,7 @@ class JSG_Strategy(Strategy):
     def __init__(self, context, subportfolio_index, name, params):
         super().__init__(context, subportfolio_index, name, params)
         self.max_industry_cnt = 1
+        self.fill_stock = "511880.XSHG"
 
     def select(self, context):
         log.info(self.name, '--select函数--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
@@ -22,9 +23,11 @@ class JSG_Strategy(Strategy):
         if not industries.intersection(top_industries):
             # 根据市场温度设置选股条件，选出股票
             self.select_list = self.__get_rank(context)[:self.max_select_count]
-            log.info(self.name, '的选股列表:', self.select_list)
-            # 编写操作计划
-            self.print_trade_plan(context, self.select_list)
+        else:
+            self.select_list = [self.fill_stock]
+        log.info(self.name, '的选股列表:', self.select_list)
+        # 编写操作计划
+        self.print_trade_plan(context, self.select_list)
 
     def __get_rank(self, context):
         log.info(self.name, '--get_rank函数--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
