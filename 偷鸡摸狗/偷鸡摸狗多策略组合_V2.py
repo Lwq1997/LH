@@ -129,6 +129,7 @@ def after_code_changed(context):  # 输出运行时间
     if g.portfolio_value_proportion[0] > 0:
         run_daily(jsg_prepare, "7:00")
         run_weekly(jsg_select, 1, "7:30")
+        run_weekly(jsg_open_market, 1, "9:30")
         run_weekly(jsg_adjust, 1, "9:31")
         run_daily(jsg_check, "14:50")
 
@@ -156,6 +157,11 @@ def jsg_adjust(context):
 
 def jsg_check(context):
     g.strategys["搅屎棍策略"].sell_when_highlimit_open(context)
+
+
+def jsg_open_market(context):
+    g.strategys['搅屎棍策略'].close_for_empty_month(context)
+    g.strategys['搅屎棍策略'].close_for_stoplost(context)
 
 
 def all_day_adjust(context):

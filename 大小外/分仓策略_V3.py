@@ -7,7 +7,7 @@ linlin2018，ZLH：低波全天候策略（外盘ETF策略）
 '''
 
 # 导入函数库
-#-*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 # 如果你的文件包含中文, 请在文件的第一行使用上面的语句指定你的文件编码
 
 # 用到策略及数据相关API请加入下面的语句(如果要兼容研究使用可以使用 try except导入
@@ -53,14 +53,14 @@ def initialize(context):
                    type='stock')
 
     # 为股票设定滑点为百分比滑点
-    set_slippage(PriceRelatedSlippage(0.01), type='stock')
+    set_slippage(PriceRelatedSlippage(0.002), type='stock')
 
     # 临时变量
 
     # 持久变量
     g.strategys = {}
     # 子账户 分仓
-    g.portfolio_value_proportion = [0.35,0.15,0.50]
+    g.portfolio_value_proportion = [0.5, 0, 0.5]
 
     # 创建策略实例
     # 初始化策略子账户 subportfolios
@@ -97,7 +97,7 @@ def initialize(context):
         'max_hold_count': 3,  # 最大持股数
         'max_select_count': 10,  # 最大输出选股数
         'use_empty_month': True,  # 是否在指定月份空仓
-        'empty_month': [1, 4] , # 指定空仓的月份列表
+        'empty_month': [1, 4],  # 指定空仓的月份列表
         'use_stoplost': True  # 是否使用止损
     }
     # 小世值，第三个仓
@@ -110,7 +110,7 @@ def after_code_changed(context):  # 输出运行时间
     log.info('函数运行时间(after_code_changed)：' + str(context.current_dt.time()))
 
     # 是否发送微信消息，回测环境不发送，模拟环境发送
-    context.is_send_wx_message = 1
+    context.is_send_wx_message = 0
 
     unschedule_all()  # 取消所有定时运行
 
@@ -141,7 +141,6 @@ def after_code_changed(context):  # 输出运行时间
         # run_daily(xszgjt_append_buy_stock, time='14:51')
         run_daily(xszgjt_after_market_close, 'after_close')
         # run_daily(xszgjt_print_position_info, time='15:10')
-
 
 
 # 选股
@@ -192,8 +191,10 @@ def xszgjt_open_market(context):
 def xszgjt_sell_when_highlimit_open(context):
     g.strategys['国九条小市值策略'].sell_when_highlimit_open(context)
 
+
 def xszgjt_append_buy_stock(context):
     g.strategys['国九条小市值策略'].append_buy_dict(context)
+
 
 def xszgjt_after_market_close(context):
     g.strategys['国九条小市值策略'].after_market_close(context)
