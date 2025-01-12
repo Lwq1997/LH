@@ -526,7 +526,8 @@ class Strategy:
         held_stocks = [stock for stock in buy_stocks if stock in current_holdings]
         new_stocks = [stock for stock in buy_stocks if stock not in current_holdings]
         num_new_buys = min(len(new_stocks), max_hold_count - current_holding_count)
-        num_held_buys = min(len(held_stocks), max_hold_count - current_holding_count - num_new_buys)
+        num_held_buys = len(held_stocks)
+        # num_held_buys = min(len(held_stocks), max_hold_count - current_holding_count - num_new_buys)
 
         if self.buy_strategy_mode == 'equal':
             # Strategy 1: Buy new and held stocks equally
@@ -583,7 +584,9 @@ class Strategy:
 
             if num_held_buys > 0:
                 stock_value = available_cash / num_held_buys
-                log.debug('每只已持有股票的加仓金额比例：', stock_value)
+                log.debug('priority买入策略：计算总的购买金额：', available_cash)
+                log.debug('priority买入策略：每只股票的购买金额比例：', stock_value)
+                log.debug('priority买入策略：计算可以买入的已持仓股票数量：', num_held_buys, '--待买入列表:', held_stocks)
                 for stock in held_stocks:
                     if available_cash <= 0:
                         break
