@@ -235,6 +235,7 @@ class Strategy:
         if len(target) > position_count:
             buy_num = min(len(target), self.stock_sum - position_count)
             value = subportfolio.available_cash / buy_num
+            log.info('计划购买股票--', target, '--持仓购买股票数--', buy_num)
             for security in target:
                 if security not in list(subportfolio.long_positions.keys()):
                     if self.open_position(security, value):

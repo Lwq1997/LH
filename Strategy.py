@@ -38,7 +38,8 @@ class Strategy:
         self.strategyID = self.params['strategyID'] if 'strategyID' in self.params else ''
         self.inout_cash = 0
 
-        self.buy_strategy_mode = self.params['buy_strategy_mode'] if 'buy_strategy_mode' in self.params else 'equal'  # 最大持股数
+        self.buy_strategy_mode = self.params[
+            'buy_strategy_mode'] if 'buy_strategy_mode' in self.params else 'equal'  # 最大持股数
         self.max_hold_count = self.params['max_hold_count'] if 'max_hold_count' in self.params else 1  # 最大持股数
         self.max_select_count = self.params['max_select_count'] if 'max_select_count' in self.params else 5  # 最大输出选股数
         self.hold_limit_days = self.params['hold_limit_days'] if 'hold_limit_days' in self.params else 20  # 计算最近持有列表的天数
@@ -529,6 +530,16 @@ class Strategy:
         # 计算可以买入的未持仓股票数量
         total_new = min(max_hold_count - current_holding_count, len(new_stocks))
         total_held = len(held_stocks)
+        log.info(self.buy_strategy_mode, '策略详情:目标股票列表--', buy_stocks,
+                 '--最大持仓股票数--', max_hold_count,
+                 '--当前持仓股票数--', current_holding_count,
+                 '--当前持仓股票明细--', current_holdings,
+                 '--目标股票中未持仓股票列表--', new_stocks,
+                 '--目标股票中已持仓股票列表--', held_stocks
+                 )
+
+        log.info(self.buy_strategy_mode, '策略详情:当前持仓--', current_holdings, '--已持仓股票列表--', held_stocks,
+                 '--未持仓股票列表--', new_stocks)
 
         if self.buy_strategy_mode == 'equal':
             # Strategy 1: Buy new and held stocks equally
@@ -608,7 +619,8 @@ class Strategy:
     # 卖出多只股票
     def sell(self, context, sell_stocks):
 
-        log.info(self.name, '--sell函数--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+        log.info(self.name, '--sell函数--要卖出的股票列表--', sell_stocks,
+                 str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
 
         subportfolio = context.subportfolios[self.subportfolio_index]
         for stock in sell_stocks:
