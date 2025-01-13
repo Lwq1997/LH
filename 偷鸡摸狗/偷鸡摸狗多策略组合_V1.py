@@ -230,6 +230,7 @@ class Strategy:
             if (security not in target) and (security not in self.limit_up_list):
                 self.close_position(security)
         position_count = len(subportfolio.long_positions)
+        log.info('当前持仓--',subportfolio.long_positions,'--持仓总数--',position_count)
         # 调仓买入
         if len(target) > position_count:
             buy_num = min(len(target), self.stock_sum - position_count)
@@ -403,7 +404,6 @@ class JSG_Strategy(Strategy):
         )["code"].tolist()
         stocks = self.filter_limitup_limitdown_stock(context, stocks)
         select_stock = stocks[: min(len(stocks), self.stock_sum)]
-        log.info(self.name, '的选股列表:', select_stock)
         return select_stock
 
 
@@ -426,6 +426,7 @@ class JSG_Strategy(Strategy):
         else:
             print("跑")
             L = [self.fill_stock]
+        log.info(self.name, '的选股列表:', L)
         return L
 
     ## 准备今日所需数据
