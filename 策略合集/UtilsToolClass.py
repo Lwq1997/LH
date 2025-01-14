@@ -464,10 +464,31 @@ class UtilsToolClass:
         length = len(context.portfolio_value_proportion)
         # 计算平衡前仓位比例
         log.info(
-            "仓位调整前："
+            "仓位计划调整的比例："
+            + str(
+                g.portfolio_value_proportion
+            )
+            +
+            "仓位调整前的比例："
             + str(
                 [
                     context.subportfolios[i].total_value / context.portfolio.total_value
+                    for i in range(length)
+                ]
+            )
+            +
+            "仓位调整前的总金额："
+            + str(
+                [
+                    context.subportfolios[i].total_value
+                    for i in range(length)
+                ]
+            )
+            +
+            "仓位调整前的可用金额："
+            + str(
+                [
+                    context.subportfolios[i].available_cash
                     for i in range(length)
                 ]
             )
@@ -494,10 +515,26 @@ class UtilsToolClass:
                 )
         # 计算平衡后仓位比例
         log.info(
-            "仓位调整后："
+            "仓位调整后的比例："
             + str(
                 [
                     context.subportfolios[i].total_value / context.portfolio.total_value
+                    for i in range(length)
+                ]
+            )
+            +
+            "仓位调整后的金额："
+            + str(
+                [
+                    context.subportfolios[i].total_value
+                    for i in range(length)
+                ]
+            )
+            +
+            "仓位调整后的可用金额："
+            + str(
+                [
+                    context.subportfolios[i].available_cash
                     for i in range(length)
                 ]
             )
