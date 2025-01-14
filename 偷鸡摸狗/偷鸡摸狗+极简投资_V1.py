@@ -541,6 +541,7 @@ class PJ_Strategy(Strategy):
     def select(self, context):
         # 调用选股逻辑
         self.select_list = self.__get_rank(context)[:self.stock_sum]
+        log.info(self.name, '的选股列表:', self.select_list)
         return self.select_list  # 返回选股列表
 
     def __get_rank(self, context):
