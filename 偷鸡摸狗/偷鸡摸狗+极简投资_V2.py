@@ -32,6 +32,7 @@ import inspect
 from JSG_Strategy import JSG_Strategy
 from All_Day_Strategy import All_Day_Strategy
 from Rotation_ETF_Strategy import Rotation_ETF_Strategy
+from PJ_Strategy import PJ_Strategy
 
 
 # 初始化函数，设定基准等等
@@ -80,7 +81,7 @@ def initialize(context):
     # 持久变量
     g.strategys = {}
     # 子账户 分仓
-    g.portfolio_value_proportion = [0.3, 0.5, 0.2]
+    g.portfolio_value_proportion = [0.4, 0.1, 0.1,0.4]
 
     # 创建策略实例
     # 初始化策略子账户 subportfolios
@@ -88,6 +89,7 @@ def initialize(context):
         SubPortfolioConfig(context.portfolio.starting_cash * g.portfolio_value_proportion[0], 'stock'),
         SubPortfolioConfig(context.portfolio.starting_cash * g.portfolio_value_proportion[1], 'stock'),
         SubPortfolioConfig(context.portfolio.starting_cash * g.portfolio_value_proportion[2], 'stock'),
+        SubPortfolioConfig(context.portfolio.starting_cash * g.portfolio_value_proportion[3], 'stock'),
     ])
 
     # 是否发送微信消息，回测环境不发送，模拟环境发送
@@ -95,10 +97,10 @@ def initialize(context):
 
     params = {
         'max_select_count': 6,
+        'buy_strategy_mode': 'priority',
         'max_hold_count': 6,
         'use_empty_month': True,  # 是否在指定月份空仓
         'empty_month': [1, 4],  # 指定空仓的月份列表
-        'use_stoplost': True  # 是否使用止损
     }
     jsg_strategy = JSG_Strategy(context, subportfolio_index=0, name='搅屎棍策略', params=params)
     g.strategys[jsg_strategy.name] = jsg_strategy
@@ -109,11 +111,16 @@ def initialize(context):
     g.strategys[all_day_strategy.name] = all_day_strategy
 
     params = {
-        'max_hold_count': 1,
-        'buy_strategy_mode': 'priority'
+        'max_hold_count': 1
     }
     rotation_etf_strategy = Rotation_ETF_Strategy(context, subportfolio_index=2, name='核心资产轮动策略', params=params)
     g.strategys[rotation_etf_strategy.name] = rotation_etf_strategy
+
+    params = {
+        'max_hold_count': 1
+    }
+    pj_strategy = PJ_Strategy(context, subportfolio_index=3, name='破净策略', params=params)
+    g.strategys[pj_strategy.name] = pj_strategy
 
 
 # 模拟盘在每天的交易时间结束后会休眠，第二天开盘时会恢复，如果在恢复时发现代码已经发生了修改，则会在恢复时执行这个函数。 具体的使用场景：可以利用这个函数修改一些模拟盘的数据。
@@ -121,7 +128,7 @@ def after_code_changed(context):  # 输出运行时间
     log.info('函数运行时间(after_code_changed)：' + str(context.current_dt.time()))
 
     # 是否发送微信消息，回测环境不发送，模拟环境发送
-    context.is_send_wx_message = 1
+    context.is_send_wx_message = 0
 
     unschedule_all()  # 取消所有定时运行
 
@@ -139,6 +146,14 @@ def after_code_changed(context):  # 输出运行时间
     if g.portfolio_value_proportion[2] > 0:
         run_daily(rotation_etf_select, "7:30")
         run_daily(rotation_etf_adjust, "9:32")
+
+    if g.portfolio_value_proportion[3] > 0:  # 如果核心资产轮动策略分配了资金
+        run_daily(pj_prepare, "7:00")
+        run_daily(pj_select,  "7:30")
+        run_daily(pj_adjust, "9:31")
+        run_daily(pj_check, "14:00")  # 每天14:00检查破净策略
+        run_daily(pj_check, "14:50")  # 每天14:50检查破净策略
+
 
     run_daily(after_market_close, 'after_close')
 
@@ -176,7 +191,22 @@ def rotation_etf_adjust(context):
     g.strategys["核心资产轮动策略"].adjustwithnoRM(context)
 
 
+def pj_prepare(context):
+    g.strategys["破净策略"].day_prepare(context)
+
+
+def pj_select(context):
+    g.strategys["破净策略"].select(context)
+
+def pj_adjust(context):
+    g.strategys["破净策略"].adjustwithnoRM(context)
+
+def pj_check(context):
+    g.strategys["破净策略"].sell_when_highlimit_open(context)
+
+
 def after_market_close(context):
     g.strategys['搅屎棍策略'].after_market_close(context)
     g.strategys['全天候策略'].after_market_close(context)
     g.strategys['核心资产轮动策略'].after_market_close(context)
+    g.strategys['破净策略'].after_market_close(context)
