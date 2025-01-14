@@ -32,7 +32,7 @@ class All_Day_Strategy(Strategy):
         self.min_volume = 2000
 
     def adjust(self, context):
-        log.info(self.name, '--adject函数--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+        log.info(self.name, '--adject函数（全天候定制）--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
 
         subportfolio = context.subportfolios[self.subportfolio_index]
 
@@ -42,27 +42,32 @@ class All_Day_Strategy(Strategy):
             for etf, rate in zip(self.etf_pool, self.rates)
         }
 
-        log.info(self.name, '的选股列表:', targets)
         # 获取当前持仓
         current_positions = subportfolio.long_positions
+        log.info(self.name, '的选股列表:', targets,'--当前持仓--',current_positions)
 
         # 计算最小交易单位的价值（假设一手是100股）
         min_trade_value = {etf: current_positions[etf].price * 100 for etf in self.etf_pool}
 
-        # 先卖出
-        for etf, target in targets.items():
-            if etf in current_positions:
-                value = current_positions[etf].value
-                minV = min_trade_value[etf]
-                if value - target > self.min_volume and value - target >= minV:
-                    self.utilstool.open_position(context, etf, target)
-
-        # 再买入
-        for etf, target in targets.items():
-            if etf in current_positions:
-                value = current_positions[etf].value
-            else:
-                value = 0
-            minV = min_trade_value[etf]
-            if target - value > self.min_volume and target - value >= minV and minV <= subportfolio.available_cash:
+        if not current_positions:  # 如果没有持仓
+            for etf, target in targets.items():  # 遍历ETF
                 self.utilstool.open_position(context, etf, target)
+        else:
+            # 先卖出
+            for etf, target in targets.items():
+                    value = current_positions[etf].value
+                    minV = min_trade_value[etf]
+                    if value - target > self.min_volume and value - target >= minV:
+                        log.info(f'全天候策略开始卖出{etf}，仓位{target}')
+                        self.utilstool.open_position(context, etf, target)
+
+            # 再买入
+            for etf, target in targets.items():
+                if etf in current_positions:
+                    value = current_positions[etf].value
+                else:
+                    value = 0
+                minV = min_trade_value[etf]
+                if target - value > self.min_volume and target - value >= minV and minV <= subportfolio.available_cash:
+                    log.info(f'全天候策略开始买入{etf}，仓位{target}')
+                    self.utilstool.open_position(context, etf, target)
