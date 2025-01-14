@@ -95,25 +95,21 @@ def initialize(context):
 
     params = {
         'max_select_count': 6,
+        'buy_strategy_mode': 'priority',
         'max_hold_count': 6,
         'use_empty_month': True,  # 是否在指定月份空仓
         'empty_month': [1, 4],  # 指定空仓的月份列表
-        'use_stoplost': True,  # 是否使用止损
-        'buy_strategy_mode': 'priority'
     }
     jsg_strategy = JSG_Strategy(context, subportfolio_index=0, name='搅屎棍策略', params=params)
     g.strategys[jsg_strategy.name] = jsg_strategy
 
     params = {
-        'buy_strategy_mode': 'priority'
     }
     all_day_strategy = All_Day_Strategy(context, subportfolio_index=1, name='全天候策略', params=params)
     g.strategys[all_day_strategy.name] = all_day_strategy
 
     params = {
-        'max_hold_count': 1,
-        'buy_strategy_mode': 'priority'
-
+        'max_hold_count': 1
     }
     rotation_etf_strategy = Rotation_ETF_Strategy(context, subportfolio_index=2, name='核心资产轮动策略', params=params)
     g.strategys[rotation_etf_strategy.name] = rotation_etf_strategy
@@ -131,8 +127,8 @@ def after_code_changed(context):  # 输出运行时间
     # 子策略执行计划
     if g.portfolio_value_proportion[0] > 0:
         run_daily(jsg_prepare, "7:00")
-        run_weekly(jsg_select, 1, "9:31")
-        run_weekly(jsg_open_market, 1, "9:31")
+        run_weekly(jsg_select, 1, "7:30")
+        run_weekly(jsg_open_market, 1, "9:30")
         run_weekly(jsg_adjust, 1, "9:31")
         run_daily(jsg_check, "14:50")
 

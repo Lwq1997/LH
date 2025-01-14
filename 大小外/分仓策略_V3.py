@@ -60,7 +60,7 @@ def initialize(context):
     # 持久变量
     g.strategys = {}
     # 子账户 分仓
-    g.portfolio_value_proportion = [0.5, 0, 0.5]
+    g.portfolio_value_proportion = [0.35, 0.15, 0.50]
 
     # 创建策略实例
     # 初始化策略子账户 subportfolios
@@ -97,8 +97,7 @@ def initialize(context):
         'max_hold_count': 3,  # 最大持股数
         'max_select_count': 10,  # 最大输出选股数
         'use_empty_month': True,  # 是否在指定月份空仓
-        'empty_month': [1, 4],  # 指定空仓的月份列表
-        'use_stoplost': True  # 是否使用止损
+        'empty_month': [1, 4]  # 指定空仓的月份列表
     }
     # 小世值，第三个仓
     xszgjt_strategy = XSZ_GJT_Strategy(context, subportfolio_index=2, name='国九条小市值策略', params=params)
