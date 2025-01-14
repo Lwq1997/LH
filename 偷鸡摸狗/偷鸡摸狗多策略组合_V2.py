@@ -80,7 +80,7 @@ def initialize(context):
     # 持久变量
     g.strategys = {}
     # 子账户 分仓
-    g.portfolio_value_proportion = [0.3, 0.5, 0.2]
+    g.portfolio_value_proportion = [0.5, 0, 0.5]
 
     # 创建策略实例
     # 初始化策略子账户 subportfolios
