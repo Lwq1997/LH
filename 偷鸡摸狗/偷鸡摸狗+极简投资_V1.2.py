@@ -1,5 +1,5 @@
-# 克隆自聚宽文章：https://www.joinquant.com/post/51876
-# 标题：多策略组合4.0（极致夏普）
+# 克隆自聚宽文章：https://www.joinquant.com/post/51892
+# 标题：多策略组合5.0（已克隆4.0的免费，不骗积分）
 # 作者：O_iX
 
 # 导入函数库
@@ -52,8 +52,11 @@ def initialize(context):
     # 全局变量
     g.strategys = {}
     g.risk_free_rate = 0.03  # 无风险收益率
-    g.research_mode = False # 是否开启研究模式（不适用于回测）：关闭自动调仓，每个策略初始占比必须大于0
-    g.strategys_values = pd.DataFrame(columns=["s1", "s2", "s3", "s4"])
+    g.rebalancing = 3  # 每个季度调仓一次（关闭调仓）
+    g.month = 0
+    g.strategys_values = pd.DataFrame(
+        columns=["s1", "s2", "s3", "s4"]
+    )  # 策略数量必须保持一致
     g.portfolio_value_proportion = [0, 0.5, 0.3, 0.15, 0.05]
 
     # 创建策略实例
@@ -97,10 +100,9 @@ def initialize(context):
     g.strategys[rotation_etf_strategy.name] = rotation_etf_strategy
     g.strategys[simple_roa_strategy.name] = simple_roa_strategy
 
-    # 是否开启研究模式
-    if g.research_mode:
-        run_daily(get_strategys_values, "18:00")
-        run_monthly(calculate_optimal_weights, 1, "19:00")
+    # 计算子策略净值、策略仓位动态调整
+    run_daily(get_strategys_values, "18:00")
+    run_monthly(calculate_optimal_weights, 1, "19:00")
 
     # 子策略执行计划
     if g.portfolio_value_proportion[1] > 0:
@@ -138,6 +140,7 @@ def rotation_etf_adjust(context):
 def simple_roa_adjust(context):
     g.strategys["简单ROA策略"].adjust(context)
 
+
 # 每日获取子策略净值
 def get_strategys_values(context):
     df = g.strategys_values
@@ -148,15 +151,23 @@ def get_strategys_values(context):
         )
     )
     df.loc[len(df)] = data
-    if len(df) > 500:
+    if len(df) > 250:
         df = df.drop(0)
 
 
-# 计算最佳权重以最大化夏普比率
-def calculate_optimal_weights(context):
+# 计算最高夏普配比
+def calculate_optimal_weights(context, alpha=0.5):
+    print("目前仓位比例:")
+    current_weights = [
+        round(context.subportfolios[i].total_value / context.portfolio.total_value, 3)
+        for i in range(len(g.portfolio_value_proportion))
+    ]
+    print(current_weights)
     df = g.strategys_values
-    if len(df) < 500:
+    g.month += 1
+    if len(df) < 250 or not g.month % g.rebalancing == 0:
         return
+
     # 计算每个策略的收益率
     returns = df.pct_change().dropna()
 
@@ -166,27 +177,40 @@ def calculate_optimal_weights(context):
     # 计算协方差矩阵
     cov_matrix = returns.cov() * 252
 
-    # 定义目标函数：负夏普比率
-    def negative_sharpe_ratio(weights):
+    # 定义目标函数：负波动率调整后的夏普比率
+    def negative_vasr(weights):
         portfolio_return = np.dot(weights, annualized_returns)
         portfolio_volatility = np.sqrt(np.dot(weights.T, np.dot(cov_matrix, weights)))
         sharpe_ratio = (portfolio_return - g.risk_free_rate) / portfolio_volatility
-        return -sharpe_ratio
+        vasr = sharpe_ratio / (1 + alpha * portfolio_volatility)
+        return -vasr
 
     # 约束条件：权重之和为1
-    constraints = {"type": "eq", "fun": lambda x: np.sum(x) - 1}
+    constraints = [
+        {"type": "eq", "fun": lambda x: np.sum(x) - 1},
+        {"type": "ineq", "fun": lambda x: x - 0.05},  # 确保每个权重都大于等于0.05
+    ]
+
+    # 添加约束：每个策略前后配比之差不超过10%
+    last_best_weights = g.portfolio_value_proportion[1:]  # 去掉第一个0
+    constraints.append(
+        {"type": "ineq", "fun": lambda x: 0.1 - np.abs(x - last_best_weights)}
+    )
 
     # 权重的初始猜测
-    initial_weights = np.array([1 / len(returns.columns)] * len(returns.columns))
+    num_strategies = len(returns.columns)
+    initial_weights = np.array([1 / num_strategies] * num_strategies)
+    initial_weights = np.maximum(initial_weights, 0.05)  # 确保初始权重符合最低配比要求
 
     # 优化问题
     result = minimize(
-        negative_sharpe_ratio, initial_weights, method="SLSQP", constraints=constraints
+        negative_vasr, initial_weights, method="SLSQP", constraints=constraints
     )
 
     # 输出最佳权重
-    best_weights = result.x
-    print(best_weights)
+    best_weights = result.x.tolist()
+    g.portfolio_value_proportion = [0] + best_weights
+    print("最佳权重:", [round(i, 3) for i in best_weights])
 
 
 # 策略基类
@@ -250,40 +274,80 @@ class Strategy:
         count = len(set(target) - set(self.subportfolio.long_positions))
         if count == 0 or self.stock_sum <= len(self.subportfolio.long_positions):
             return
-        value = self.subportfolio.available_cash / count
+        value = (
+            max(
+                0,
+                min(
+                    context.portfolio.total_value
+                    * g.portfolio_value_proportion[self.subportfolio_index]
+                    - self.subportfolio.positions_value,
+                    self.subportfolio.available_cash,
+                ),
+            )
+            / count
+        )
+
         for security in target:
             if security not in list(self.subportfolio.long_positions.keys()):
                 self.order_target_value_(security, value)
 
     # 自定义下单
     def order_target_value_(self, security, value):
+        current_data = get_current_data()
+        if current_data[security].paused:
+            log.info(security + ":今日停牌")
+            return
         return order_target_value(security, value, pindex=self.subportfolio_index)
+
+    # 计算策略复权后净值
+    def get_net_values(self, amount):
+        df = g.strategys_values
+        if df.empty:
+            return
+        column_index = self.subportfolio_index - 1
+        # 获取最后一天的索引
+
+        last_day_index = len(df) - 1
+        # 调整最后一天的净值
+        df.iloc[last_day_index, column_index] -= amount
+
+        # 计算调整后的最后一天的净值
+        final_value = df.iloc[last_day_index, column_index]
+
+        # 调整前面的净值，保持收益率不变
+        for i in range(last_day_index - 1, -1, -1):
+            df.iloc[i, column_index] = final_value * (
+                df.iloc[i, column_index] / df.iloc[last_day_index, column_index]
+            )
 
     # 平衡账户间资金
     def balance_subportfolios(self, context):
-        if g.research_mode:
-            return
         target = (
             g.portfolio_value_proportion[self.subportfolio_index]
             * context.portfolio.total_value
         )
         value = self.subportfolio.total_value
-        cash = self.subportfolio.transferable_cash  # 当前账户可取资金
         # 仓位比例过高调出资金
+        cash = self.subportfolio.transferable_cash  # 当前账户可取资金
         if cash > 0 and target < value:
+            amount = min(value - target, cash)
             transfer_cash(
                 from_pindex=self.subportfolio_index,
                 to_pindex=0,
-                cash=min(value - target, cash),
+                cash=amount,
             )
-        cash = context.subportfolios[0].transferable_cash  # 0号账户可取资金
+            self.get_net_values(-amount)
+
         # 仓位比例过低调入资金
+        cash = context.subportfolios[0].transferable_cash  # 0号账户可取资金
         if target > value and cash > 0:
+            amount = min(target - value, cash)
             transfer_cash(
                 from_pindex=0,
                 to_pindex=self.subportfolio_index,
-                cash=min(target - value, cash),
+                cash=amount,
             )
+            self.get_net_values(amount)
 
     # 基础过滤(过滤科创北交、ST、停牌、次新股)
     def filter_basic_stock(self, context, stock_list):
@@ -474,9 +538,9 @@ class All_Day_Strategy(Strategy):
             for etf, target in targets.items():
                 value = subportfolio.long_positions[etf].value
                 minV = subportfolio.long_positions[etf].price * 100
-                if value - target > self.min_volume and minV > value - target:
+                if value - target > self.min_volume and minV < value - target:
                     self.order_target_value_(etf, target)
-
+            self.balance_subportfolios(context)
             # 后买入
             for etf, target in targets.items():
                 value = subportfolio.long_positions[etf].value
