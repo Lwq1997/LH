@@ -502,19 +502,19 @@ class Strategy:
     # 平衡账户间资金
     def balance_subportfolios(self, context):
         log.info(f"{self.name}"
-                 f"--仓位计划调整的比例:{context.portfolio_value_proportion[self.subportfolio_index]}"
-                 f"--仓位调整前的总金额:{self.subportfolio.total_value}"
-                 f"--仓位调整前的可用金额:{self.subportfolio.available_cash}"
-                 f"--仓位调整前的可取金额:{self.subportfolio.transferable_cash}"
-                 f"--仓位调整前的比例:{self.subportfolio.total_value / context.portfolio.total_value}"
+                 f"--仓位计划调整的比例:{g.portfolio_value_proportion[self.subportfolio_index]}"
+                 f"--仓位调整前的总金额:{context.subportfolios[self.subportfolio_index].total_value}"
+                 f"--仓位调整前的可用金额:{context.subportfolios[self.subportfolio_index].available_cash}"
+                 f"--仓位调整前的可取金额:{context.subportfolios[self.subportfolio_index].transferable_cash}"
+                 f"--仓位调整前的比例:{context.subportfolios[self.subportfolio_index].total_value / context.portfolio.total_value}"
                  )
         target = (
-                context.portfolio_value_proportion[self.subportfolio_index]
+                g.portfolio_value_proportion[self.subportfolio_index]
                 * context.portfolio.total_value
         )
-        value = self.subportfolio.total_value
+        value = context.subportfolios[self.subportfolio_index].total_value
         # 仓位比例过高调出资金
-        cash = self.subportfolio.transferable_cash  # 当前账户可取资金
+        cash = context.subportfolios[self.subportfolio_index].transferable_cash  # 当前账户可取资金
         if cash > 0 and target < value:
             amount = min(value - target, cash)
             transfer_cash(

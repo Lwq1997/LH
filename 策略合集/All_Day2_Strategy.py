@@ -14,7 +14,7 @@ import datetime as datet
 
 
 # 外盘ETF轮动策略
-class All_Day2_Strategy.py(Strategy):
+class All_Day2_Strategy(Strategy):
     def __init__(self, context, subportfolio_index, name, params):
         super().__init__(context, subportfolio_index, name, params)
         self.etf_pool = [
