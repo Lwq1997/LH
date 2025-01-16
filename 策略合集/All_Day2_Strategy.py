@@ -47,7 +47,8 @@ class All_Day2_Strategy(Strategy):
         log.info(self.name, '的选股列表:', targets,'--当前持仓--',current_positions)
 
         # 计算最小交易单位的价值（假设一手是100股）
-        min_trade_value = {etf: current_positions[etf].price * 100 for etf in self.etf_pool}
+        min_trade_value = {etf: current_positions[etf].price * 100 if etf in current_positions else 0 for etf in
+                           self.etf_pool}
 
         if not current_positions:  # 如果没有持仓
             for etf, target in targets.items():  # 遍历ETF
