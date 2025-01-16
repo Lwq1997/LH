@@ -491,6 +491,7 @@ class JSG_Strategy(Strategy):
     ## 调仓
     def adjust(self, context):
         target = self.select(context)
+        log.info(f'{self.name}的选股列表是{target}')
         self._adjust(context, target)
 
     ## 检查昨日涨停票
@@ -602,6 +603,7 @@ class Rotation_ETF_Strategy(Strategy):
     # 调仓
     def adjust(self, context):
         target = self.select()
+        log.info(f'{self.name}的选股列表是{target}')
         self._prepare(context)
         self._adjust(context, target)
 

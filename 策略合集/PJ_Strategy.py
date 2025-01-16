@@ -21,30 +21,33 @@ class PJ_Strategy(Strategy):
     def select(self, context):
         log.info(self.name, '--Select函数--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
 
-
         self.select_list = self.__get_rank(context)[:self.max_hold_count]
+
+        if not select_list:
+            self.select_list = [self.fill_stock]
 
         log.info(self.name, '的选股列表:', self.select_list)
         self.print_trade_plan(context, self.select_list)
 
-    def __get_rank(self, context):
-        log.info(self.name, '--get_rank函数--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
 
-        # 获取股票池
-        lists = self.stockpool(context,is_filter_new = False)
-        q = query(
-            valuation.code, valuation.market_cap, valuation.pe_ratio, income.total_operating_revenue
-        ).filter(
-            valuation.pb_ratio < 1,  # 破净
-            cash_flow.subtotal_operate_cash_inflow > 1e6,  # 经营现金流
-            indicator.adjusted_profit > 1e6,  # 扣非净利润
-            indicator.roa > 0.15,  # 总资产收益率
-            indicator.inc_operation_profit_year_on_year > 0,  # 净利润同比增长
-            valuation.code.in_(lists)
-        ).order_by(
-            indicator.roa.desc()  # 按ROA降序排序
-        ).limit(
-            self.max_hold_count
-        )
-        lists = list(get_fundamentals(q).code)  # 获取选股列表
-        return lists
+def __get_rank(self, context):
+    log.info(self.name, '--get_rank函数--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+
+    # 获取股票池
+    lists = self.stockpool(context)
+    q = query(
+        valuation.code, valuation.market_cap, valuation.pe_ratio, income.total_operating_revenue
+    ).filter(
+        valuation.pb_ratio < 1,  # 破净
+        cash_flow.subtotal_operate_cash_inflow > 1e6,  # 经营现金流
+        indicator.adjusted_profit > 1e6,  # 扣非净利润
+        indicator.roa > 0.15,  # 总资产收益率
+        indicator.inc_operation_profit_year_on_year > 0,  # 净利润同比增长
+        valuation.code.in_(lists)
+    ).order_by(
+        indicator.roa.desc()  # 按ROA降序排序
+    ).limit(
+        self.max_hold_count
+    )
+    lists = list(get_fundamentals(q).code)  # 获取选股列表
+    return lists
