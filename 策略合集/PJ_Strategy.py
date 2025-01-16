@@ -34,7 +34,7 @@ class PJ_Strategy(Strategy):
         log.info(self.name, '--get_rank函数--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
 
         # 获取股票池
-        lists = self.stockpool(context)
+        lists = self.stockpool(context,all_filter=True)
         q = query(
             valuation.code, valuation.market_cap, valuation.pe_ratio, income.total_operating_revenue
         ).filter(
@@ -46,8 +46,8 @@ class PJ_Strategy(Strategy):
             valuation.code.in_(lists)
         ).order_by(
             indicator.roa.desc()  # 按ROA降序排序
-        ).limit(
-            self.max_hold_count
         )
-        lists = list(get_fundamentals(q).code)  # 获取选股列表
-        return lists
+        lists = list(get_fundamentals(q).head(20).code)  # 获取选股列表
+        filter_lowlimit_list = self.utilstool.filter_lowlimit_stock(context, lists)
+        final_list = self.utilstool.filter_highlimit_stock(context, filter_lowlimit_list)
+        return final_list[:self.max_hold_count]
