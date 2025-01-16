@@ -30,24 +30,24 @@ class PJ_Strategy(Strategy):
         self.print_trade_plan(context, self.select_list)
 
 
-def __get_rank(self, context):
-    log.info(self.name, '--get_rank函数--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+    def __get_rank(self, context):
+        log.info(self.name, '--get_rank函数--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
 
-    # 获取股票池
-    lists = self.stockpool(context)
-    q = query(
-        valuation.code, valuation.market_cap, valuation.pe_ratio, income.total_operating_revenue
-    ).filter(
-        valuation.pb_ratio < 1,  # 破净
-        cash_flow.subtotal_operate_cash_inflow > 1e6,  # 经营现金流
-        indicator.adjusted_profit > 1e6,  # 扣非净利润
-        indicator.roa > 0.15,  # 总资产收益率
-        indicator.inc_operation_profit_year_on_year > 0,  # 净利润同比增长
-        valuation.code.in_(lists)
-    ).order_by(
-        indicator.roa.desc()  # 按ROA降序排序
-    ).limit(
-        self.max_hold_count
-    )
-    lists = list(get_fundamentals(q).code)  # 获取选股列表
-    return lists
+        # 获取股票池
+        lists = self.stockpool(context)
+        q = query(
+            valuation.code, valuation.market_cap, valuation.pe_ratio, income.total_operating_revenue
+        ).filter(
+            valuation.pb_ratio < 1,  # 破净
+            cash_flow.subtotal_operate_cash_inflow > 1e6,  # 经营现金流
+            indicator.adjusted_profit > 1e6,  # 扣非净利润
+            indicator.roa > 0.15,  # 总资产收益率
+            indicator.inc_operation_profit_year_on_year > 0,  # 净利润同比增长
+            valuation.code.in_(lists)
+        ).order_by(
+            indicator.roa.desc()  # 按ROA降序排序
+        ).limit(
+            self.max_hold_count
+        )
+        lists = list(get_fundamentals(q).code)  # 获取选股列表
+        return lists
