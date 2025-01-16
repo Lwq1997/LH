@@ -215,8 +215,8 @@ class UtilsToolClass:
                     stock.startswith('68') or
                     stock.startswith('30')
             )
-               and not context.previous_date - get_security_info(stock).start_date
-                       < datetime.timedelta(375)
+               and not context.previous_date - get_security_info(stock).start_date < dt.timedelta(days=375)
+
         ]
         return stock_list
 
