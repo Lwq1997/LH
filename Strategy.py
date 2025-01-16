@@ -115,7 +115,7 @@ class Strategy:
     # 基础股票池-全市场选股
     def stockpool(self, context, pool_id=1, index=None, is_filter_kcbj=True, is_filter_st=True, is_filter_paused=True,
                   is_filter_highlimit=True,
-                  is_filter_lowlimit=True, is_filter_new=True):
+                  is_filter_lowlimit=True, is_filter_new=True,all_filter=False):
         log.info(self.name, '--stockpool函数--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
         if index is None:
             lists = list(get_all_securities(types=['stock'], date=context.previous_date).index)
@@ -125,18 +125,21 @@ class Strategy:
         if pool_id == 0:
             pass
         elif pool_id == 1:
-            if is_filter_kcbj:
-                lists = self.utilstool.filter_kcbj_stock(context, lists)
-            if is_filter_st:
-                lists = self.utilstool.filter_st_stock(context, lists)
-            if is_filter_paused:
-                lists = self.utilstool.filter_paused_stock(context, lists)
-            if is_filter_highlimit:
-                lists = self.utilstool.filter_highlimit_stock(context, lists)
-            if is_filter_lowlimit:
-                lists = self.utilstool.filter_lowlimit_stock(context, lists)
-            if is_filter_new:
-                lists = self.utilstool.filter_new_stock(context, lists, days=375)
+            if all_filter:
+                lists = self.utilstool.filter_basic_stock(context, lists)
+            else:
+                if is_filter_kcbj:
+                    lists = self.utilstool.filter_kcbj_stock(context, lists)
+                if is_filter_st:
+                    lists = self.utilstool.filter_st_stock(context, lists)
+                if is_filter_paused:
+                    lists = self.utilstool.filter_paused_stock(context, lists)
+                if is_filter_highlimit:
+                    lists = self.utilstool.filter_highlimit_stock(context, lists)
+                if is_filter_lowlimit:
+                    lists = self.utilstool.filter_lowlimit_stock(context, lists)
+                if is_filter_new:
+                    lists = self.utilstool.filter_new_stock(context, lists, days=375)
 
         return lists
 

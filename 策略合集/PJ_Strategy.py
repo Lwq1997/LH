@@ -23,7 +23,7 @@ class PJ_Strategy(Strategy):
 
         self.select_list = self.__get_rank(context)[:self.max_hold_count]
 
-        if not select_list:
+        if not self.select_list:
             self.select_list = [self.fill_stock]
 
         log.info(self.name, '的选股列表:', self.select_list)

@@ -33,7 +33,7 @@ from JSG2_Strategy import JSG2_Strategy
 from All_Day2_Strategy import All_Day2_Strategy
 from Rotation_ETF_Strategy import Rotation_ETF_Strategy
 from PJ_Strategy import PJ_Strategy
-
+from scipy.optimize import minimize
 
 # 初始化函数，设定基准等等
 def initialize(context):

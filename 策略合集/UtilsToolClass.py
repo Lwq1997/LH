@@ -197,14 +197,41 @@ class UtilsToolClass:
         return sorted(list(set(temp_index)))
 
     # 过滤科创北交
+    def filter_basic_stock(self, context, stock_list):
+        log.info(self.name, '--filter_basic_stock过滤股票函数--',
+                 str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+        current_data = get_current_data()
+        return [
+            stock
+            for stock in stock_list
+            if not current_data[stock].paused
+               and not current_data[stock].is_st
+               and "ST" not in current_data[stock].name
+               and "*" not in current_data[stock].name
+               and "退" not in current_data[stock].name
+               and not (
+                    stock.startswith('4') or
+                    stock.startswith('8') or
+                    stock.startswith('68') or
+                    stock.startswith('30')
+            )
+               and not context.previous_date - get_security_info(stock).start_date
+                       < datetime.timedelta(375)
+        ]
+        return stock_list
+
+    # 过滤科创北交
     def filter_kcbj_stock(self, context, stock_list):
         log.info(self.name, '--filter_kcbj_stock过滤科创北交函数--',
                  str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
 
-        for stock in stock_list[:]:
-            if stock[0] == '4' or stock[0] == '8' or stock[:2] == '68' or stock[:2] == '30':
-                stock_list.remove(stock)
-        return stock_list
+        # 使用列表推导式过滤股票
+        filtered_stock_list = [stock for stock in stock_list if not (stock.startswith('4') or
+                                                                     stock.startswith('8') or
+                                                                     stock.startswith('68') or
+                                                                     stock.startswith('30'))]
+
+        return filtered_stock_list
 
     # 过滤停牌股票
     def filter_paused_stock(self, context, stock_list):

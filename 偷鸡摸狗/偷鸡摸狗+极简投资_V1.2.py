@@ -639,4 +639,5 @@ class Simple_ROA_Strategy(Strategy):
     def adjust(self, context):
         target = self.filter(context)
         self._prepare(context)
+        log.info(f'{self.name}的选股列表是{target}')
         self._adjust(context, target)
