@@ -153,6 +153,7 @@ def get_strategys_values(context):
     df.loc[len(df)] = data
     if len(df) > 250:
         df = df.drop(0)
+    g.strategys_values = df
 
 
 # 计算最高夏普配比

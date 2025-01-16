@@ -444,6 +444,120 @@ class Strategy:
             self.buy(context, target_list, is_single_buy)
             return
 
+    # 调仓+均衡资产
+    def adjustwithnoRMBalance(self, context, only_buy=False, only_sell=False, together=True, is_single_buy=False,
+                              exempt_stocks=None):
+        log.info(self.name, '--adjustwithnoRMBalance调仓函数--',
+                 str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+        if exempt_stocks is None:
+            exempt_stocks = ['511880.XSHG']
+
+        # 空仓期或者止损期不再进行调仓
+        if self.use_empty_month and context.current_dt.month in (self.empty_month):
+            log.info('adjustwithnoRM调仓函数不再执行，因为当前月份是空仓期，空仓期月份为：', self.empty_month)
+            self.buy(context, exempt_stocks, is_single_buy)
+            return
+        # 止损期控制
+        if self.use_stoplost and self.stoplost_date is not None:
+            log.info('adjustwithnoRM调仓函数不再执行，因为当前时刻还处于止损期，止损期从:', self.stoplost_date, '开始')
+            self.buy(context, exempt_stocks, is_single_buy)
+            return
+
+        # 先卖后买
+        hold_list = list(context.subportfolios[self.subportfolio_index].long_positions)
+        # 售卖列表：不在select_list前max_hold_count中的股票都要被卖掉
+        sell_stocks = []
+        # 实时过滤部分股票，否则也买不了，放出去也没有意义
+        target_list = self.utilstool.filter_highlimit_stock(context, self.select_list)
+        target_list = self.utilstool.filter_paused_stock(context, target_list)
+        # target_list = self.utilstool.filter_lowlimit_stock(context, target_list)
+
+        log.info(self.name, '--过滤部分股票后的选股列表:', target_list)
+        # 股票卖出的条件
+        # 1. 有持仓
+        # 2. 在目标列表中--不卖
+        # 3. 不在目标列表中
+        #     涨停：不卖
+        #     不涨停：卖
+
+        for stock in hold_list:
+            if stock not in target_list[:self.max_hold_count] and stock not in self.yestoday_high_limit_list:
+                last_prices = history(1, unit='1m', field='close', security_list=stock)
+                current_data = get_current_data()
+                if last_prices[stock][-1] < current_data[stock].high_limit:
+                    sell_stocks.append(stock)
+
+        if only_buy:
+            self.buy(context, target_list, is_single_buy)
+            return
+        if only_sell:
+            self.sell(context, sell_stocks)
+            return
+        if together:
+            self.sell(context, sell_stocks)
+            self.balance_subportfolios(context)
+            self.buy(context, target_list, is_single_buy)
+            return
+
+    # 平衡账户间资金
+    def balance_subportfolios(self, context):
+        log.info(f"{self.name}"
+                 f"--仓位计划调整的比例:{context.portfolio_value_proportion[self.subportfolio_index]}"
+                 f"--仓位调整前的总金额:{self.subportfolio.total_value}"
+                 f"--仓位调整前的可用金额:{self.subportfolio.available_cash}"
+                 f"--仓位调整前的可取金额:{self.subportfolio.transferable_cash}"
+                 f"--仓位调整前的比例:{self.subportfolio.total_value / context.portfolio.total_value}"
+                 )
+        target = (
+                context.portfolio_value_proportion[self.subportfolio_index]
+                * context.portfolio.total_value
+        )
+        value = self.subportfolio.total_value
+        # 仓位比例过高调出资金
+        cash = self.subportfolio.transferable_cash  # 当前账户可取资金
+        if cash > 0 and target < value:
+            amount = min(value - target, cash)
+            transfer_cash(
+                from_pindex=self.subportfolio_index,
+                to_pindex=0,
+                cash=amount,
+            )
+            log.info('第', self.subportfolio_index, '个仓位调整了【', amount, '】元到仓位：0')
+            self.get_net_values(context, -amount)
+
+        # 仓位比例过低调入资金
+        cash = context.subportfolios[0].transferable_cash  # 0号账户可取资金
+        if target > value and cash > 0:
+            amount = min(target - value, cash)
+            transfer_cash(
+                from_pindex=0,
+                to_pindex=self.subportfolio_index,
+                cash=amount,
+            )
+            log.info('第0个仓位调整了【', amount, '】元到仓位：', self.subportfolio_index)
+            self.get_net_values(context, amount)
+
+    # 计算策略复权后净值
+    def get_net_values(self, context, amount):
+        df = g.strategys_values
+        if df.empty:
+            return
+        column_index = self.subportfolio_index - 1
+        # 获取最后一天的索引
+
+        last_day_index = len(df) - 1
+        # 调整最后一天的净值
+        df.iloc[last_day_index, column_index] -= amount
+
+        # 计算调整后的最后一天的净值
+        final_value = df.iloc[last_day_index, column_index]
+
+        # 调整前面的净值，保持收益率不变
+        for i in range(last_day_index - 1, -1, -1):
+            df.iloc[i, column_index] = final_value * (
+                    df.iloc[i, column_index] / df.iloc[last_day_index, column_index]
+            )
+
     def specialBuy(self, context):
         log.info(self.name, '--specialBuy调仓函数--',
                  str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
