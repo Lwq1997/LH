@@ -38,11 +38,15 @@ class PJ_Strategy(Strategy):
         q = query(
             valuation.code, valuation.market_cap, valuation.pe_ratio, income.total_operating_revenue
         ).filter(
-            valuation.pb_ratio < 1,  # 破净
-            cash_flow.subtotal_operate_cash_inflow > 1e6,  # 经营现金流
-            indicator.adjusted_profit > 1e6,  # 扣非净利润
-            indicator.roa > 0.15,  # 总资产收益率
-            indicator.inc_operation_profit_year_on_year > 0,  # 净利润同比增长
+            # valuation.pb_ratio < 1,  # 破净
+            # cash_flow.subtotal_operate_cash_inflow > 1e6,  # 经营现金流
+            # indicator.adjusted_profit > 1e6,  # 扣非净利润
+            # indicator.roa > 0.15,  # 总资产收益率
+            # indicator.inc_operation_profit_year_on_year > 0,  # 净利润同比增长
+
+            valuation.pb_ratio > 0,
+            valuation.pb_ratio < 1,
+            indicator.adjusted_profit > 0,
             valuation.code.in_(lists)
         ).order_by(
             indicator.roa.desc()  # 按ROA降序排序
