@@ -5,19 +5,17 @@
 from kuanke.user_space_api import *
 from jqdata import *
 from jqfactor import get_factor_values
-import datetime
+import datetime as dt
 from kuanke.wizard import *
 import numpy as np
 import pandas as pd
 import talib
-from datetime import date as dt
 import math
 import talib as tl
 from jqlib.technical_analysis import *
 from scipy.linalg import inv
 import pickle
 import requests
-import datetime as datet
 from prettytable import PrettyTable
 import inspect
 from UtilsToolClass import UtilsToolClass
@@ -338,7 +336,7 @@ class Strategy:
                         # 一旦有股票需要止损，就不需要继续检查其他股票了。
                         break
             else:  # 已经在清仓静默期,stoplost_silent_days天后退出静默期
-                if (context.current_dt + datetime.timedelta(
+                if (context.current_dt + dt.timedelta(
                         days=-self.stoplost_silent_days)).date() >= self.stoplost_date:
                     self.stoplost_date = None
                     log.info(self.name + ': ' + '退出止损')

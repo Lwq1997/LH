@@ -1,6 +1,5 @@
 from kuanke.user_space_api import *
 from jqdata import *
-import datetime
 from kuanke.wizard import *
 import numpy as np
 import pandas as pd
@@ -11,9 +10,7 @@ from jqlib.technical_analysis import *
 from scipy.linalg import inv
 import pickle
 import requests
-from datetime import datetime
 import datetime as dt
-from datetime import timedelta
 from prettytable import PrettyTable
 import inspect
 

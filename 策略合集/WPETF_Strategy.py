@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 import talib as tl
 from jqlib.technical_analysis import *
-import datetime as datet
+import datetime as dt
 
 
 # 外盘ETF轮动策略
@@ -95,7 +95,7 @@ class WPETF_Strategy(Strategy):
         log.info(self.name, '--fun_delNewShare函数--',
                  str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
 
-        deltaDate = context.current_dt.date() - datet.timedelta(deltaday)
+        deltaDate = context.current_dt.date() - dt.timedelta(deltaday)
         tmpList = []
         for stock in equity:
             stock_info = get_security_info(stock)
