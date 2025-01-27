@@ -524,7 +524,7 @@ class Strategy:
                 cash=amount,
             )
             log.info('第', self.subportfolio_index, '个仓位调整了【', amount, '】元到仓位：0')
-            self.get_net_values(context, -amount)
+            self.get_net_values(context, amount)
 
         # 仓位比例过低调入资金
         cash = context.subportfolios[0].transferable_cash  # 0号账户可取资金
@@ -536,7 +536,7 @@ class Strategy:
                 cash=amount,
             )
             log.info('第0个仓位调整了【', amount, '】元到仓位：', self.subportfolio_index)
-            self.get_net_values(context, amount)
+            self.get_net_values(context, -amount)
 
     # 计算策略复权后净值
     def get_net_values(self, context, amount):
@@ -547,17 +547,15 @@ class Strategy:
         # 获取最后一天的索引
 
         last_day_index = len(df) - 1
-        # 调整最后一天的净值
-        df.iloc[last_day_index, column_index] -= amount
 
-        # 计算调整后的最后一天的净值
-        final_value = df.iloc[last_day_index, column_index]
+        # 获取前一天净值
+        last_value = df.iloc[last_day_index, column_index]
 
-        # 调整前面的净值，保持收益率不变
-        for i in range(last_day_index - 1, -1, -1):
-            df.iloc[i, column_index] = final_value * (
-                    df.iloc[i, column_index] / df.iloc[last_day_index, column_index]
-            )
+        # 获取前一天净值
+        last_value = df.iloc[last_day_index, column_index]
+
+        # 计算后复权因子, amount 代表分红金额
+        g.after_factor[column_index] *= last_value / (last_value - amount)
 
     def specialBuy(self, context):
         log.info(self.name, '--specialBuy调仓函数--',

@@ -1,5 +1,5 @@
 '''
-偷鸡摸狗5.0
+偷鸡摸狗5.3
 '''
 
 # 导入函数库
@@ -71,17 +71,18 @@ def initialize(context):
         ),
         type="mmf",
     )
-
-    # 持久变量
+    # 全局变量
     g.strategys = {}
-    # 子账户 分仓
     g.risk_free_rate = 0.03  # 无风险收益率
-    g.rebalancing = 3  # 每个季度调仓一次（关闭调仓）
-    g.month = 0
+    g.is_balanced = False # 是否开启自动调仓
+    g.rebalancing = 3  # 每个季度调仓一次
+    g.month = 0 # 记录时间
     g.strategys_values = pd.DataFrame(
-        columns=["s1", "s2", "s3", "s4"]
-    )  # 策略数量必须保持一致
-    g.portfolio_value_proportion = [0, 0.5, 0.3, 0.15, 0.05]
+        columns=["s1", "s2", "s3"]
+    )  # 子策略净值
+    g.strategys_days = 250 # 取子策略净值最近250个交易日
+    g.after_factor = [1, 1, 1]  # 后复权因子
+    g.portfolio_value_proportion = [0, 0.3, 0.6, 0.1]
 
     # 创建策略实例
     # 初始化策略子账户 subportfolios
@@ -90,7 +91,6 @@ def initialize(context):
         SubPortfolioConfig(context.portfolio.starting_cash * g.portfolio_value_proportion[1], 'stock'),
         SubPortfolioConfig(context.portfolio.starting_cash * g.portfolio_value_proportion[2], 'stock'),
         SubPortfolioConfig(context.portfolio.starting_cash * g.portfolio_value_proportion[3], 'stock'),
-        SubPortfolioConfig(context.portfolio.starting_cash * g.portfolio_value_proportion[4], 'stock'),
     ])
 
     # 是否发送微信消息，回测环境不发送，模拟环境发送
@@ -114,13 +114,7 @@ def initialize(context):
     params = {
         'max_hold_count': 1
     }
-    rotation_etf_strategy = Rotation_ETF_Strategy(context, subportfolio_index=3, name='核心资产轮动策略', params=params)
-    g.strategys[rotation_etf_strategy.name] = rotation_etf_strategy
-
-    params = {
-        'max_hold_count': 1
-    }
-    pj_strategy = PJ_Strategy(context, subportfolio_index=4, name='破净策略', params=params)
+    pj_strategy = PJ_Strategy(context, subportfolio_index=3, name='破净策略', params=params)
     g.strategys[pj_strategy.name] = pj_strategy
 
 
@@ -164,21 +158,24 @@ def after_code_changed(context):  # 输出运行时间
 
 # 每日获取子策略净值
 def get_strategys_values(context):
-    df = g.strategys_values
+    df = g.strategys_values.copy()
     data = dict(
         zip(
             df.columns,
-            [context.subportfolios[i + 1].total_value for i in range(len(df.columns))],
+            [
+                context.subportfolios[i + 1].total_value * g.after_factor[i]
+                for i in range(len(df.columns))
+            ],
         )
     )
     df.loc[len(df)] = data
-    if len(df) > 250:
+    if len(df) > g.strategys_days:
         df = df.drop(0)
     g.strategys_values = df
 
 
 # 计算最高夏普配比
-def calculate_optimal_weights(context, alpha=0.5):
+def calculate_optimal_weights(context, alpha=0.2):
     current_weights = [
         round(context.subportfolios[i].total_value / context.portfolio.total_value, 3)
         for i in range(len(g.portfolio_value_proportion))
@@ -186,7 +183,7 @@ def calculate_optimal_weights(context, alpha=0.5):
     log.info("目前仓位比例:", current_weights)
     df = g.strategys_values
     g.month += 1
-    if len(df) < 250 or not g.month % g.rebalancing == 0:
+    if len(df) < g.strategys_days or not g.month % g.rebalancing == 0:
         return
 
     # 计算每个策略的收益率
@@ -217,6 +214,9 @@ def calculate_optimal_weights(context, alpha=0.5):
     constraints.append(
         {"type": "ineq", "fun": lambda x: 0.1 - np.abs(x - last_best_weights)}
     )
+
+    # 添加约束：单个策略最大比重不超过50%
+    constraints.append({"type": "ineq", "fun": lambda x: 0.5 - x})
 
     # 权重的初始猜测
     num_strategies = len(returns.columns)
