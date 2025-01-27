@@ -1,5 +1,5 @@
-# 克隆自聚宽文章：https://www.joinquant.com/post/51892
-# 标题：多策略组合5.0（已克隆4.0的免费，不骗积分）
+# 克隆自聚宽文章：https://www.joinquant.com/post/51937
+# 标题：多策略5.3（修正BUG）
 # 作者：O_iX
 
 # 导入函数库
@@ -52,12 +52,15 @@ def initialize(context):
     # 全局变量
     g.strategys = {}
     g.risk_free_rate = 0.03  # 无风险收益率
-    g.rebalancing = 3  # 每个季度调仓一次（关闭调仓）
-    g.month = 0
+    g.is_balanced = False # 是否开启自动调仓
+    g.rebalancing = 3  # 每个季度调仓一次
+    g.month = 0 # 记录时间
     g.strategys_values = pd.DataFrame(
-        columns=["s1", "s2", "s3", "s4"]
-    )  # 策略数量必须保持一致
-    g.portfolio_value_proportion = [0, 0.5, 0.3, 0.15, 0.05]
+        columns=["s1", "s2", "s3"]
+    )  # 子策略净值
+    g.strategys_days = 250 # 取子策略净值最近250个交易日
+    g.after_factor = [1, 1, 1]  # 后复权因子
+    g.portfolio_value_proportion = [0, 0.3, 0.6, 0.1]
 
     # 创建策略实例
     set_subportfolios(
@@ -67,9 +70,27 @@ def initialize(context):
                 context.portfolio.starting_cash * g.portfolio_value_proportion[i],
                 "stock",
             )
-            for i in range(5)
+            for i in range(4)
         ]
     )
+
+    # 计算子策略净值、策略仓位动态调整
+    if g.is_balanced:
+        run_daily(get_strategys_values, "18:00")
+        run_monthly(calculate_optimal_weights, 1, "19:00")
+
+    # 子策略执行计划
+    if g.portfolio_value_proportion[1] > 0:
+        run_daily(jsg_prepare, "9:05")
+        run_weekly(jsg_adjust, 1, "9:31")
+        run_daily(jsg_check, "14:50")
+    if g.portfolio_value_proportion[2] > 0:
+        run_monthly(all_day_adjust, 1, "9:40")
+    if g.portfolio_value_proportion[3] > 0:
+        run_monthly(simple_roa_adjust, 1, "9:33")
+
+
+def process_initialize(context):
 
     jsg_strategy = JSG_Strategy(
         context,
@@ -83,38 +104,15 @@ def initialize(context):
         name="全天候策略",
     )
 
-    rotation_etf_strategy = Rotation_ETF_Strategy(
-        context,
-        subportfolio_index=3,
-        name="核心资产轮动策略",
-    )
-
     simple_roa_strategy = Simple_ROA_Strategy(
         context,
-        subportfolio_index=4,
+        subportfolio_index=3,
         name="简单ROA策略",
     )
 
     g.strategys[jsg_strategy.name] = jsg_strategy
     g.strategys[all_day_strategy.name] = all_day_strategy
-    g.strategys[rotation_etf_strategy.name] = rotation_etf_strategy
     g.strategys[simple_roa_strategy.name] = simple_roa_strategy
-
-    # 计算子策略净值、策略仓位动态调整
-    run_daily(get_strategys_values, "18:00")
-    run_monthly(calculate_optimal_weights, 1, "19:00")
-
-    # 子策略执行计划
-    if g.portfolio_value_proportion[1] > 0:
-        run_daily(jsg_prepare, "9:05")
-        run_weekly(jsg_adjust, 1, "9:31")
-        run_daily(jsg_check, "14:50")
-    if g.portfolio_value_proportion[2] > 0:
-        run_monthly(all_day_adjust, 1, "9:40")
-    if g.portfolio_value_proportion[3] > 0:
-        run_daily(rotation_etf_adjust, "9:32")
-    if g.portfolio_value_proportion[4] > 0:
-        run_monthly(simple_roa_adjust, 1, "9:33")
 
 
 def jsg_prepare(context):
@@ -133,31 +131,30 @@ def all_day_adjust(context):
     g.strategys["全天候策略"].adjust(context)
 
 
-def rotation_etf_adjust(context):
-    g.strategys["核心资产轮动策略"].adjust(context)
-
-
 def simple_roa_adjust(context):
     g.strategys["简单ROA策略"].adjust(context)
 
 
 # 每日获取子策略净值
 def get_strategys_values(context):
-    df = g.strategys_values
+    df = g.strategys_values.copy()
     data = dict(
         zip(
             df.columns,
-            [context.subportfolios[i + 1].total_value for i in range(len(df.columns))],
+            [
+                context.subportfolios[i + 1].total_value * g.after_factor[i]
+                for i in range(len(df.columns))
+            ],
         )
     )
     df.loc[len(df)] = data
-    if len(df) > 250:
+    if len(df) > g.strategys_days:
         df = df.drop(0)
     g.strategys_values = df
 
 
 # 计算最高夏普配比
-def calculate_optimal_weights(context, alpha=0.5):
+def calculate_optimal_weights(context, alpha=0.2):
     print("目前仓位比例:")
     current_weights = [
         round(context.subportfolios[i].total_value / context.portfolio.total_value, 3)
@@ -166,7 +163,7 @@ def calculate_optimal_weights(context, alpha=0.5):
     print(current_weights)
     df = g.strategys_values
     g.month += 1
-    if len(df) < 250 or not g.month % g.rebalancing == 0:
+    if len(df) < g.strategys_days or not g.month % g.rebalancing == 0:
         return
 
     # 计算每个策略的收益率
@@ -197,6 +194,9 @@ def calculate_optimal_weights(context, alpha=0.5):
     constraints.append(
         {"type": "ineq", "fun": lambda x: 0.1 - np.abs(x - last_best_weights)}
     )
+
+    # 添加约束：单个策略最大比重不超过50%
+    constraints.append({"type": "ineq", "fun": lambda x: 0.5 - x})
 
     # 权重的初始猜测
     num_strategies = len(returns.columns)
@@ -300,26 +300,20 @@ class Strategy:
             return
         return order_target_value(security, value, pindex=self.subportfolio_index)
 
-    # 计算策略复权后净值
+    # 计算后复权因子
     def get_net_values(self, amount):
         df = g.strategys_values
         if df.empty:
             return
         column_index = self.subportfolio_index - 1
-        # 获取最后一天的索引
-
+        # 获取前一天的索引
         last_day_index = len(df) - 1
-        # 调整最后一天的净值
-        df.iloc[last_day_index, column_index] -= amount
 
-        # 计算调整后的最后一天的净值
-        final_value = df.iloc[last_day_index, column_index]
+        # 获取前一天净值
+        last_value = df.iloc[last_day_index, column_index]
 
-        # 调整前面的净值，保持收益率不变
-        for i in range(last_day_index - 1, -1, -1):
-            df.iloc[i, column_index] = final_value * (
-                df.iloc[i, column_index] / df.iloc[last_day_index, column_index]
-            )
+        # 计算后复权因子, amount 代表分红金额
+        g.after_factor[column_index] *= last_value / (last_value - amount)
 
     # 平衡账户间资金
     def balance_subportfolios(self, context):
@@ -337,7 +331,7 @@ class Strategy:
                 to_pindex=0,
                 cash=amount,
             )
-            self.get_net_values(-amount)
+            self.get_net_values(amount)
 
         # 仓位比例过低调入资金
         cash = context.subportfolios[0].transferable_cash  # 0号账户可取资金
@@ -348,8 +342,7 @@ class Strategy:
                 to_pindex=self.subportfolio_index,
                 cash=amount,
             )
-            self.get_net_values(amount)
-
+            self.get_net_values(-amount)
 
     # 基础过滤(过滤科创北交、ST、停牌、次新股)
     def filter_basic_stock(self, context, stock_list):
@@ -492,7 +485,6 @@ class JSG_Strategy(Strategy):
     ## 调仓
     def adjust(self, context):
         target = self.select(context)
-        log.info(f'{self.name}的选股列表是{target}')
         self._adjust(context, target)
 
     ## 检查昨日涨停票
@@ -556,58 +548,6 @@ class All_Day_Strategy(Strategy):
                     self.order_target_value_(etf, target)
 
 
-# 核心资产轮动ETF策略
-class Rotation_ETF_Strategy(Strategy):
-    def __init__(self, context, subportfolio_index, name):
-        super().__init__(context, subportfolio_index, name)
-
-        self.stock_sum = 1
-        self.etf_pool = [
-            "518880.XSHG",  # 黄金ETF（大宗商品）
-            "513100.XSHG",  # 纳指100（海外资产）
-            "159915.XSHE",  # 创业板100（成长股，科技股，中小盘）
-            "510180.XSHG",  # 上证180（价值股，蓝筹股，中大盘）
-        ]
-        self.m_days = 25  # 动量参考天数
-
-    # 打分
-    def MOM(self, etf):
-        # 获取历史数据
-        df = attribute_history(etf, self.m_days, "1d", ["close"])
-        y = np.log(df["close"].values)
-        # 计算线性回归
-        n = len(y)
-        x = np.arange(n)
-        weights = np.linspace(1, 2, n)  # 线性增加权重
-        slope, intercept = np.polyfit(x, y, 1, w=weights)
-        # 计算年化收益率
-        annualized_returns = math.pow(math.exp(slope), 250) - 1
-        # 计算 R-squared
-        residuals = y - (slope * x + intercept)
-        r_squared = 1 - (
-            np.sum(weights * residuals**2) / np.sum(weights * (y - np.mean(y)) ** 2)
-        )
-        # 返回动量得分
-        return annualized_returns * r_squared
-
-    # 择股
-    def select(self):
-        score_list = [self.MOM(etf) for etf in self.etf_pool]
-        df = pd.DataFrame(index=self.etf_pool, data={"score": score_list})
-        df = df.sort_values(by="score", ascending=False)
-        df = df[(df["score"] > 0) & (df["score"] <= 5)]  # 安全区间，动量过高过低都不好
-        target = df.index.tolist()
-        if not target:
-            target = [self.fill_stock]
-        return target[: min(len(target), self.stock_sum)]
-
-    # 调仓
-    def adjust(self, context):
-        target = self.select()
-        log.info(f'{self.name}的选股列表是{target}')
-        self._prepare(context)
-        self._adjust(context, target)
-
 
 # 简单ROA策略
 class Simple_ROA_Strategy(Strategy):
@@ -617,7 +557,7 @@ class Simple_ROA_Strategy(Strategy):
         self.stock_sum = 1
 
     def filter(self, context):
-        stocks = get_all_securities("stock").index.tolist()
+        stocks = get_all_securities("stock", date = context.previous_date).index.tolist()
         stocks = self.filter_basic_stock(context, stocks)
         stocks = list(
             get_fundamentals(
@@ -640,5 +580,4 @@ class Simple_ROA_Strategy(Strategy):
     def adjust(self, context):
         target = self.filter(context)
         self._prepare(context)
-        log.info(f'{self.name}的选股列表是{target}')
         self._adjust(context, target)

@@ -1,9 +1,5 @@
 '''
-多策略分子账户并行
-用到的策略：
-蚂蚁量化,东哥：白马股攻防转换策略（BMZH策略）
-linlin2018，ZLH：低波全天候策略（外盘ETF策略）
-@荒唐的方糖大佬:国九条小市值（XSZGJT）（还可以改进）
+偷鸡摸狗5.0
 '''
 
 # 导入函数库
@@ -178,6 +174,7 @@ def get_strategys_values(context):
     df.loc[len(df)] = data
     if len(df) > 250:
         df = df.drop(0)
+    g.strategys_values = df
 
 
 # 计算最高夏普配比
