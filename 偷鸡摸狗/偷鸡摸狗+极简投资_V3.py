@@ -31,6 +31,7 @@ from Rotation_ETF_Strategy import Rotation_ETF_Strategy
 from PJ_Strategy import PJ_Strategy
 from scipy.optimize import minimize
 
+
 # 初始化函数，设定基准等等
 def initialize(context):
     log.warn('--initialize函数(只运行一次)--',
@@ -81,6 +82,7 @@ def initialize(context):
     g.strategys_values = pd.DataFrame(
         columns=["s1", "s2", "s3", "s4"]
     )  # 策略数量必须保持一致
+    g.after_factor = [1, 1, 1, 1]  # 后复权因子
     g.portfolio_value_proportion = [0, 0.5, 0.3, 0.15, 0.05]
 
     # 创建策略实例
