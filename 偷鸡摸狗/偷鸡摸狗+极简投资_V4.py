@@ -142,11 +142,7 @@ def after_code_changed(context):  # 输出运行时间
     if g.portfolio_value_proportion[2] > 0:
         run_monthly(all_day_adjust, 1, "9:40")
 
-    if g.portfolio_value_proportion[3] > 0:
-        run_daily(rotation_etf_select, "7:30")
-        run_daily(rotation_etf_adjust, "9:32")
-
-    if g.portfolio_value_proportion[4] > 0:  # 如果核心资产轮动策略分配了资金
+    if g.portfolio_value_proportion[3] > 0:  # 如果核心资产轮动策略分配了资金
         run_daily(pj_prepare, "7:00")
         run_daily(pj_select, "7:30")
         run_daily(pj_adjust, "9:31")
@@ -286,5 +282,4 @@ def pj_check(context):
 def after_market_close(context):
     g.strategys['搅屎棍策略'].after_market_close(context)
     g.strategys['全天候策略'].after_market_close(context)
-    g.strategys['核心资产轮动策略'].after_market_close(context)
     g.strategys['破净策略'].after_market_close(context)
