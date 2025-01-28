@@ -284,148 +284,6 @@ def after_market_close(context):
     g.strategys['全天候策略'].after_market_close(context)
     g.strategys['破净策略'].after_market_close(context)
 
-
-class JSG2_Strategy(Strategy):
-    def __init__(self, context, subportfolio_index, name, params):
-        super().__init__(context, subportfolio_index, name, params)
-        self.max_industry_cnt = 1
-        self.fill_stock = "511880.XSHG"
-
-    def select(self, context):
-        log.info(self.name, '--select函数--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
-
-        top_industries = self.utilstool.get_market_breadth(context, self.max_industry_cnt)
-        industries = {"银行I", "有色金属I", "煤炭I", "钢铁I", "采掘I"}
-        if not industries.intersection(top_industries):
-            # 根据市场温度设置选股条件，选出股票
-            self.select_list = self.__get_rank(context)[:self.max_select_count]
-        else:
-            self.select_list = [self.fill_stock]
-        log.info(self.name, '的选股列表:', self.select_list)
-        # 编写操作计划
-        self.print_trade_plan(context, self.select_list)
-
-    def __get_rank(self, context):
-        log.info(self.name, '--get_rank函数--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
-
-        initial_list = super().stockpool(context, 1, "399101.XSHE")
-
-        q = query(
-            valuation.code,
-        ).filter(
-            valuation.code.in_(initial_list),
-            indicator.roa > 0,
-        ).order_by(
-            valuation.market_cap.asc()
-        ).limit(self.max_select_count)
-
-        final_stocks = list(get_fundamentals(q).code)
-        return final_stocks
-
-class All_Day2_Strategy(Strategy):
-    def __init__(self, context, subportfolio_index, name, params):
-        super().__init__(context, subportfolio_index, name, params)
-        self.etf_pool = [
-            "511010.XSHG",  # 国债ETF
-            "518880.XSHG",  # 黄金ETF
-            "513100.XSHG",  # 纳指100
-            # 2020年之后成立(注意回测时间)
-            "515080.XSHG",  # 红利ETF
-            "159980.XSHE",  # 有色ETF
-            "162411.XSHE",  # 华宝油气LOF
-            "159985.XSHE",  # 豆粕ETF
-        ]
-        # 标的仓位占比
-        self.rates = [0.4, 0.2, 0.15, 0.1, 0.05, 0.05, 0.05]
-        self.min_volume = 2000
-
-    def adjust(self, context):
-        log.info(self.name, '--adject函数（全天候定制）--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
-
-        subportfolio = context.subportfolios[self.subportfolio_index]
-
-        # 计算每个 ETF 的目标价值
-        targets = {
-            etf: subportfolio.total_value * rate
-            for etf, rate in zip(self.etf_pool, self.rates)
-        }
-
-        # 获取当前持仓
-        current_positions = subportfolio.long_positions
-        log.info(self.name, '的选股列表:', targets,'--当前持仓--',current_positions)
-
-        # 计算最小交易单位的价值（假设一手是100股）
-        min_trade_value = {etf: current_positions[etf].price * 100 if etf in current_positions else 0 for etf in
-                           self.etf_pool}
-
-        if not current_positions:  # 如果没有持仓
-            for etf, target in targets.items():  # 遍历ETF
-                self.utilstool.open_position(context, etf, target)
-        else:
-            # 先卖出
-            for etf, target in targets.items():
-                    value = current_positions[etf].value
-                    minV = min_trade_value[etf]
-                    if value - target > self.min_volume and value - target >= minV:
-                        log.info(f'全天候策略开始卖出{etf}，仓位{target}')
-                        self.utilstool.open_position(context, etf, target)
-
-            self.balance_subportfolios(context)
-
-            # 再买入
-            for etf, target in targets.items():
-                if etf in current_positions:
-                    value = current_positions[etf].value
-                else:
-                    value = 0
-                minV = min_trade_value[etf]
-                if target - value > self.min_volume and target - value >= minV and minV <= subportfolio.available_cash:
-                    log.info(f'全天候策略开始买入{etf}，仓位{target}')
-                    self.utilstool.open_position(context, etf, target)
-
-class PJ_Strategy(Strategy):
-    def __init__(self, context, subportfolio_index, name, params):
-        super().__init__(context, subportfolio_index, name, params)
-        self.fill_stock = "511880.XSHG"
-
-    def select(self, context):
-        log.info(self.name, '--Select函数--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
-
-        self.select_list = self.__get_rank(context)[:self.max_hold_count]
-
-        if not self.select_list:
-            self.select_list = [self.fill_stock]
-
-        log.info(self.name, '的选股列表:', self.select_list)
-        self.print_trade_plan(context, self.select_list)
-
-
-    def __get_rank(self, context):
-        log.info(self.name, '--get_rank函数--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
-
-        # 获取股票池
-        lists = self.stockpool(context,all_filter=True)
-        q = query(
-            valuation.code, valuation.market_cap, valuation.pe_ratio, income.total_operating_revenue
-        ).filter(
-            # valuation.pb_ratio < 1,  # 破净
-            # cash_flow.subtotal_operate_cash_inflow > 1e6,  # 经营现金流
-            # indicator.adjusted_profit > 1e6,  # 扣非净利润
-            # indicator.roa > 0.15,  # 总资产收益率
-            # indicator.inc_operation_profit_year_on_year > 0,  # 净利润同比增长
-
-            valuation.pb_ratio > 0,
-            valuation.pb_ratio < 1,
-            indicator.adjusted_profit > 0,
-            valuation.code.in_(lists)
-        ).order_by(
-            indicator.roa.desc()  # 按ROA降序排序
-        )
-        lists = list(get_fundamentals(q).head(20).code)  # 获取选股列表
-        filter_lowlimit_list = self.utilstool.filter_lowlimit_stock(context, lists)
-        final_list = self.utilstool.filter_highlimit_stock(context, filter_lowlimit_list)
-        return final_list[:self.max_hold_count]
-
 # 策略基类
 class Strategy:
     def __init__(self, context, subportfolio_index, name, params):
@@ -2075,3 +1933,145 @@ class UtilsToolClass:
                 ]
             )
         )
+
+
+class JSG2_Strategy(Strategy):
+    def __init__(self, context, subportfolio_index, name, params):
+        super().__init__(context, subportfolio_index, name, params)
+        self.max_industry_cnt = 1
+        self.fill_stock = "511880.XSHG"
+
+    def select(self, context):
+        log.info(self.name, '--select函数--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+
+        top_industries = self.utilstool.get_market_breadth(context, self.max_industry_cnt)
+        industries = {"银行I", "有色金属I", "煤炭I", "钢铁I", "采掘I"}
+        if not industries.intersection(top_industries):
+            # 根据市场温度设置选股条件，选出股票
+            self.select_list = self.__get_rank(context)[:self.max_select_count]
+        else:
+            self.select_list = [self.fill_stock]
+        log.info(self.name, '的选股列表:', self.select_list)
+        # 编写操作计划
+        self.print_trade_plan(context, self.select_list)
+
+    def __get_rank(self, context):
+        log.info(self.name, '--get_rank函数--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+
+        initial_list = super().stockpool(context, 1, "399101.XSHE")
+
+        q = query(
+            valuation.code,
+        ).filter(
+            valuation.code.in_(initial_list),
+            indicator.roa > 0,
+        ).order_by(
+            valuation.market_cap.asc()
+        ).limit(self.max_select_count)
+
+        final_stocks = list(get_fundamentals(q).code)
+        return final_stocks
+
+class All_Day2_Strategy(Strategy):
+    def __init__(self, context, subportfolio_index, name, params):
+        super().__init__(context, subportfolio_index, name, params)
+        self.etf_pool = [
+            "511010.XSHG",  # 国债ETF
+            "518880.XSHG",  # 黄金ETF
+            "513100.XSHG",  # 纳指100
+            # 2020年之后成立(注意回测时间)
+            "515080.XSHG",  # 红利ETF
+            "159980.XSHE",  # 有色ETF
+            "162411.XSHE",  # 华宝油气LOF
+            "159985.XSHE",  # 豆粕ETF
+        ]
+        # 标的仓位占比
+        self.rates = [0.4, 0.2, 0.15, 0.1, 0.05, 0.05, 0.05]
+        self.min_volume = 2000
+
+    def adjust(self, context):
+        log.info(self.name, '--adject函数（全天候定制）--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+
+        subportfolio = context.subportfolios[self.subportfolio_index]
+
+        # 计算每个 ETF 的目标价值
+        targets = {
+            etf: subportfolio.total_value * rate
+            for etf, rate in zip(self.etf_pool, self.rates)
+        }
+
+        # 获取当前持仓
+        current_positions = subportfolio.long_positions
+        log.info(self.name, '的选股列表:', targets,'--当前持仓--',current_positions)
+
+        # 计算最小交易单位的价值（假设一手是100股）
+        min_trade_value = {etf: current_positions[etf].price * 100 if etf in current_positions else 0 for etf in
+                           self.etf_pool}
+
+        if not current_positions:  # 如果没有持仓
+            for etf, target in targets.items():  # 遍历ETF
+                self.utilstool.open_position(context, etf, target)
+        else:
+            # 先卖出
+            for etf, target in targets.items():
+                    value = current_positions[etf].value
+                    minV = min_trade_value[etf]
+                    if value - target > self.min_volume and value - target >= minV:
+                        log.info(f'全天候策略开始卖出{etf}，仓位{target}')
+                        self.utilstool.open_position(context, etf, target)
+
+            self.balance_subportfolios(context)
+
+            # 再买入
+            for etf, target in targets.items():
+                if etf in current_positions:
+                    value = current_positions[etf].value
+                else:
+                    value = 0
+                minV = min_trade_value[etf]
+                if target - value > self.min_volume and target - value >= minV and minV <= subportfolio.available_cash:
+                    log.info(f'全天候策略开始买入{etf}，仓位{target}')
+                    self.utilstool.open_position(context, etf, target)
+
+class PJ_Strategy(Strategy):
+    def __init__(self, context, subportfolio_index, name, params):
+        super().__init__(context, subportfolio_index, name, params)
+        self.fill_stock = "511880.XSHG"
+
+    def select(self, context):
+        log.info(self.name, '--Select函数--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+
+        self.select_list = self.__get_rank(context)[:self.max_hold_count]
+
+        if not self.select_list:
+            self.select_list = [self.fill_stock]
+
+        log.info(self.name, '的选股列表:', self.select_list)
+        self.print_trade_plan(context, self.select_list)
+
+
+    def __get_rank(self, context):
+        log.info(self.name, '--get_rank函数--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+
+        # 获取股票池
+        lists = self.stockpool(context,all_filter=True)
+        q = query(
+            valuation.code, valuation.market_cap, valuation.pe_ratio, income.total_operating_revenue
+        ).filter(
+            # valuation.pb_ratio < 1,  # 破净
+            # cash_flow.subtotal_operate_cash_inflow > 1e6,  # 经营现金流
+            # indicator.adjusted_profit > 1e6,  # 扣非净利润
+            # indicator.roa > 0.15,  # 总资产收益率
+            # indicator.inc_operation_profit_year_on_year > 0,  # 净利润同比增长
+
+            valuation.pb_ratio > 0,
+            valuation.pb_ratio < 1,
+            indicator.adjusted_profit > 0,
+            valuation.code.in_(lists)
+        ).order_by(
+            indicator.roa.desc()  # 按ROA降序排序
+        )
+        lists = list(get_fundamentals(q).head(20).code)  # 获取选股列表
+        filter_lowlimit_list = self.utilstool.filter_lowlimit_stock(context, lists)
+        final_list = self.utilstool.filter_highlimit_stock(context, filter_lowlimit_list)
+        return final_list[:self.max_hold_count]
