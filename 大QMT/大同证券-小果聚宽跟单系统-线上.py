@@ -59,7 +59,9 @@ text = {
     "交易结束时间": 24,
     "是否参加集合竞价": "否",
     "开始交易分钟": 0,
-    "是否开启临时id记录": "是"
+    "是否开启临时id记录": "是",
+    "发送微信消息": "是",
+    "发送钉钉消息": "是"
 }
 
 
@@ -171,7 +173,7 @@ def send_wx_message(message ,item='大同QMT实盘' ):
     # print(response.text)
 
 
-def seed_dingding(msg='买卖交易成功',access_token_list=['2615283ba0ab84900235e4ecc262671a0c79f3fb13acdf35f22cfd4b0407295f']):
+def seed_dingding(message='买卖交易成功',access_token_list=['2615283ba0ab84900235e4ecc262671a0c79f3fb13acdf35f22cfd4b0407295f']):
     access_token=random.choice(access_token_list)
     url='https://oapi.dingtalk.com/robot/send?access_token={}'.format(access_token)
     headers = {'Content-Type': 'application/json;charset=utf-8'}
@@ -182,7 +184,7 @@ def seed_dingding(msg='买卖交易成功',access_token_list=['2615283ba0ab84900235e4e
             "isAtAll": False,  # 不@所有人
         },
         "text": {
-            "content": '大同QMT交易通知\n'+msg,  # 消息正文
+            "content": '大同QMT交易通知\n'+message,  # 消息正文
         }
     }
     r = requests.post(url, data=json.dumps(data), headers=headers)
@@ -262,6 +264,8 @@ def get_trader_data(c, name='测试', password='123456', zh_ratio=0.1):
                         test_amount = text['测试数量']
                         down_type = text['下单模式']
                         down_value = text['下单值']
+                        send_wx_msg = text['发送微信消息']
+                        send_dd_msg = text['发送钉钉消息']
                         if test == '是':
                             value = test_amount * price
                         else:
@@ -285,8 +289,10 @@ def get_trader_data(c, name='测试', password='123456', zh_ratio=0.1):
                                     amount_list.append(0)
 
                                 msg = f'当前时刻--{str(datetime.now())[:19]}\n买入股票--{stock}\n股数--{amount}\n单价--{price}\n总价--{price * amount}'
-                                seed_dingding(msg=msg)
-                                send_wx_message(message=msg)
+                                if send_wx_msg == '是':
+                                    send_wx_message(message=msg)
+                                if send_dd_msg == '是':
+                                    seed_dingding(message=msg)
                             except Exception as e:
                                 print('组合{} 组合授权码{} {}买入有问题可能没有资金'.format(name, password, stock))
                                 amount_list.append(0)
@@ -301,8 +307,10 @@ def get_trader_data(c, name='测试', password='123456', zh_ratio=0.1):
                                     amount_list.append(0)
 
                                 msg = f'当前时刻--{str(datetime.now())[:19]}\n卖出股票--{stock}\n股数--{amount}\n单价--{price}\n总价--{price * amount}'
-                                seed_dingding(msg=msg)
-                                send_wx_message(message=msg)
+                                if send_wx_msg == '是':
+                                    send_wx_message(message=msg)
+                                if send_dd_msg == '是':
+                                    seed_dingding(message=msg)
                             except Exception as e:
 
                                 print('组合{} 组合授权码{} {}卖出有问题可能没有持股'.format(name, password, stock))
