@@ -116,8 +116,8 @@ def get_del_buy_sell_data(c, name='测试1', password='123456'):
     xg_data = xg_jq_data(url=url, port=port, password=password)
     info = xg_data.get_user_data(data_type='用户信息')
     df = xg_data.get_user_data(data_type='实时数据')
-    print('用户信息')
-    print(info)
+    # print('用户信息已经读取')
+    # print(info)
     if df.shape[0] > 0:
         stats = df['数据状态'].tolist()[-1]
         if stats == True:
@@ -145,8 +145,8 @@ def get_del_buy_sell_data(c, name='测试1', password='123456'):
     else:
         df = pd.DataFrame()
     if df.shape[0] > 0:
-        print('组合 {} 策略授权码 {} {}今天跟单数据*********************'.format(name, password, now_date))
-    # print(df)
+        print('组合 {} 策略授权码 {} {}今天有跟单数据*********************'.format(name, password, now_date))
+        # print(df)
     else:
         print('组合 {} 策略授权码 {} {}今天没有跟单数据*********************'.format(name, password, now_date))
     return df
@@ -328,7 +328,7 @@ def get_trader_data(c, name='测试', password='123456', zh_ratio=0.1):
                 # 数量为0的不进入下单记录
                 df = df[df['数量'] >= 10]
                 # df=df[df['数量']>=0]
-                print('下单股票池））））））））））））））））））））））））')
+                print('下单股票池*************')
                 print(df)
                 print(
                     '下单数量为0的标的可能没有持股,可能账户没有资金等待下次成交########################################################')
@@ -337,14 +337,14 @@ def get_trader_data(c, name='测试', password='123456', zh_ratio=0.1):
                 trader_log = trader_log.drop_duplicates(subset=['订单添加时间', '订单ID', '组合授权码', '组合名称'],
                                                         keep='last')
             else:
-                print('{}组合没有需要下单标度******************'.format(name))
+                # print('{}组合没有需要下单股票******************'.format(name))
                 df = pd.DataFrame()
         else:
             print('{}没有这个组合*************'.format(name))
             df = pd.DataFrame()
 
     else:
-        print('{}交易股票池没有数据*************'.format(name))
+        # print('{}交易股票池没有数据*************'.format(name))
         df = pd.DataFrame()
     return df
 
@@ -406,8 +406,8 @@ def start_trader_on(c, name='测试1', password='123456', zh_ratio=0.1):
 
         else:
             print('{}组合没有符合调参的买入数据'.format(name))
-    else:
-        print('{}组合没有符合调参数据'.format(name))
+    # else:
+    #     print('{}组合没有符合调参数据'.format(name))
 
 
 # print(a.log_id)
@@ -421,6 +421,7 @@ def update_all_data(c):
         ratio_list = text['组合跟单比例']
         update_time = text['不同策略间隔更新时间']
         for name, password, ratio in zip(name_list, password_list, ratio_list):
+            print('【【【【【【【策略---{}---分隔符】】】】】】】】'.format(name))
             start_trader_on(c, name=name, password=password, zh_ratio=ratio)
             time.sleep(update_time * 60)
     else:
