@@ -76,6 +76,7 @@ def initialize(context):
     params = {
         'max_hold_count': 1,  # 最大持股数
         'max_select_count': 3,  # 最大输出选股数
+        'use_wide_time_strategies' : True # 使用宽度择时
     }
     # 白马策略，第一个仓
     bmzh_strategy = BMZH_Strategy(context, subportfolio_index=0, name='白马股攻防转换策略', params=params)
@@ -523,6 +524,24 @@ class UtilsToolClass:
 
         return [stock for stock in stock_list if stock in subportfolio.long_positions
                 or last_prices[stock][-1] > current_data[stock].low_limit]
+
+
+    # 过滤20天内涨幅超过20%的股票
+    def filter_over_20_percent_increase(context, stocks):
+        end_date = context.previous_date
+        start_date = end_date - datetime.timedelta(days=20)
+        new_stocks = []
+        for stock in stocks:
+            try:
+                prices = get_price(stock, start_date=start_date, end_date=end_date, frequency='daily', fields=['close'])
+                start_price = prices['close'].iloc[0]
+                end_price = prices['close'].iloc[-1]
+                increase_percent = (end_price - start_price) / start_price * 100
+                if increase_percent <= 20:
+                    new_stocks.append(stock)
+            except Exception as e:
+                print(f"获取 {stock} 价格数据时出错: {e}")
+        return new_stocks
 
     # 过滤次新股（小市值专用）
     def filter_new_stock(self, context, stock_list, days):
@@ -1069,7 +1088,7 @@ class Strategy:
     # 基础股票池-全市场选股
     def stockpool(self, context, pool_id=1, index=None, is_filter_kcbj=True, is_filter_st=True, is_filter_paused=True,
                   is_filter_highlimit=True,
-                  is_filter_lowlimit=True, is_filter_new=True,all_filter=False):
+                  is_filter_lowlimit=True, is_filter_new=True,is_filter_over20percent = True,all_filter=False):
         log.info(self.name, '--stockpool函数--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
         if index is None:
             lists = list(get_all_securities(types=['stock'], date=context.previous_date).index)
@@ -1094,6 +1113,8 @@ class Strategy:
                     lists = self.utilstool.filter_lowlimit_stock(context, lists)
                 if is_filter_new:
                     lists = self.utilstool.filter_new_stock(context, lists, days=375)
+                if is_filter_over20percent:
+                    lists = self.utilstool.filter_over_20_percent_increase(context, lists)
 
         return lists
 
