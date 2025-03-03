@@ -527,7 +527,7 @@ class UtilsToolClass:
 
 
     # 过滤20天内涨幅超过20%的股票
-    def filter_over_20_percent_increase(context, stocks):
+    def filter_over_20_percent_increase(self, context, stocks):
         end_date = context.previous_date
         start_date = end_date - datetime.timedelta(days=20)
         new_stocks = []
