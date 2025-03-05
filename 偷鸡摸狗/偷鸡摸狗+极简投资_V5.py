@@ -28,7 +28,9 @@ import inspect
 from JSG2_Strategy import JSG2_Strategy
 from All_Day2_Strategy import All_Day2_Strategy
 from PJ_Strategy import PJ_Strategy
+from Weak_Cyc_Strategy import Weak_Cyc_Strategy
 from scipy.optimize import minimize
+
 
 # 初始化函数，设定基准等等
 def initialize(context):
@@ -73,15 +75,15 @@ def initialize(context):
     # 全局变量
     g.strategys = {}
     g.risk_free_rate = 0.03  # 无风险收益率
-    g.is_balanced = False # 是否开启自动调仓
+    g.is_balanced = False  # 是否开启自动调仓
     g.rebalancing = 3  # 每个季度调仓一次
-    g.month = 0 # 记录时间
+    g.month = 0  # 记录时间
     g.strategys_values = pd.DataFrame(
-        columns=["s1", "s2", "s3"]
+        columns=["s1", "s2", "s3", "s4"]
     )  # 子策略净值
-    g.strategys_days = 250 # 取子策略净值最近250个交易日
-    g.after_factor = [1, 1, 1]  # 后复权因子
-    g.portfolio_value_proportion = [0, 0.3, 0.6, 0.1]
+    g.strategys_days = 250  # 取子策略净值最近250个交易日
+    g.after_factor = [1, 1, 1, 1]  # 后复权因子
+    g.portfolio_value_proportion = [0, 0.4, 0.3, 0.1, 0.2]
 
     # 创建策略实例
     # 初始化策略子账户 subportfolios
@@ -90,6 +92,7 @@ def initialize(context):
         SubPortfolioConfig(context.portfolio.starting_cash * g.portfolio_value_proportion[1], 'stock'),
         SubPortfolioConfig(context.portfolio.starting_cash * g.portfolio_value_proportion[2], 'stock'),
         SubPortfolioConfig(context.portfolio.starting_cash * g.portfolio_value_proportion[3], 'stock'),
+        SubPortfolioConfig(context.portfolio.starting_cash * g.portfolio_value_proportion[4], 'stock'),
     ])
 
     # 是否发送微信消息，回测环境不发送，模拟环境发送
@@ -116,6 +119,12 @@ def initialize(context):
     pj_strategy = PJ_Strategy(context, subportfolio_index=3, name='破净策略', params=params)
     g.strategys[pj_strategy.name] = pj_strategy
 
+    params = {
+        'max_select_count': 4
+    }
+    weak_cyc_strategy = Weak_Cyc_Strategy(context, subportfolio_index=4, name='弱周期价投策略', params=params)
+    g.strategys[weak_cyc_strategy.name] = weak_cyc_strategy
+
 
 # 模拟盘在每天的交易时间结束后会休眠，第二天开盘时会恢复，如果在恢复时发现代码已经发生了修改，则会在恢复时执行这个函数。 具体的使用场景：可以利用这个函数修改一些模拟盘的数据。
 def after_code_changed(context):  # 输出运行时间
@@ -127,106 +136,31 @@ def after_code_changed(context):  # 输出运行时间
     unschedule_all()  # 取消所有定时运行
 
     # 计算子策略净值、策略仓位动态调整
-    run_daily(get_strategys_values, "18:00")
-    run_monthly(calculate_optimal_weights, 1, "19:00")
+    # run_daily(get_strategys_values, "18:00")
+    # run_monthly(calculate_optimal_weights, 1, "19:00")
 
     # 子策略执行计划
     if g.portfolio_value_proportion[1] > 0:
         run_daily(jsg_prepare, "7:00")
         run_weekly(jsg_select, 1, "7:30")
         run_weekly(jsg_open_market, 1, "9:30")
-        run_weekly(jsg_adjust, 1, "9:31")
+        run_weekly(jsg_adjust, 1, "11:00")
         run_daily(jsg_check, "14:50")
 
     if g.portfolio_value_proportion[2] > 0:
-        run_monthly(all_day_adjust, 1, "9:40")
+        run_monthly(all_day_adjust, 1, "9:32")
 
     if g.portfolio_value_proportion[3] > 0:  # 如果核心资产轮动策略分配了资金
         run_daily(pj_prepare, "7:00")
-        run_daily(pj_select, "7:30")
-        run_daily(pj_adjust, "9:31")
+        run_monthly(pj_select, 1, "7:30")
+        run_monthly(pj_adjust, 1, "9:33")
         run_daily(pj_check, "14:00")  # 每天14:00检查破净策略
         run_daily(pj_check, "14:50")  # 每天14:50检查破净策略
 
+    if g.portfolio_value_proportion[4] > 0:
+        run_monthly(weak_cyc_adjust, 1, "9:34")
+
     run_daily(after_market_close, 'after_close')
-
-
-# 每日获取子策略净值
-def get_strategys_values(context):
-    df = g.strategys_values.copy()
-    data = dict(
-        zip(
-            df.columns,
-            [
-                context.subportfolios[i + 1].total_value * g.after_factor[i]
-                for i in range(len(df.columns))
-            ],
-        )
-    )
-    df.loc[len(df)] = data
-    if len(df) > g.strategys_days:
-        df = df.drop(0)
-    g.strategys_values = df
-
-
-# 计算最高夏普配比
-def calculate_optimal_weights(context, alpha=0.2):
-    current_weights = [
-        round(context.subportfolios[i].total_value / context.portfolio.total_value, 3)
-        for i in range(len(g.portfolio_value_proportion))
-    ]
-    log.info("目前仓位比例:", current_weights)
-    df = g.strategys_values
-    g.month += 1
-    if len(df) < g.strategys_days or not g.month % g.rebalancing == 0:
-        return
-
-    # 计算每个策略的收益率
-    returns = df.pct_change().dropna()
-
-    # 计算每个策略的年化收益率
-    annualized_returns = returns.mean() * 252
-
-    # 计算协方差矩阵
-    cov_matrix = returns.cov() * 252
-
-    # 定义目标函数：负波动率调整后的夏普比率
-    def negative_vasr(weights):
-        portfolio_return = np.dot(weights, annualized_returns)
-        portfolio_volatility = np.sqrt(np.dot(weights.T, np.dot(cov_matrix, weights)))
-        sharpe_ratio = (portfolio_return - g.risk_free_rate) / portfolio_volatility
-        vasr = sharpe_ratio / (1 + alpha * portfolio_volatility)
-        return -vasr
-
-    # 约束条件：权重之和为1
-    constraints = [
-        {"type": "eq", "fun": lambda x: np.sum(x) - 1},
-        {"type": "ineq", "fun": lambda x: x - 0.05},  # 确保每个权重都大于等于0.05
-    ]
-
-    # 添加约束：每个策略前后配比之差不超过10%
-    last_best_weights = g.portfolio_value_proportion[1:]  # 去掉第一个0
-    constraints.append(
-        {"type": "ineq", "fun": lambda x: 0.1 - np.abs(x - last_best_weights)}
-    )
-
-    # 添加约束：单个策略最大比重不超过50%
-    constraints.append({"type": "ineq", "fun": lambda x: 0.5 - x})
-
-    # 权重的初始猜测
-    num_strategies = len(returns.columns)
-    initial_weights = np.array([1 / num_strategies] * num_strategies)
-    initial_weights = np.maximum(initial_weights, 0.05)  # 确保初始权重符合最低配比要求
-
-    # 优化问题
-    result = minimize(
-        negative_vasr, initial_weights, method="SLSQP", constraints=constraints
-    )
-
-    # 输出最佳权重
-    best_weights = result.x.tolist()
-    g.portfolio_value_proportion = [0] + best_weights
-    log.info("最佳权重:", [round(i, 3) for i in best_weights])
 
 
 def jsg_prepare(context):
@@ -238,7 +172,7 @@ def jsg_select(context):
 
 
 def jsg_adjust(context):
-    g.strategys["搅屎棍策略"].adjustwithnoRMBalance(context)
+    g.strategys["搅屎棍策略"].adjustwithnoRM(context)
 
 
 def jsg_check(context):
@@ -254,14 +188,6 @@ def all_day_adjust(context):
     g.strategys["全天候策略"].adjust(context)
 
 
-def rotation_etf_select(context):
-    g.strategys["核心资产轮动策略"].select(context)
-
-
-def rotation_etf_adjust(context):
-    g.strategys["核心资产轮动策略"].adjustwithnoRMBalance(context)
-
-
 def pj_prepare(context):
     g.strategys["破净策略"].day_prepare(context)
 
@@ -271,14 +197,19 @@ def pj_select(context):
 
 
 def pj_adjust(context):
-    g.strategys["破净策略"].adjustwithnoRMBalance(context)
+    g.strategys["破净策略"].adjustwithnoRM(context)
 
 
 def pj_check(context):
     g.strategys["破净策略"].sell_when_highlimit_open(context)
 
 
+def weak_cyc_adjust(context):
+    g.strategys["弱周期价投策略"].adjust(context)
+
+
 def after_market_close(context):
     g.strategys['搅屎棍策略'].after_market_close(context)
     g.strategys['全天候策略'].after_market_close(context)
     g.strategys['破净策略'].after_market_close(context)
+    g.strategys['弱周期价投策略'].after_market_close(context)

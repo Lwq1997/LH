@@ -13,22 +13,20 @@ from jqlib.technical_analysis import *
 import datetime as datet
 
 
-# 外盘ETF轮动策略
 class All_Day2_Strategy(Strategy):
     def __init__(self, context, subportfolio_index, name, params):
         super().__init__(context, subportfolio_index, name, params)
         self.etf_pool = [
-            "511010.XSHG",  # 国债ETF
+            "511260.XSHG",  # 十年国债ETF
             "518880.XSHG",  # 黄金ETF
             "513100.XSHG",  # 纳指100
             # 2020年之后成立(注意回测时间)
-            "515080.XSHG",  # 红利ETF
             "159980.XSHE",  # 有色ETF
             "162411.XSHE",  # 华宝油气LOF
             "159985.XSHE",  # 豆粕ETF
         ]
         # 标的仓位占比
-        self.rates = [0.4, 0.2, 0.15, 0.1, 0.05, 0.05, 0.05]
+        self.rates = [0.45, 0.25, 0.15, 0.05, 0.05, 0.05]
         self.min_volume = 2000
 
     def adjust(self, context):

@@ -86,7 +86,8 @@ def end_trade(context):
     # 卖出未记录的股票（比如送股）
     keys = [key for d in g.positions.values() if isinstance(d, dict) for key in d.keys()]
     for stock in context.portfolio.positions:
-        if stock not in keys and stock != g.fill_stock and current_data[stock].last_price < current_data[stock].high_limit:
+        if stock not in keys and stock != g.fill_stock and current_data[stock].last_price < current_data[
+            stock].high_limit:
             if order_target_value(stock, 0):
                 log.info(f"卖出{stock}因送股未记录在持仓中")
 
@@ -146,7 +147,8 @@ class Strategy:
     def get_total_value(self):
         if not g.positions[self.index]:
             return 0
-        return sum(self.context.portfolio.positions[key].price * value for key, value in g.positions[self.index].items())
+        return sum(
+            self.context.portfolio.positions[key].price * value for key, value in g.positions[self.index].items())
 
     # 检查昨日涨停票
     def _check(self):
@@ -194,7 +196,8 @@ class Strategy:
         position_value = self.get_total_value()
 
         # 可用现金:当前现金 + 货币ETF市值
-        available_cash = portfolio.available_cash + (portfolio.positions[g.fill_stock].value if g.fill_stock in portfolio.positions else 0)
+        available_cash = portfolio.available_cash + (
+            portfolio.positions[g.fill_stock].value if g.fill_stock in portfolio.positions else 0)
 
         # 买入股票的总市值
         value = max(0, min(target_value - position_value, available_cash))
@@ -216,6 +219,8 @@ class Strategy:
         current_data = get_current_data()
         portfolio = self.context.portfolio
 
+        log.info(self.name, '的选股列表:', targets, '--当前持仓--', g.positions[self.index])
+
         # 清仓被调出的
         for stock in self.hold_list:
             if stock not in targets:
@@ -225,6 +230,7 @@ class Strategy:
         for stock, target in targets.items():
             price = current_data[stock].last_price
             value = g.positions[self.index].get(stock, 0) * price
+            log.info(self.name, '--stock--', stock, '--value--', value, '--target--', target, '--price--', price)
             if value - target > self.min_volume and value - target > price * 100:
                 self.order_target_value_(stock, target)
 
@@ -232,6 +238,7 @@ class Strategy:
         for stock, target in targets.items():
             price = current_data[stock].last_price
             value = g.positions[self.index].get(stock, 0) * price
+            log.info(self.name, '--stock--', stock, '--value--', value, '--target--', target, '--price--', price)
             if target - value > self.min_volume and target - value > price * 100:
                 if target - value > portfolio.available_cash:
                     get_cash(self.context, target - value - portfolio.available_cash)
@@ -270,7 +277,8 @@ class Strategy:
         adjustment = target_position - current_position
 
         # 检查是否当天买入卖出
-        closeable_amount = self.context.portfolio.positions[security].closeable_amount if security in self.context.portfolio.positions else 0
+        closeable_amount = self.context.portfolio.positions[
+            security].closeable_amount if security in self.context.portfolio.positions else 0
         if adjustment < 0 and closeable_amount == 0:
             log.info(f"{security}: 当天买入不可卖出")
             return False
@@ -297,12 +305,12 @@ class Strategy:
             stock
             for stock in stock_list
             if not current_data[stock].paused
-            and not current_data[stock].is_st
-            and "ST" not in current_data[stock].name
-            and "*" not in current_data[stock].name
-            and "退" not in current_data[stock].name
-            and not (stock[0] == "4" or stock[0] == "8" or stock[:2] == "68")
-            and not self.context.previous_date - get_security_info(stock).start_date < datetime.timedelta(375)
+               and not current_data[stock].is_st
+               and "ST" not in current_data[stock].name
+               and "*" not in current_data[stock].name
+               and "退" not in current_data[stock].name
+               and not (stock[0] == "4" or stock[0] == "8" or stock[:2] == "68")
+               and not self.context.previous_date - get_security_info(stock).start_date < datetime.timedelta(375)
         ]
 
     # 过滤当前时间涨跌停的股票
@@ -311,7 +319,8 @@ class Strategy:
         return [
             stock
             for stock in stock_list
-            if current_data[stock].last_price < current_data[stock].high_limit and current_data[stock].last_price > current_data[stock].low_limit
+            if current_data[stock].last_price < current_data[stock].high_limit and current_data[stock].last_price >
+               current_data[stock].low_limit
         ]
 
     # 判断今天是在空仓月
@@ -445,6 +454,7 @@ class Simple_ROA_Strategy(Strategy):
     def filter(self):
         stocks = get_all_securities("stock", date=self.context.previous_date).index.tolist()
         stocks = self.filter_basic_stock(stocks)
+        print('祁连山1', '600720.XSHG' in stocks)
         stocks = list(
             get_fundamentals(
                 query(valuation.code, indicator.roa).filter(
@@ -458,6 +468,7 @@ class Simple_ROA_Strategy(Strategy):
             .head(10)
             .code
         )
+        print('祁连山2', '600720.XSHG' in stocks)
         stocks = self.filter_limitup_limitdown_stock(stocks)
         return stocks
 
@@ -498,7 +509,8 @@ class Weak_Cyc_Strategy(Strategy):
         yesterday = self.context.previous_date
         stocks = get_industry_stocks("HY010", date=yesterday)
         stocks = self.filter_basic_stock(stocks)
-        data = get_fundamentals(query(valuation.code, valuation.pe_ratio, valuation.market_cap).filter(valuation.code.in_(stocks)))
+        data = get_fundamentals(
+            query(valuation.code, valuation.pe_ratio, valuation.market_cap).filter(valuation.code.in_(stocks)))
         total_market_cap = data.market_cap.sum()
         self.pe_mean = total_market_cap / (1 / data.pe_ratio * data.market_cap).sum()
         self.get_stock_sum()
