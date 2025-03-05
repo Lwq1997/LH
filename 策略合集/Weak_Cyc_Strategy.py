@@ -85,7 +85,7 @@ class Weak_Cyc_Strategy(Strategy):
             if value - target > self.min_volume and value - target > price * 100:
                 self.utilstool.close_position(context, stock, target)
 
-        self.balance_subportfolios(context)
+        # self.balance_subportfolios(context)
 
         # 后买入
         for stock, target in targets.items():

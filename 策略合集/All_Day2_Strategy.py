@@ -60,7 +60,7 @@ class All_Day2_Strategy(Strategy):
                         log.info(f'全天候策略开始卖出{etf}，仓位{target}')
                         self.utilstool.open_position(context, etf, target)
 
-            self.balance_subportfolios(context)
+            # self.balance_subportfolios(context)
 
             # 再买入
             for etf, target in targets.items():
