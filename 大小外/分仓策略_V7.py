@@ -1,11 +1,3 @@
-'''
-多策略分子账户并行
-用到的策略：
-蚂蚁量化,东哥：白马股攻防转换策略（BMZH策略）
-linlin2018，ZLH：低波全天候策略（外盘ETF策略）
-@荒唐的方糖大佬:国九条小市值（XSZGJT）（还可以改进）
-'''
-
 # 导入函数库
 # -*- coding: utf-8 -*-
 # 如果你的文件包含中文, 请在文件的第一行使用上面的语句指定你的文件编码
@@ -29,9 +21,9 @@ import requests
 import datetime as datet
 from prettytable import PrettyTable
 import inspect
-from BMZH_Strategy import BMZH_Strategy
-from WPETF_Strategy import WPETF_Strategy
-from XSZ_GJT_Strategy import XSZ_GJT_Strategy
+from PJ_Strategy2 import PJ_Strategy2
+from WP_Strategy import WP_Strategy
+from All_Day2_Strategy import All_Day2_Strategy
 
 
 # 初始化函数，设定基准等等
@@ -60,7 +52,7 @@ def initialize(context):
     # 持久变量
     g.strategys = {}
     # 子账户 分仓
-    g.portfolio_value_proportion = [0.35, 0.15, 0.50]
+    g.portfolio_value_proportion = [0, 0.1, 0.6, 0.3]
 
     # 创建策略实例
     # 初始化策略子账户 subportfolios
@@ -68,40 +60,29 @@ def initialize(context):
         SubPortfolioConfig(context.portfolio.starting_cash * g.portfolio_value_proportion[0], 'stock'),
         SubPortfolioConfig(context.portfolio.starting_cash * g.portfolio_value_proportion[1], 'stock'),
         SubPortfolioConfig(context.portfolio.starting_cash * g.portfolio_value_proportion[2], 'stock'),
+        SubPortfolioConfig(context.portfolio.starting_cash * g.portfolio_value_proportion[3], 'stock'),
     ])
 
-    context.subportfolios_name_map = {
-        0: '白马策略',
-        1: 'ETF策略',
-        2: '小市值策略'
-    }
-    # 是否发送微信消息，回测环境不发送，模拟环境发送
-    context.is_send_wx_message = 0
     params = {
         'max_hold_count': 1,  # 最大持股数
-        'max_select_count': 3,  # 最大输出选股数
+        'max_select_count': 6,  # 最大输出选股数
     }
-    # 白马策略，第一个仓
-    bmzh_strategy = BMZH_Strategy(context, subportfolio_index=0, name='白马股攻防转换策略', params=params)
-    g.strategys[bmzh_strategy.name] = bmzh_strategy
+    pj_strategy = PJ_Strategy2(context, subportfolio_index=1, name='破净策略', params=params)
+    g.strategys[pj_strategy.name] = pj_strategy
 
     params = {
-        'max_hold_count': 1,  # 最大持股数
-        'max_select_count': 2,  # 最大输出选股数
-    }
-    # ETF 策略，第二个仓
-    wpetf_strategy = WPETF_Strategy(context, subportfolio_index=1, name='外盘ETF轮动策略', params=params)
-    g.strategys[wpetf_strategy.name] = wpetf_strategy
-
-    params = {
-        'max_hold_count': 3,  # 最大持股数
-        'max_select_count': 10,  # 最大输出选股数
+        'max_hold_count': 6,  # 最大持股数
+        'max_select_count': 20,  # 最大输出选股数
         'use_empty_month': True,  # 是否在指定月份空仓
         'empty_month': [1, 4]  # 指定空仓的月份列表
     }
-    # 小世值，第三个仓
-    xszgjt_strategy = XSZ_GJT_Strategy(context, subportfolio_index=2, name='国九条小市值策略', params=params)
-    g.strategys[xszgjt_strategy.name] = xszgjt_strategy
+    wp_strategy = WP_Strategy(context, subportfolio_index=2, name='微盘策略', params=params)
+    g.strategys[wp_strategy.name] = wp_strategy
+
+    params = {
+    }
+    all_day_strategy = All_Day2_Strategy(context, subportfolio_index=3, name='全天候策略', params=params)
+    g.strategys[all_day_strategy.name] = all_day_strategy
 
 
 # 模拟盘在每天的交易时间结束后会休眠，第二天开盘时会恢复，如果在恢复时发现代码已经发生了修改，则会在恢复时执行这个函数。 具体的使用场景：可以利用这个函数修改一些模拟盘的数据。
@@ -113,87 +94,91 @@ def after_code_changed(context):  # 输出运行时间
 
     unschedule_all()  # 取消所有定时运行
 
-    # 执行计划
-    # 选股函数--Select：白马和 ETF 分开使用
-    # 执行函数--adjust：白马和 ETF 轮动共用一个
-    # # 白马，按月运行 TODO
-    if g.portfolio_value_proportion[0] > 0:
-        run_monthly(bmzh_select, 1, time='7:40')  # 阅读完成，测试完成
-        run_monthly(bmzh_adjust, 1, time='09:35')  # 阅读完成，测试完成
-        run_daily(bmzh_after_market_close, 'after_close')
-    #
-    # # ETF轮动，按天运行
+    # 设置调仓
+    run_monthly(balance_subportfolios, 1, "9:02")  # 资金平衡
+
+    # 破净策略调仓设置
     if g.portfolio_value_proportion[1] > 0:
-        run_daily(wpetf_select, time='7:42')  # 阅读完成，测试完成
-        run_daily(wpetf_adjust, time='09:35')  # 阅读完成，测试完成
-        run_daily(wpetf_after_market_close, 'after_close')
+        run_daily(prepare_pj_strategy, "9:03")
+        run_monthly(select_pj_strategy, 1, "9:30")  # 阅读完成，测试完成
+        run_monthly(adjust_pj_strategy, 1, "9:30")
+        run_daily(pj_sell_when_highlimit_open, time='11:20')
+        run_daily(pj_sell_when_highlimit_open, time='14:50')
 
-    # # 小市值，按天/周运行
+    # 微盘策略调仓设置
     if g.portfolio_value_proportion[2] > 0:
-        run_daily(xszgjt_day_prepare, time='7:33')
-        run_weekly(xszgjt_select, 2, time='7:43')
-        run_daily(xszgjt_open_market, time='9:30')
-        run_weekly(xszgjt_adjust, 2, time='9:35')
-        # run_daily(xszgjt_sell_when_highlimit_open, time='11:27')
-        run_daily(xszgjt_sell_when_highlimit_open, time='11:20')
-        run_daily(xszgjt_sell_when_highlimit_open, time='14:50')
-        # run_daily(xszgjt_append_buy_stock, time='14:51')
-        run_daily(xszgjt_after_market_close, 'after_close')
-        # run_daily(xszgjt_print_position_info, time='15:10')
+        run_daily(prepare_wp_strategy, "9:03")
+        run_weekly(select_wp_strategy, 1, "11:00")  # 阅读完成，测试完成
+        run_weekly(adjust_wp_strategy, 1, "11:00")
+        run_daily(wp_sell_when_highlimit_open, time='11:20')
+        run_daily(wp_sell_when_highlimit_open, time='14:50')
+
+    # 全天策略调仓设置
+    if g.portfolio_value_proportion[3] > 0:
+        run_monthly(adjust_qt_strategy, 1, "10:00")
+
+    # 核心策略调仓设置
+    # if g.portfolio_value_proportion[4] > 0:
+    #     run_daily(adjust_hx_strategy, "10:05")
 
 
-# 选股
-def bmzh_select(context):
-    g.strategys['白马股攻防转换策略'].select(context)
+# 资金平衡函数==========================================================
+def balance_subportfolios(context):
+    for i in range(1, len(g.portfolio_value_proportion)):
+        target = g.portfolio_value_proportion[i] * context.portfolio.total_value
+        value = context.subportfolios[i].total_value
+        deviation = abs((value - target) / target) if target != 0 else 0
+        if deviation > 0.2:
+            if context.subportfolios[i].available_cash > 0 and target < value:
+                transfer_cash(from_pindex=i, to_pindex=0,
+                              cash=min(value - target, context.subportfolios[i].available_cash))
+            if target > value and context.subportfolios[0].available_cash > 0:
+                transfer_cash(from_pindex=0, to_pindex=i,
+                              cash=min(target - value, context.subportfolios[0].available_cash))
 
 
-# 交易
-def bmzh_adjust(context):
-    g.strategys['白马股攻防转换策略'].adjustwithnoRM(context)
+# 破净策略
+def prepare_pj_strategy(context):
+    g.strategys["破净策略"].day_prepare(context)
 
 
-# 收盘统计
-def bmzh_after_market_close(context):
-    g.strategys['白马股攻防转换策略'].after_market_close(context)
+def select_pj_strategy(context):
+    g.strategys["破净策略"].select(context)
 
 
-def wpetf_select(context):
-    g.strategys['外盘ETF轮动策略'].select(context)
+def adjust_pj_strategy(context):
+    g.strategys["破净策略"].adjustwithnoRM(context)
 
 
-def wpetf_adjust(context):
-    g.strategys['外盘ETF轮动策略'].adjustwithnoRM(context)
+def pj_sell_when_highlimit_open(context):
+    g.strategys['破净策略'].sell_when_highlimit_open(context)
+    if g.strategys['破净策略'].is_stoplost_or_highlimit:
+        g.strategys['破净策略'].select(context)
+        g.strategys['破净策略'].adjustwithnoRM(context)
+        g.strategys['破净策略'].is_stoplost_or_highlimit = False
 
 
-def wpetf_after_market_close(context):
-    g.strategys['外盘ETF轮动策略'].after_market_close(context)
+# 微盘策略
+def prepare_wp_strategy(context):
+    g.strategys["微盘策略"].day_prepare(context)
 
 
-def xszgjt_day_prepare(context):
-    g.strategys['国九条小市值策略'].day_prepare(context)
+def select_wp_strategy(context):
+    g.strategys["微盘策略"].select(context)
 
 
-def xszgjt_select(context):
-    g.strategys['国九条小市值策略'].select(context)
+def adjust_wp_strategy(context):
+    g.strategys["微盘策略"].adjustwithnoRM(context)
 
 
-def xszgjt_adjust(context):
-    g.strategys['国九条小市值策略'].clear_append_buy_dict(context)
-    g.strategys['国九条小市值策略'].adjustwithnoRM(context)
+def wp_sell_when_highlimit_open(context):
+    g.strategys['微盘策略'].sell_when_highlimit_open(context)
+    if g.strategys['微盘策略'].is_stoplost_or_highlimit:
+        g.strategys['微盘策略'].select(context)
+        g.strategys['微盘策略'].adjustwithnoRM(context)
+        g.strategys['微盘策略'].is_stoplost_or_highlimit = False
 
 
-def xszgjt_open_market(context):
-    g.strategys['国九条小市值策略'].close_for_empty_month(context)
-    g.strategys['国九条小市值策略'].close_for_stoplost(context)
-
-
-def xszgjt_sell_when_highlimit_open(context):
-    g.strategys['国九条小市值策略'].sell_when_highlimit_open(context)
-
-
-def xszgjt_append_buy_stock(context):
-    g.strategys['国九条小市值策略'].append_buy_dict(context)
-
-
-def xszgjt_after_market_close(context):
-    g.strategys['国九条小市值策略'].after_market_close(context)
+# 全天策略
+def adjust_qt_strategy(context):
+    g.strategys["全天候策略"].adjust(context)
