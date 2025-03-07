@@ -282,6 +282,23 @@ class UtilsToolClass:
         return [stock for stock in stock_list if
                 not context.previous_date - get_security_info(stock).start_date < dt.timedelta(days=days)]
 
+    # 行业股票数量限制
+    def filter_stocks_by_industry(self, context, stocks, max_industry_stocks):
+        log.info(self.name, '--filter_stocks_by_industry函数--',
+                 str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+        industry_info = self.getStockIndustry(stocks)
+        log.info('本次选股的行业信息是:', industry_info)
+        selected_stocks = []
+        industry_count = {}
+        for stock in stocks:
+            industry = industry_info[stock]
+            if industry not in industry_count:
+                industry_count[industry] = 0
+            if industry_count[industry] < max_industry_stocks:
+                selected_stocks.append(stock)
+                industry_count[industry] += 1
+        return selected_stocks
+
     # 过滤大幅解禁（小市值专用）
     def filter_locked_shares(self, context, stock_list, days):
         log.info(self.name, '--filter_locked_shares过滤解禁股函数--',
