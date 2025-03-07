@@ -248,7 +248,10 @@ class UtilsToolClass:
                 if not current_data[stock].is_st
                 and 'ST' not in current_data[stock].name
                 and '*' not in current_data[stock].name
-                and '退' not in current_data[stock].name]
+                and '退' not in current_data[stock].name
+                and not current_data[stock].last_price >= current_data[stock].high_limit * 0.97
+                and not current_data[stock].last_price <= current_data[stock].low_limit * 1.04
+                ]
 
     # 过滤涨停的股票
     def filter_highlimit_stock(self, context, stock_list):

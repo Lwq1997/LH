@@ -21,7 +21,9 @@ class PJ_Strategy(Strategy):
     def select(self, context):
         log.info(self.name, '--Select函数--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
 
-        self.select_list = self.__get_rank(context)[:self.max_hold_count]
+        self.select_list = self.__get_rank(context)
+        self.select_list = self.utilstool.filter_stocks_by_industry(context, self.select_list, max_industry_stocks=1)
+        self.select_list = self.select_list[:self.max_hold_count]
 
         if not self.select_list:
             self.select_list = [self.fill_stock]
@@ -29,12 +31,11 @@ class PJ_Strategy(Strategy):
         log.info(self.name, '的选股列表:', self.select_list)
         self.print_trade_plan(context, self.select_list)
 
-
     def __get_rank(self, context):
         log.info(self.name, '--get_rank函数--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
 
         # 获取股票池
-        stocks = self.stockpool(context,all_filter=True)
+        stocks = self.stockpool(context, all_filter=True)
         # q = query(
         #     valuation.code, valuation.market_cap, valuation.pe_ratio, income.total_operating_revenue
         # ).filter(

@@ -58,7 +58,11 @@ class Weak_Cyc_Strategy(Strategy):
         log.info(self.name, '--adject函数（弱周期定制）--',
                  str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
 
-        stocks = self.select(context)[: self.max_select_count]
+        self.select_list = self.select(context)
+
+        self.select_list = self.utilstool.filter_stocks_by_industry(context, self.select_list, max_industry_stocks=1)
+        stocks = self.select_list[: self.max_select_count]
+
         stocks.append(self.bond_etf)
         rates = [round(1 / (self.max_select_count + 2), 3)] * (len(stocks) - 1)
         rates.append(round(1 - sum(rates), 3))

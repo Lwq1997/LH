@@ -22,7 +22,11 @@ class JSG2_Strategy(Strategy):
         industries = {"银行I", "煤炭I", "钢铁I", "采掘I"}
         if not industries.intersection(top_industries):
             # 根据市场温度设置选股条件，选出股票
-            self.select_list = self.__get_rank(context)[:self.max_select_count]
+            self.select_list = self.__get_rank(context)
+
+            self.select_list = self.utilstool.filter_stocks_by_industry(context, self.select_list,
+                                                                        max_industry_stocks=1)
+            self.select_list = self.select_list[:self.max_select_count]
         else:
             self.select_list = [self.fill_stock]
         log.info(self.name, '的选股列表:', self.select_list)
