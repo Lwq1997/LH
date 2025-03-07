@@ -65,14 +65,14 @@ def initialize(context):
 
     params = {
         'max_hold_count': 1,  # 最大持股数
-        'max_select_count': 6,  # 最大输出选股数
+        'max_select_count': 20,  # 最大输出选股数
     }
     pj_strategy = PJ_Strategy2(context, subportfolio_index=1, name='破净策略', params=params)
     g.strategys[pj_strategy.name] = pj_strategy
 
     params = {
         'max_hold_count': 6,  # 最大持股数
-        'max_select_count': 20,  # 最大输出选股数
+        'max_select_count': 30,  # 最大输出选股数
         'use_empty_month': True,  # 是否在指定月份空仓
         'empty_month': [1, 4]  # 指定空仓的月份列表
     }
