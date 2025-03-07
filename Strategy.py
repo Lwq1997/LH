@@ -524,7 +524,7 @@ class Strategy:
                 cash=amount,
             )
             log.info('第', self.subportfolio_index, '个仓位调整了【', amount, '】元到仓位：0')
-            self.get_net_values(context, amount)
+            # self.get_net_values(context, amount)
 
         # 仓位比例过低调入资金
         cash = context.subportfolios[0].transferable_cash  # 0号账户可取资金
@@ -536,7 +536,7 @@ class Strategy:
                 cash=amount,
             )
             log.info('第0个仓位调整了【', amount, '】元到仓位：', self.subportfolio_index)
-            self.get_net_values(context, -amount)
+            # self.get_net_values(context, -amount)
 
     # 计算策略复权后净值
     def get_net_values(self, context, amount):

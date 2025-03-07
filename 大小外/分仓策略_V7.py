@@ -125,15 +125,22 @@ def after_code_changed(context):  # 输出运行时间
 
 # 资金平衡函数==========================================================
 def balance_subportfolios(context):
+
+    # g.strategys["破净策略"].balance_subportfolios(context)
+    # g.strategys["微盘策略"].balance_subportfolios(context)
+    # g.strategys["全天候策略"].balance_subportfolios(context)
+
     for i in range(1, len(g.portfolio_value_proportion)):
         target = g.portfolio_value_proportion[i] * context.portfolio.total_value
         value = context.subportfolios[i].total_value
         deviation = abs((value - target) / target) if target != 0 else 0
         if deviation > 0.2:
             if context.subportfolios[i].available_cash > 0 and target < value:
+                log.info('第', i, '个仓位调整了【', min(value - target, context.subportfolios[i].available_cash), '】元到仓位：0')
                 transfer_cash(from_pindex=i, to_pindex=0,
                               cash=min(value - target, context.subportfolios[i].available_cash))
             if target > value and context.subportfolios[0].available_cash > 0:
+                log.info('第0个仓位调整了【', min(target - value, context.subportfolios[0].available_cash), '】元到仓位：',i)
                 transfer_cash(from_pindex=0, to_pindex=i,
                               cash=min(target - value, context.subportfolios[0].available_cash))
 
