@@ -42,6 +42,8 @@ class WP_Strategy(Strategy):
             valuation.code
         ).filter(
             valuation.code.in_(initial_list),
+            # indicator.roa > 0,
+            indicator.adjusted_profit > 0,
         ).order_by(
             valuation.market_cap.asc()  # 根据市值从小到大排序
         ).limit(self.max_select_count)
