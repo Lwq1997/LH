@@ -105,18 +105,18 @@ def after_code_changed(context):  # 输出运行时间
     # 破净策略调仓设置
     if g.portfolio_value_proportion[1] > 0:
         run_daily(prepare_pj_strategy, "9:03")
-        run_monthly(select_pj_strategy, 1, "9:30")  # 阅读完成，测试完成
-        run_monthly(adjust_pj_strategy, 1, "9:30")
-        run_daily(pj_sell_when_highlimit_open, time='14:00')
+        run_monthly(select_pj_strategy, 1, "9:40")  # 阅读完成，测试完成
+        run_monthly(adjust_pj_strategy, 1, "9:40")
+        run_daily(pj_sell_when_highlimit_open, time='11:20')
         run_daily(pj_sell_when_highlimit_open, time='14:50')
 
     # 微盘策略调仓设置
     if g.portfolio_value_proportion[2] > 0:
         run_daily(prepare_wp_strategy, "9:03")
         run_daily(wp_open_market, "9:30")
-        run_weekly(select_wp_strategy, 1, "10:50")  # 阅读完成，测试完成
-        run_weekly(adjust_wp_strategy, 1, "10:50")
-        run_daily(wp_sell_when_highlimit_open, time='14:00')
+        run_weekly(select_wp_strategy, 1, "11:00")  # 阅读完成，测试完成
+        run_weekly(adjust_wp_strategy, 1, "11:00")
+        run_daily(wp_sell_when_highlimit_open, time='11:20')
         run_daily(wp_sell_when_highlimit_open, time='14:50')
 
     # 全天策略调仓设置
