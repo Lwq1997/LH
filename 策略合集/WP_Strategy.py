@@ -22,8 +22,10 @@ class WP_Strategy(Strategy):
         log.info(self.name, '--Select函数--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
 
         self.select_list = self.__get_rank(context)
-        self.select_list = self.utilstool.filter_stocks_by_industry(context, self.select_list, max_industry_stocks=1)
-        self.select_list = self.select_list[:self.max_hold_count]
+        if self.max_industry_cnt > 0:
+            self.select_list = self.utilstool.filter_stocks_by_industry(context, self.select_list,
+                                                                        max_industry_stocks=self.max_industry_cnt)
+        self.select_list = self.select_list[:self.max_select_count]
 
         if not self.select_list:
             self.select_list = [self.fill_stock]

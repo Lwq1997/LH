@@ -36,6 +36,8 @@ class Strategy:
         self.strategyID = self.params['strategyID'] if 'strategyID' in self.params else ''
         self.inout_cash = 0
 
+        self.max_industry_cnt = self.params[
+            'max_industry_cnt'] if 'max_industry_cnt' in self.params else 0  # 最大行业数
         self.buy_strategy_mode = self.params[
             'buy_strategy_mode'] if 'buy_strategy_mode' in self.params else 'equal'  # 最大持股数
         self.max_hold_count = self.params['max_hold_count'] if 'max_hold_count' in self.params else 1  # 最大持股数
@@ -113,7 +115,7 @@ class Strategy:
     # 基础股票池-全市场选股
     def stockpool(self, context, pool_id=1, index=None, is_filter_kcbj=True, is_filter_st=True, is_filter_paused=True,
                   is_filter_highlimit=True,
-                  is_filter_lowlimit=True, is_filter_new=True,all_filter=False):
+                  is_filter_lowlimit=True, is_filter_new=True, is_filter_sold=True, all_filter=False):
         log.info(self.name, '--stockpool函数--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
         if index is None:
             lists = list(get_all_securities(types=['stock'], date=context.previous_date).index)
@@ -138,6 +140,8 @@ class Strategy:
                     lists = self.utilstool.filter_lowlimit_stock(context, lists)
                 if is_filter_new:
                     lists = self.utilstool.filter_new_stock(context, lists, days=375)
+                if is_filter_sold:
+                    lists = self.utilstool.filter_recently_sold(context, lists, diff_day=20)
 
         return lists
 
@@ -616,6 +620,7 @@ class Strategy:
                                              skip_paused=False, fq='pre', count=1, panel=False, fill_paused=True)
                     if current_data.iloc[0, 0] < current_data.iloc[0, 1]:
                         self.sell(context, [stock])
+                        g.global_sold_stock_record[stock] = context.current_dt.date()
                         self.is_stoplost_or_highlimit = True
                         content = context.current_dt.date().strftime(
                             "%Y-%m-%d") + ' ' + self.name + ': {}涨停打开，卖出'.format(stock) + "\n"

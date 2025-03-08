@@ -50,9 +50,10 @@ def initialize(context):
     # 临时变量
 
     # 持久变量
+    g.global_sold_stock_record = {}  # 全局卖出记录
     g.strategys = {}
     # 子账户 分仓
-    g.portfolio_value_proportion = [0, 0.1, 0.6, 0.3]
+    g.portfolio_value_proportion = [0, 0.1, 0.8, 0.1]
 
     # 创建策略实例
     # 初始化策略子账户 subportfolios
@@ -65,6 +66,7 @@ def initialize(context):
 
     params = {
         'max_hold_count': 1,  # 最大持股数
+        'max_industry_cnt' : 1, #最大行业数
         'max_select_count': 20,  # 最大输出选股数
     }
     pj_strategy = PJ_Strategy2(context, subportfolio_index=1, name='破净策略', params=params)
@@ -73,6 +75,7 @@ def initialize(context):
     params = {
         'max_hold_count': 6,  # 最大持股数
         'max_select_count': 30,  # 最大输出选股数
+        'max_industry_cnt' : 1, #最大行业数
         'use_empty_month': True,  # 是否在指定月份空仓
         'empty_month': [1, 4]  # 指定空仓的月份列表
     }
@@ -134,7 +137,7 @@ def balance_subportfolios(context):
         target = g.portfolio_value_proportion[i] * context.portfolio.total_value
         value = context.subportfolios[i].total_value
         deviation = abs((value - target) / target) if target != 0 else 0
-        if deviation > 0.2:
+        if deviation > 0.3:
             if context.subportfolios[i].available_cash > 0 and target < value:
                 log.info('第', i, '个仓位调整了【', min(value - target, context.subportfolios[i].available_cash), '】元到仓位：0')
                 transfer_cash(from_pindex=i, to_pindex=0,

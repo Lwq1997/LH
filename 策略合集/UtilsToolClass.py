@@ -230,6 +230,17 @@ class UtilsToolClass:
 
         return filtered_stock_list
 
+    # 过滤N天卖出的涨停股
+    def filter_recently_sold(self, context, stocks, diff_day):
+        log.info(self.name, '--filter_recently_sold过滤最近卖出股票--',
+                 str(context.current_dt.date()) + ' ' + str(context.current_dt.time()),
+                 '--历史所有卖出股票如下--', g.global_sold_stock_record)
+        current_date = context.current_dt.date()
+        global_sold_stock_record = g.global_sold_stock_record
+        return [stock for stock in stocks if
+                stock not in global_sold_stock_record or (
+                        current_date - global_sold_stock_record[stock]).days >= diff_day]
+
     # 过滤停牌股票
     def filter_paused_stock(self, context, stock_list):
         log.info(self.name, '--filter_paused_stock过滤停牌股票函数--',
