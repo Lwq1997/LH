@@ -43,7 +43,10 @@ class WP_Strategy(Strategy):
         ).filter(
             valuation.code.in_(initial_list),
             # indicator.roa > 0,
-            indicator.adjusted_profit > 0,
+            # indicator.adjusted_profit > 0,
+            # income.np_parent_company_owners > 0,
+            # income.net_profit > 0,
+            # income.operating_revenue > 1e8
         ).order_by(
             valuation.market_cap.asc()  # 根据市值从小到大排序
         ).limit(self.max_select_count)

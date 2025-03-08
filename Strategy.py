@@ -36,6 +36,8 @@ class Strategy:
         self.strategyID = self.params['strategyID'] if 'strategyID' in self.params else ''
         self.inout_cash = 0
 
+        self.sold_diff_day = self.params[
+            'sold_diff_day'] if 'sold_diff_day' in self.params else 0  # 是否过滤N天内涨停并卖出股票
         self.max_industry_cnt = self.params[
             'max_industry_cnt'] if 'max_industry_cnt' in self.params else 0  # 最大行业数
         self.buy_strategy_mode = self.params[
@@ -140,8 +142,8 @@ class Strategy:
                     lists = self.utilstool.filter_lowlimit_stock(context, lists)
                 if is_filter_new:
                     lists = self.utilstool.filter_new_stock(context, lists, days=375)
-                if is_filter_sold:
-                    lists = self.utilstool.filter_recently_sold(context, lists, diff_day=20)
+                if is_filter_sold and self.sold_diff_day > 0:
+                    lists = self.utilstool.filter_recently_sold(context, lists, diff_day=self.sold_diff_day)
 
         return lists
 

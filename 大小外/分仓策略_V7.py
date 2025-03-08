@@ -53,7 +53,7 @@ def initialize(context):
     g.global_sold_stock_record = {}  # 全局卖出记录
     g.strategys = {}
     # 子账户 分仓
-    g.portfolio_value_proportion = [0, 0.1, 0.8, 0.1]
+    g.portfolio_value_proportion = [0, 0.1, 0.6, 0.3]
 
     # 创建策略实例
     # 初始化策略子账户 subportfolios
@@ -67,6 +67,7 @@ def initialize(context):
     params = {
         'max_hold_count': 1,  # 最大持股数
         'max_industry_cnt' : 1, #最大行业数
+        'sold_diff_day': 10,  # 是否过滤最近10天内涨停并卖出股票
         'max_select_count': 20,  # 最大输出选股数
     }
     pj_strategy = PJ_Strategy2(context, subportfolio_index=1, name='破净策略', params=params)
@@ -76,6 +77,7 @@ def initialize(context):
         'max_hold_count': 6,  # 最大持股数
         'max_select_count': 30,  # 最大输出选股数
         'max_industry_cnt' : 1, #最大行业数
+        'sold_diff_day': 10,  # 是否过滤最近10天内涨停并卖出股票
         'use_empty_month': True,  # 是否在指定月份空仓
         'empty_month': [1, 4]  # 指定空仓的月份列表
     }
@@ -103,18 +105,18 @@ def after_code_changed(context):  # 输出运行时间
     # 破净策略调仓设置
     if g.portfolio_value_proportion[1] > 0:
         run_daily(prepare_pj_strategy, "9:03")
-        run_monthly(select_pj_strategy, 1, "9:40")  # 阅读完成，测试完成
-        run_monthly(adjust_pj_strategy, 1, "9:40")
-        run_daily(pj_sell_when_highlimit_open, time='11:20')
+        run_monthly(select_pj_strategy, 1, "9:30")  # 阅读完成，测试完成
+        run_monthly(adjust_pj_strategy, 1, "9:30")
+        run_daily(pj_sell_when_highlimit_open, time='14:00')
         run_daily(pj_sell_when_highlimit_open, time='14:50')
 
     # 微盘策略调仓设置
     if g.portfolio_value_proportion[2] > 0:
         run_daily(prepare_wp_strategy, "9:03")
         run_daily(wp_open_market, "9:30")
-        run_weekly(select_wp_strategy, 1, "11:00")  # 阅读完成，测试完成
-        run_weekly(adjust_wp_strategy, 1, "11:00")
-        run_daily(wp_sell_when_highlimit_open, time='11:20')
+        run_weekly(select_wp_strategy, 1, "10:50")  # 阅读完成，测试完成
+        run_weekly(adjust_wp_strategy, 1, "10:50")
+        run_daily(wp_sell_when_highlimit_open, time='14:00')
         run_daily(wp_sell_when_highlimit_open, time='14:50')
 
     # 全天策略调仓设置
