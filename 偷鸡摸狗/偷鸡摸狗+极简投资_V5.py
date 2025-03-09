@@ -72,8 +72,8 @@ def initialize(context):
         'use_empty_month': True,  # 是否在指定月份空仓
         'empty_month': [1, 4]  # 指定空仓的月份列表
     }
-    wp_strategy = JSG2_Strategy(context, subportfolio_index=2, name='搅屎棍策略', params=params)
-    g.strategys[wp_strategy.name] = wp_strategy
+    jsg_strategy = JSG2_Strategy(context, subportfolio_index=2, name='搅屎棍策略', params=params)
+    g.strategys[jsg_strategy.name] = jsg_strategy
 
     params = {
     }
@@ -91,24 +91,24 @@ def after_code_changed(context):  # 输出运行时间
     unschedule_all()  # 取消所有定时运行
 
     # 设置调仓
-    run_monthly(balance_subportfolios, 1, "9:02")  # 资金平衡
+    run_monthly(balance_subportfolios, 1, "9:10")  # 资金平衡
 
     # 破净策略调仓设置
     if g.portfolio_value_proportion[1] > 0:
-        run_daily(prepare_pj_strategy, "9:03")
-        run_monthly(select_pj_strategy, 1, "9:40")  # 阅读完成，测试完成
+        run_daily(prepare_pj_strategy, "7:00")
+        run_monthly(select_pj_strategy, 1, "8:00")  # 阅读完成，测试完成
         run_monthly(adjust_pj_strategy, 1, "9:40")
         run_daily(pj_sell_when_highlimit_open, time='11:20')
         run_daily(pj_sell_when_highlimit_open, time='14:50')
 
     # 微盘策略调仓设置
     if g.portfolio_value_proportion[2] > 0:
-        run_daily(prepare_wp_strategy, "9:03")
-        run_daily(wp_open_market, "9:30")
-        run_weekly(select_wp_strategy, 1, "11:00")  # 阅读完成，测试完成
-        run_weekly(adjust_wp_strategy, 1, "11:00")
-        run_daily(wp_sell_when_highlimit_open, time='11:20')
-        run_daily(wp_sell_when_highlimit_open, time='14:50')
+        run_daily(prepare_jsg_strategy, "7:00")
+        run_daily(jsg_open_market, "9:35")
+        run_weekly(select_jsg_strategy, 1, "8:00")  # 阅读完成，测试完成
+        run_weekly(adjust_jsg_strategy, 1, "11:00")
+        run_daily(jsg_sell_when_highlimit_open, time='11:20')
+        run_daily(jsg_sell_when_highlimit_open, time='14:50')
 
     # 全天策略调仓设置
     if g.portfolio_value_proportion[3] > 0:
@@ -164,24 +164,24 @@ def pj_sell_when_highlimit_open(context):
 
 
 # 搅屎棍策略
-def prepare_wp_strategy(context):
+def prepare_jsg_strategy(context):
     g.strategys["搅屎棍策略"].day_prepare(context)
 
 
-def wp_open_market(context):
+def jsg_open_market(context):
     g.strategys['搅屎棍策略'].close_for_empty_month(context)
     g.strategys['搅屎棍策略'].close_for_stoplost(context)
 
 
-def select_wp_strategy(context):
+def select_jsg_strategy(context):
     g.strategys["搅屎棍策略"].select(context)
 
 
-def adjust_wp_strategy(context):
+def adjust_jsg_strategy(context):
     g.strategys["搅屎棍策略"].adjustwithnoRM(context)
 
 
-def wp_sell_when_highlimit_open(context):
+def jsg_sell_when_highlimit_open(context):
     g.strategys['搅屎棍策略'].sell_when_highlimit_open(context)
     if g.strategys['搅屎棍策略'].is_stoplost_or_highlimit:
         g.strategys['搅屎棍策略'].select(context)
