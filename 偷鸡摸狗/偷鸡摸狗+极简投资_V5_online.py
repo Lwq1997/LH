@@ -1,7 +1,3 @@
-'''
-偷鸡摸狗5.3
-'''
-
 # 导入函数库
 # -*- coding: utf-8 -*-
 # 如果你的文件包含中文, 请在文件的第一行使用上面的语句指定你的文件编码
@@ -9,21 +5,18 @@
 # 用到策略及数据相关API请加入下面的语句(如果要兼容研究使用可以使用 try except导入
 from kuanke.user_space_api import *
 from jqdata import *
-from jqfactor import get_factor_values
 from kuanke.wizard import *
 import numpy as np
 import pandas as pd
-import talib
 import datetime as dt
-import math
-import talib as tl
 from jqlib.technical_analysis import *
-from scipy.linalg import inv
-import pickle
 import requests
 from prettytable import PrettyTable
 import inspect
-from scipy.optimize import minimize
+from PJ_Strategy import PJ_Strategy
+from JSG2_Strategy import JSG2_Strategy
+from All_Day2_Strategy import All_Day2_Strategy
+
 
 # 初始化函数，设定基准等等
 def initialize(context):
@@ -38,45 +31,21 @@ def initialize(context):
     # 关闭未来函数
     set_option('avoid_future_data', True)
 
-    # 固定滑点设置股票0.01，基金0.001(即交易对手方一档价)
-    set_slippage(FixedSlippage(0.02), type="stock")
-    set_slippage(FixedSlippage(0.002), type="fund")
-    # 设置股票交易印花税千一，佣金万三
-    set_order_cost(
-        OrderCost(
-            open_tax=0,
-            close_tax=0.001,
-            open_commission=0.0003,
-            close_commission=0.0003,
-            close_today_commission=0,
-            min_commission=5,
-        ),
-        type="stock",
-    )
-    # 设置货币ETF交易佣金0
-    set_order_cost(
-        OrderCost(
-            open_tax=0,
-            close_tax=0,
-            open_commission=0,
-            close_commission=0,
-            close_today_commission=0,
-            min_commission=0,
-        ),
-        type="mmf",
-    )
-    # 全局变量
+    ### 股票相关设定 ###
+    # 股票类每笔交易时的手续费是：买入时佣金万分之三，卖出时佣金万分之三加千分之一印花税, 每笔交易佣金最低扣5块钱
+    set_order_cost(OrderCost(close_tax=0.0005, open_commission=0.0001, close_commission=0.0001, min_commission=0),
+                   type='stock')
+
+    # 为股票设定滑点为百分比滑点
+    set_slippage(PriceRelatedSlippage(0.002), type='stock')
+
+    # 临时变量
+
+    # 持久变量
+    g.global_sold_stock_record = {}  # 全局卖出记录
     g.strategys = {}
-    g.risk_free_rate = 0.03  # 无风险收益率
-    g.is_balanced = False  # 是否开启自动调仓
-    g.rebalancing = 3  # 每个季度调仓一次
-    g.month = 0  # 记录时间
-    g.strategys_values = pd.DataFrame(
-        columns=["s1", "s2", "s3", "s4"]
-    )  # 子策略净值
-    g.strategys_days = 250  # 取子策略净值最近250个交易日
-    g.after_factor = [1, 1, 1, 1]  # 后复权因子
-    g.portfolio_value_proportion = [0, 0.4, 0.3, 0.1, 0.2]
+    # 子账户 分仓
+    g.portfolio_value_proportion = [0, 0.1, 0.9, 0]
 
     # 创建策略实例
     # 初始化策略子账户 subportfolios
@@ -85,38 +54,30 @@ def initialize(context):
         SubPortfolioConfig(context.portfolio.starting_cash * g.portfolio_value_proportion[1], 'stock'),
         SubPortfolioConfig(context.portfolio.starting_cash * g.portfolio_value_proportion[2], 'stock'),
         SubPortfolioConfig(context.portfolio.starting_cash * g.portfolio_value_proportion[3], 'stock'),
-        SubPortfolioConfig(context.portfolio.starting_cash * g.portfolio_value_proportion[4], 'stock'),
     ])
 
-    # 是否发送微信消息，回测环境不发送，模拟环境发送
-    context.is_send_wx_message = 0
-
     params = {
-        'max_select_count': 6,
-        'buy_strategy_mode': 'priority',
-        'max_hold_count': 6,
-        'use_empty_month': True,  # 是否在指定月份空仓
-        'empty_month': [1, 4],  # 指定空仓的月份列表
+        'max_hold_count': 1,  # 最大持股数
+        'max_industry_cnt': 1,  # 最大行业数
+        'max_select_count': 20,  # 最大输出选股数
     }
-    jsg_strategy = JSG2_Strategy(context, subportfolio_index=1, name='搅屎棍策略', params=params)
-    g.strategys[jsg_strategy.name] = jsg_strategy
-
-    params = {
-    }
-    all_day_strategy = All_Day2_Strategy(context, subportfolio_index=2, name='全天候策略', params=params)
-    g.strategys[all_day_strategy.name] = all_day_strategy
-
-    params = {
-        'max_hold_count': 1
-    }
-    pj_strategy = PJ_Strategy(context, subportfolio_index=3, name='破净策略', params=params)
+    pj_strategy = PJ_Strategy(context, subportfolio_index=1, name='破净策略', params=params)
     g.strategys[pj_strategy.name] = pj_strategy
 
     params = {
-        'max_select_count': 4
+        'max_hold_count': 6,  # 最大持股数
+        'max_industry_cnt': 1,  # 最大行业数
+        'max_select_count': 30,  # 最大输出选股数
+        'use_empty_month': True,  # 是否在指定月份空仓
+        'empty_month': [1, 4]  # 指定空仓的月份列表
     }
-    weak_cyc_strategy = Weak_Cyc_Strategy(context, subportfolio_index=4, name='弱周期价投策略', params=params)
-    g.strategys[weak_cyc_strategy.name] = weak_cyc_strategy
+    wp_strategy = JSG2_Strategy(context, subportfolio_index=2, name='微盘策略', params=params)
+    g.strategys[wp_strategy.name] = wp_strategy
+
+    params = {
+    }
+    all_day_strategy = All_Day2_Strategy(context, subportfolio_index=3, name='全天候策略', params=params)
+    g.strategys[all_day_strategy.name] = all_day_strategy
 
 
 # 模拟盘在每天的交易时间结束后会休眠，第二天开盘时会恢复，如果在恢复时发现代码已经发生了修改，则会在恢复时执行这个函数。 具体的使用场景：可以利用这个函数修改一些模拟盘的数据。
@@ -128,84 +89,109 @@ def after_code_changed(context):  # 输出运行时间
 
     unschedule_all()  # 取消所有定时运行
 
-    # 计算子策略净值、策略仓位动态调整
-    # run_daily(get_strategys_values, "18:00")
-    # run_monthly(calculate_optimal_weights, 1, "19:00")
+    # 设置调仓
+    run_monthly(balance_subportfolios, 1, "9:02")  # 资金平衡
 
-    # 子策略执行计划
+    # 破净策略调仓设置
     if g.portfolio_value_proportion[1] > 0:
-        run_daily(jsg_prepare, "7:00")
-        run_weekly(jsg_select, 1, "7:30")
-        run_weekly(jsg_open_market, 1, "9:30")
-        run_weekly(jsg_adjust, 1, "11:00")
-        run_daily(jsg_check, "14:50")
+        run_daily(prepare_pj_strategy, "9:03")
+        run_monthly(select_pj_strategy, 1, "9:40")  # 阅读完成，测试完成
+        run_monthly(adjust_pj_strategy, 1, "9:40")
+        run_daily(pj_sell_when_highlimit_open, time='11:20')
+        run_daily(pj_sell_when_highlimit_open, time='14:50')
 
+    # 微盘策略调仓设置
     if g.portfolio_value_proportion[2] > 0:
-        run_monthly(all_day_adjust, 1, "9:32")
+        run_daily(prepare_wp_strategy, "9:03")
+        run_daily(wp_open_market, "9:30")
+        run_weekly(select_wp_strategy, 1, "11:00")  # 阅读完成，测试完成
+        run_weekly(adjust_wp_strategy, 1, "11:00")
+        run_daily(wp_sell_when_highlimit_open, time='11:20')
+        run_daily(wp_sell_when_highlimit_open, time='14:50')
 
-    if g.portfolio_value_proportion[3] > 0:  # 如果核心资产轮动策略分配了资金
-        run_daily(pj_prepare, "7:00")
-        run_monthly(pj_select, 1, "7:30")
-        run_monthly(pj_adjust, 1, "9:33")
-        run_daily(pj_check, "14:00")  # 每天14:00检查破净策略
-        run_daily(pj_check, "14:50")  # 每天14:50检查破净策略
+    # 全天策略调仓设置
+    if g.portfolio_value_proportion[3] > 0:
+        run_monthly(adjust_qt_strategy, 1, "10:00")
 
-    if g.portfolio_value_proportion[4] > 0:
-        run_monthly(weak_cyc_adjust, 1, "9:34")
-
-    run_daily(after_market_close, 'after_close')
-
-
-def jsg_prepare(context):
-    g.strategys["搅屎棍策略"].day_prepare(context)
+    # 核心策略调仓设置
+    # if g.portfolio_value_proportion[4] > 0:
+    #     run_daily(adjust_hx_strategy, "10:05")
 
 
-def jsg_select(context):
-    g.strategys["搅屎棍策略"].select(context)
+# 资金平衡函数==========================================================
+def balance_subportfolios(context):
+    # g.strategys["破净策略"].balance_subportfolios(context)
+    # g.strategys["微盘策略"].balance_subportfolios(context)
+    # g.strategys["全天候策略"].balance_subportfolios(context)
+
+    for i in range(1, len(g.portfolio_value_proportion)):
+        target = g.portfolio_value_proportion[i] * context.portfolio.total_value
+        value = context.subportfolios[i].total_value
+        deviation = abs((value - target) / target) if target != 0 else 0
+        if deviation > 0.3:
+            if context.subportfolios[i].available_cash > 0 and target < value:
+                log.info('第', i, '个仓位调整了【', min(value - target, context.subportfolios[i].available_cash),
+                         '】元到仓位：0')
+                transfer_cash(from_pindex=i, to_pindex=0,
+                              cash=min(value - target, context.subportfolios[i].available_cash))
+            if target > value and context.subportfolios[0].available_cash > 0:
+                log.info('第0个仓位调整了【', min(target - value, context.subportfolios[0].available_cash), '】元到仓位：',
+                         i)
+                transfer_cash(from_pindex=0, to_pindex=i,
+                              cash=min(target - value, context.subportfolios[0].available_cash))
 
 
-def jsg_adjust(context):
-    g.strategys["搅屎棍策略"].adjustwithnoRM(context)
-
-
-def jsg_check(context):
-    g.strategys["搅屎棍策略"].sell_when_highlimit_open(context)
-
-
-def jsg_open_market(context):
-    g.strategys['搅屎棍策略'].close_for_empty_month(context)
-    g.strategys['搅屎棍策略'].close_for_stoplost(context)
-
-
-def all_day_adjust(context):
-    g.strategys["全天候策略"].adjust(context)
-
-
-def pj_prepare(context):
+# 破净策略
+def prepare_pj_strategy(context):
     g.strategys["破净策略"].day_prepare(context)
 
 
-def pj_select(context):
+def select_pj_strategy(context):
     g.strategys["破净策略"].select(context)
 
 
-def pj_adjust(context):
+def adjust_pj_strategy(context):
     g.strategys["破净策略"].adjustwithnoRM(context)
 
 
-def pj_check(context):
-    g.strategys["破净策略"].sell_when_highlimit_open(context)
+def pj_sell_when_highlimit_open(context):
+    g.strategys['破净策略'].sell_when_highlimit_open(context)
+    if g.strategys['破净策略'].is_stoplost_or_highlimit:
+        g.strategys['破净策略'].select(context)
+        g.strategys['破净策略'].adjustwithnoRM(context)
+        g.strategys['破净策略'].is_stoplost_or_highlimit = False
 
 
-def weak_cyc_adjust(context):
-    g.strategys["弱周期价投策略"].adjust(context)
+# 微盘策略
+def prepare_wp_strategy(context):
+    g.strategys["微盘策略"].day_prepare(context)
 
 
-def after_market_close(context):
-    g.strategys['搅屎棍策略'].after_market_close(context)
-    g.strategys['全天候策略'].after_market_close(context)
-    g.strategys['破净策略'].after_market_close(context)
-    g.strategys['弱周期价投策略'].after_market_close(context)
+def wp_open_market(context):
+    g.strategys['微盘策略'].close_for_empty_month(context)
+    g.strategys['微盘策略'].close_for_stoplost(context)
+
+
+def select_wp_strategy(context):
+    g.strategys["微盘策略"].select(context)
+
+
+def adjust_wp_strategy(context):
+    g.strategys["微盘策略"].adjustwithnoRM(context)
+
+
+def wp_sell_when_highlimit_open(context):
+    g.strategys['微盘策略'].sell_when_highlimit_open(context)
+    if g.strategys['微盘策略'].is_stoplost_or_highlimit:
+        g.strategys['微盘策略'].select(context)
+        g.strategys['微盘策略'].adjustwithnoRM(context)
+        g.strategys['微盘策略'].is_stoplost_or_highlimit = False
+
+
+# 全天策略
+def adjust_qt_strategy(context):
+    g.strategys["全天候策略"].adjust(context)
+
 
 
 class UtilsToolClass:
@@ -423,6 +409,17 @@ class UtilsToolClass:
 
         return filtered_stock_list
 
+    # 过滤N天卖出的涨停股
+    def filter_recently_sold(self, context, stocks, diff_day):
+        log.info(self.name, '--filter_recently_sold过滤最近卖出股票--',
+                 str(context.current_dt.date()) + ' ' + str(context.current_dt.time()),
+                 '--历史所有卖出股票如下--', g.global_sold_stock_record)
+        current_date = context.current_dt.date()
+        global_sold_stock_record = g.global_sold_stock_record
+        return [stock for stock in stocks if
+                stock not in global_sold_stock_record or (
+                        current_date - global_sold_stock_record[stock]).days >= diff_day]
+
     # 过滤停牌股票
     def filter_paused_stock(self, context, stock_list):
         log.info(self.name, '--filter_paused_stock过滤停牌股票函数--',
@@ -441,7 +438,10 @@ class UtilsToolClass:
                 if not current_data[stock].is_st
                 and 'ST' not in current_data[stock].name
                 and '*' not in current_data[stock].name
-                and '退' not in current_data[stock].name]
+                and '退' not in current_data[stock].name
+                and not current_data[stock].last_price >= current_data[stock].high_limit * 0.97
+                and not current_data[stock].last_price <= current_data[stock].low_limit * 1.04
+                ]
 
     # 过滤涨停的股票
     def filter_highlimit_stock(self, context, stock_list):
@@ -474,6 +474,23 @@ class UtilsToolClass:
 
         return [stock for stock in stock_list if
                 not context.previous_date - get_security_info(stock).start_date < dt.timedelta(days=days)]
+
+    # 行业股票数量限制
+    def filter_stocks_by_industry(self, context, stocks, max_industry_stocks):
+        log.info(self.name, '--filter_stocks_by_industry函数--',
+                 str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+        industry_info = self.getStockIndustry(stocks)
+        log.info('本次选股的行业信息是:', industry_info)
+        selected_stocks = []
+        industry_count = {}
+        for stock in stocks:
+            industry = industry_info[stock]
+            if industry not in industry_count:
+                industry_count[industry] = 0
+            if industry_count[industry] < max_industry_stocks:
+                selected_stocks.append(stock)
+                industry_count[industry] += 1
+        return selected_stocks
 
     # 过滤大幅解禁（小市值专用）
     def filter_locked_shares(self, context, stock_list, days):
@@ -917,6 +934,7 @@ class UtilsToolClass:
             )
         )
 
+
 # 策略基类
 class Strategy:
     def __init__(self, context, subportfolio_index, name, params):
@@ -932,6 +950,10 @@ class Strategy:
         self.strategyID = self.params['strategyID'] if 'strategyID' in self.params else ''
         self.inout_cash = 0
 
+        self.sold_diff_day = self.params[
+            'sold_diff_day'] if 'sold_diff_day' in self.params else 0  # 是否过滤N天内涨停并卖出股票
+        self.max_industry_cnt = self.params[
+            'max_industry_cnt'] if 'max_industry_cnt' in self.params else 0  # 最大行业数
         self.buy_strategy_mode = self.params[
             'buy_strategy_mode'] if 'buy_strategy_mode' in self.params else 'equal'  # 最大持股数
         self.max_hold_count = self.params['max_hold_count'] if 'max_hold_count' in self.params else 1  # 最大持股数
@@ -1009,7 +1031,7 @@ class Strategy:
     # 基础股票池-全市场选股
     def stockpool(self, context, pool_id=1, index=None, is_filter_kcbj=True, is_filter_st=True, is_filter_paused=True,
                   is_filter_highlimit=True,
-                  is_filter_lowlimit=True, is_filter_new=True,all_filter=False):
+                  is_filter_lowlimit=True, is_filter_new=True, is_filter_sold=True, all_filter=False):
         log.info(self.name, '--stockpool函数--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
         if index is None:
             lists = list(get_all_securities(types=['stock'], date=context.previous_date).index)
@@ -1034,6 +1056,8 @@ class Strategy:
                     lists = self.utilstool.filter_lowlimit_stock(context, lists)
                 if is_filter_new:
                     lists = self.utilstool.filter_new_stock(context, lists, days=375)
+                if is_filter_sold and self.sold_diff_day > 0:
+                    lists = self.utilstool.filter_recently_sold(context, lists, diff_day=self.sold_diff_day)
 
         return lists
 
@@ -1420,7 +1444,7 @@ class Strategy:
                 cash=amount,
             )
             log.info('第', self.subportfolio_index, '个仓位调整了【', amount, '】元到仓位：0')
-            self.get_net_values(context, amount)
+            # self.get_net_values(context, amount)
 
         # 仓位比例过低调入资金
         cash = context.subportfolios[0].transferable_cash  # 0号账户可取资金
@@ -1432,7 +1456,7 @@ class Strategy:
                 cash=amount,
             )
             log.info('第0个仓位调整了【', amount, '】元到仓位：', self.subportfolio_index)
-            self.get_net_values(context, -amount)
+            # self.get_net_values(context, -amount)
 
     # 计算策略复权后净值
     def get_net_values(self, context, amount):
@@ -1512,6 +1536,7 @@ class Strategy:
                                              skip_paused=False, fq='pre', count=1, panel=False, fill_paused=True)
                     if current_data.iloc[0, 0] < current_data.iloc[0, 1]:
                         self.sell(context, [stock])
+                        g.global_sold_stock_record[stock] = context.current_dt.date()
                         self.is_stoplost_or_highlimit = True
                         content = context.current_dt.date().strftime(
                             "%Y-%m-%d") + ' ' + self.name + ': {}涨停打开，卖出'.format(stock) + "\n"
@@ -1858,6 +1883,69 @@ class Strategy:
                     self.bought_stocks[stock] = cash
 
 
+class PJ_Strategy(Strategy):
+    def __init__(self, context, subportfolio_index, name, params):
+        super().__init__(context, subportfolio_index, name, params)
+        self.fill_stock = "511880.XSHG"
+
+    def select(self, context):
+        log.info(self.name, '--Select函数--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+
+        self.select_list = self.__get_rank(context)
+        if self.max_industry_cnt > 0:
+            self.select_list = self.utilstool.filter_stocks_by_industry(context, self.select_list,
+                                                                        max_industry_stocks=self.max_industry_cnt)
+        self.select_list = self.select_list[:self.max_select_count]
+
+        if not self.select_list:
+            self.select_list = [self.fill_stock]
+
+        log.info(self.name, '的选股列表:', self.select_list)
+        self.print_trade_plan(context, self.select_list)
+
+    def __get_rank(self, context):
+        log.info(self.name, '--get_rank函数--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+
+        # 获取股票池
+        stocks = self.stockpool(context, all_filter=True)
+        # q = query(
+        #     valuation.code, valuation.market_cap, valuation.pe_ratio, income.total_operating_revenue
+        # ).filter(
+        #     # valuation.pb_ratio < 1,  # 破净
+        #     # cash_flow.subtotal_operate_cash_inflow > 1e6,  # 经营现金流
+        #     # indicator.adjusted_profit > 1e6,  # 扣非净利润
+        #     # indicator.roa > 0.15,  # 总资产收益率
+        #     # indicator.inc_operation_profit_year_on_year > 0,  # 净利润同比增长
+        #
+        #     valuation.pb_ratio > 0,
+        #     valuation.pb_ratio < 1,
+        #     indicator.adjusted_profit > 0,
+        #     valuation.code.in_(lists)
+        # ).order_by(
+        #     indicator.roa.desc()  # 按ROA降序排序
+        # )
+        #
+
+        lists = list(
+            get_fundamentals(
+                query(valuation.code, indicator.roa).filter(
+                    valuation.code.in_(stocks),
+                    valuation.pb_ratio > 0,
+                    valuation.pb_ratio < 1,
+                    indicator.adjusted_profit > 0,
+                )
+            )
+            .sort_values(by="roa", ascending=False)
+            .head(50)
+            .code
+        )
+        # lists = list(get_fundamentals(q).head(20).code)  # 获取选股列表
+        filter_lowlimit_list = self.utilstool.filter_lowlimit_stock(context, lists)
+        final_list = self.utilstool.filter_highlimit_stock(context, filter_lowlimit_list)
+        return final_list
+
+
+
 class JSG2_Strategy(Strategy):
     def __init__(self, context, subportfolio_index, name, params):
         super().__init__(context, subportfolio_index, name, params)
@@ -1871,7 +1959,11 @@ class JSG2_Strategy(Strategy):
         industries = {"银行I", "煤炭I", "钢铁I", "采掘I"}
         if not industries.intersection(top_industries):
             # 根据市场温度设置选股条件，选出股票
-            self.select_list = self.__get_rank(context)[:self.max_select_count]
+            self.select_list = self.__get_rank(context)
+            if self.max_industry_cnt > 0:
+                self.select_list = self.utilstool.filter_stocks_by_industry(context, self.select_list,
+                                                                            max_industry_stocks=self.max_industry_cnt)
+            self.select_list = self.select_list[:self.max_select_count]
         else:
             self.select_list = [self.fill_stock]
         log.info(self.name, '的选股列表:', self.select_list)
@@ -1895,6 +1987,8 @@ class JSG2_Strategy(Strategy):
 
         final_stocks = list(get_fundamentals(q).code)
         return final_stocks
+
+
 
 class All_Day2_Strategy(Strategy):
     def __init__(self, context, subportfolio_index, name, params):
@@ -1955,144 +2049,3 @@ class All_Day2_Strategy(Strategy):
                 if target - value > self.min_volume and target - value >= minV and minV <= subportfolio.available_cash:
                     log.info(f'全天候策略开始买入{etf}，仓位{target}')
                     self.utilstool.open_position(context, etf, target)
-
-class Weak_Cyc_Strategy(Strategy):
-    def __init__(self, context, subportfolio_index, name, params):
-        super().__init__(context, subportfolio_index, name, params)
-        self.bond_etf = "511260.XSHG"
-        # 最小交易额(限制手续费)
-        self.min_volume = 2000
-        self.pe_mean = 20
-        self.time = 0
-
-    def get_stock_sum(self):
-        if self.pe_mean < 20:
-            self.max_select_count = 4
-        elif self.pe_mean < 30:
-            self.max_select_count = 2
-        else:
-            self.max_select_count = 0
-
-    def select(self, context):
-        log.info(self.name, '--select函数（弱周期定制）--',
-                 str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
-        yesterday = context.previous_date
-        stocks = get_industry_stocks("HY010", date=yesterday)
-        stocks = self.utilstool.filter_basic_stock(context, stocks)
-        data = get_fundamentals(
-            query(valuation.code, valuation.pe_ratio, valuation.market_cap).filter(valuation.code.in_(stocks)))
-        total_market_cap = data.market_cap.sum()
-        self.pe_mean = total_market_cap / (1 / data.pe_ratio * data.market_cap).sum()
-        self.get_stock_sum()
-        stocks = get_fundamentals(
-            query(valuation.code, valuation.pe_ratio < 20)
-            .filter(
-                valuation.code.in_(stocks),
-                valuation.market_cap > 200,
-                valuation.pe_ratio < 20,
-                indicator.roa > 0,
-                indicator.gross_profit_margin > 20,  # 毛利
-            )
-            .order_by(valuation.market_cap.desc())
-        ).code
-        return list(stocks)
-
-    def adjust(self, context):
-        log.info(self.name, '--adject函数（弱周期定制）--',
-                 str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
-
-        stocks = self.select(context)[: self.max_select_count]
-        stocks.append(self.bond_etf)
-        rates = [round(1 / (self.max_select_count + 2), 3)] * (len(stocks) - 1)
-        rates.append(round(1 - sum(rates), 3))
-        subportfolio = context.subportfolios[self.subportfolio_index]
-
-        total_value = subportfolio.total_value
-        targets = {stock: total_value * rate for stock, rate in zip(stocks, rates)}
-
-        current_data = get_current_data()
-        # 获取当前持仓
-        current_positions = subportfolio.long_positions
-        log.info(self.name, '的选股列表:', targets, '--当前持仓--', current_positions)
-
-        # 清仓被调出的
-        for stock in current_positions:
-            if stock not in targets:
-                self.utilstool.close_position(context, stock, 0)
-
-        # 先卖出
-        for stock, target in targets.items():
-            price = current_data[stock].last_price
-            value = current_positions[stock].total_amount * price
-            log.info(self.name,'--stock--',stock, '--value--', value, '--target--', target, '--price--', price)
-            if value - target > self.min_volume and value - target > price * 100:
-                self.utilstool.close_position(context, stock, target)
-
-        # self.balance_subportfolios(context)
-
-        # 后买入
-        for stock, target in targets.items():
-            price = current_data[stock].last_price
-            value = current_positions[stock].total_amount * price
-            log.info(self.name,'--stock--',stock, '--value--', value, '--target--', target, '--price--', price)
-            if target - value > self.min_volume and target - value > price * 100:
-                if subportfolio.available_cash > price * 100:
-                    self.utilstool.open_position(context, stock, target)
-
-class PJ_Strategy(Strategy):
-    def __init__(self, context, subportfolio_index, name, params):
-        super().__init__(context, subportfolio_index, name, params)
-        self.fill_stock = "511880.XSHG"
-
-    def select(self, context):
-        log.info(self.name, '--Select函数--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
-
-        self.select_list = self.__get_rank(context)[:self.max_hold_count]
-
-        if not self.select_list:
-            self.select_list = [self.fill_stock]
-
-        log.info(self.name, '的选股列表:', self.select_list)
-        self.print_trade_plan(context, self.select_list)
-
-
-    def __get_rank(self, context):
-        log.info(self.name, '--get_rank函数--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
-
-        # 获取股票池
-        stocks = self.stockpool(context,all_filter=True)
-        # q = query(
-        #     valuation.code, valuation.market_cap, valuation.pe_ratio, income.total_operating_revenue
-        # ).filter(
-        #     # valuation.pb_ratio < 1,  # 破净
-        #     # cash_flow.subtotal_operate_cash_inflow > 1e6,  # 经营现金流
-        #     # indicator.adjusted_profit > 1e6,  # 扣非净利润
-        #     # indicator.roa > 0.15,  # 总资产收益率
-        #     # indicator.inc_operation_profit_year_on_year > 0,  # 净利润同比增长
-        #
-        #     valuation.pb_ratio > 0,
-        #     valuation.pb_ratio < 1,
-        #     indicator.adjusted_profit > 0,
-        #     valuation.code.in_(lists)
-        # ).order_by(
-        #     indicator.roa.desc()  # 按ROA降序排序
-        # )
-        #
-
-        lists = list(
-            get_fundamentals(
-                query(valuation.code, indicator.roa).filter(
-                    valuation.code.in_(stocks),
-                    valuation.pb_ratio > 0,
-                    valuation.pb_ratio < 1,
-                    indicator.adjusted_profit > 0,
-                )
-            )
-            .sort_values(by="roa", ascending=False)
-            .head(20)
-            .code
-        )
-        # lists = list(get_fundamentals(q).head(20).code)  # 获取选股列表
-        filter_lowlimit_list = self.utilstool.filter_lowlimit_stock(context, lists)
-        final_list = self.utilstool.filter_highlimit_stock(context, filter_lowlimit_list)
-        return final_list[:self.max_hold_count]
