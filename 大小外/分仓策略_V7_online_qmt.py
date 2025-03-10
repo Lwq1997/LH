@@ -265,7 +265,7 @@ def after_code_changed(context):  # 输出运行时间
     log.info('函数运行时间(after_code_changed)：' + str(context.current_dt.time()))
 
     # 是否发送微信消息，回测环境不发送，模拟环境发送
-    context.is_send_wx_message = 0
+    context.is_send_wx_message = 1
 
     unschedule_all()  # 取消所有定时运行
 
@@ -293,6 +293,7 @@ def after_code_changed(context):  # 输出运行时间
     if g.portfolio_value_proportion[3] > 0:
         run_monthly(adjust_qt_strategy, 1, "10:00")
 
+    run_daily(after_market_close, 'after_close')
     # 核心策略调仓设置
     # if g.portfolio_value_proportion[4] > 0:
     #     run_daily(adjust_hx_strategy, "10:05")
@@ -370,6 +371,11 @@ def wp_sell_when_highlimit_open(context):
 # 全天策略
 def adjust_qt_strategy(context):
     g.strategys["全天候策略"].adjust(context)
+
+def after_market_close(context):
+    g.strategys['微盘策略'].after_market_close(context)
+    g.strategys['全天候策略'].after_market_close(context)
+    g.strategys['破净策略'].after_market_close(context)
 
 class UtilsToolClass:
     def __init__(self):
