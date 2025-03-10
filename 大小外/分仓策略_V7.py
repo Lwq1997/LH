@@ -5,20 +5,12 @@
 # 用到策略及数据相关API请加入下面的语句(如果要兼容研究使用可以使用 try except导入
 from kuanke.user_space_api import *
 from jqdata import *
-from jqfactor import get_factor_values
-import datetime
 from kuanke.wizard import *
 import numpy as np
 import pandas as pd
-import talib
-from datetime import date as dt
-import math
-import talib as tl
+import datetime as dt
 from jqlib.technical_analysis import *
-from scipy.linalg import inv
-import pickle
 import requests
-import datetime as datet
 from prettytable import PrettyTable
 import inspect
 from PJ_Strategy import PJ_Strategy
