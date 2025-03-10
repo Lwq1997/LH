@@ -21,7 +21,7 @@ import requests
 import datetime as datet
 from prettytable import PrettyTable
 import inspect
-from PJ_Strategy2 import PJ_Strategy2
+from PJ_Strategy import PJ_Strategy
 from WP_Strategy import WP_Strategy
 from All_Day2_Strategy import All_Day2_Strategy
 
@@ -70,7 +70,7 @@ def initialize(context):
         'sold_diff_day': 10,  # 是否过滤最近10天内涨停并卖出股票
         'max_select_count': 20,  # 最大输出选股数
     }
-    pj_strategy = PJ_Strategy2(context, subportfolio_index=1, name='破净策略', params=params)
+    pj_strategy = PJ_Strategy(context, subportfolio_index=1, name='破净策略', params=params)
     g.strategys[pj_strategy.name] = pj_strategy
 
     params = {
@@ -100,24 +100,24 @@ def after_code_changed(context):  # 输出运行时间
     unschedule_all()  # 取消所有定时运行
 
     # 设置调仓
-    run_monthly(balance_subportfolios, 1, "9:02")  # 资金平衡
+    run_monthly(balance_subportfolios, 1, "9:10")  # 资金平衡
 
     # 破净策略调仓设置
     if g.portfolio_value_proportion[1] > 0:
-        run_daily(prepare_pj_strategy, "9:03")
+        run_daily(prepare_wp_strategy, "7:00")
         run_monthly(select_pj_strategy, 1, "9:40")  # 阅读完成，测试完成
         run_monthly(adjust_pj_strategy, 1, "9:40")
-        run_daily(pj_sell_when_highlimit_open, time='11:20')
-        run_daily(pj_sell_when_highlimit_open, time='14:50')
+        run_daily(pj_sell_when_highlimit_open, time='11:27')
+        run_daily(pj_sell_when_highlimit_open, time='14:55')
 
     # 微盘策略调仓设置
     if g.portfolio_value_proportion[2] > 0:
-        run_daily(prepare_wp_strategy, "9:03")
+        run_daily(prepare_wp_strategy, "7:00")
         run_daily(wp_open_market, "9:30")
         run_weekly(select_wp_strategy, 1, "11:00")  # 阅读完成，测试完成
         run_weekly(adjust_wp_strategy, 1, "11:00")
-        run_daily(wp_sell_when_highlimit_open, time='11:20')
-        run_daily(wp_sell_when_highlimit_open, time='14:50')
+        run_daily(wp_sell_when_highlimit_open, time='11:27')
+        run_daily(wp_sell_when_highlimit_open, time='14:55')
 
     # 全天策略调仓设置
     if g.portfolio_value_proportion[3] > 0:
