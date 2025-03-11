@@ -274,7 +274,7 @@ def after_code_changed(context):  # 输出运行时间
 
     # 破净策略调仓设置
     if g.portfolio_value_proportion[1] > 0:
-        run_daily(prepare_wp_strategy, "7:00")
+        run_daily(prepare_pj_strategy, "7:00")
         run_monthly(select_pj_strategy, 1, "9:40")  # 阅读完成，测试完成
         run_monthly(adjust_pj_strategy, 1, "9:40")
         run_daily(pj_sell_when_highlimit_open, time='11:27')
