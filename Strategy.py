@@ -563,26 +563,36 @@ class Strategy:
         # 计算后复权因子, amount 代表分红金额
         g.after_factor[column_index] *= last_value / (last_value - amount)
 
-    def specialBuy(self, context):
+    def specialBuy(self, context, total_amount=0, split=True):
         log.info(self.name, '--specialBuy调仓函数--',
                  str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
         # 实时过滤部分股票，否则也买不了，放出去也没有意义
         target_list = self.utilstool.filter_lowlimit_stock(context, self.select_list)
         target_list = self.utilstool.filter_highlimit_stock(context, target_list)
         target_list = self.utilstool.filter_paused_stock(context, target_list)
-
+        current_data = get_current_data()
         # 持仓列表
         subportfolios = context.subportfolios[self.subportfolio_index]
         log.debug('当前持仓:', subportfolios.long_positions)
         if target_list:
-            if subportfolios.long_positions:
-                value = subportfolios.available_cash / len(target_list)
+            if total_amount > 0:
                 for stock in target_list:
-                    self.utilstool.open_position(context, stock, value)
+                    self.utilstool.open_position(context, stock, total_amount)
+            elif split:
+                if subportfolios.long_positions:
+                    value = subportfolios.available_cash / len(target_list)
+                    for stock in target_list:
+                        self.utilstool.open_position(context, stock, value)
+                else:
+                    value = subportfolios.total_value * 0.5 / len(target_list)
+                    for stock in target_list:
+                        self.utilstool.open_position(context, stock, value)
             else:
-                value = subportfolios.total_value * 0.5 / len(target_list)
-                for stock in target_list:
-                    self.utilstool.open_position(context, stock, value)
+                if subportfolios.available_cash / subportfolios.total_value > 0.3:
+                    value = subportfolios.available_cash / len(target_list)
+                    for stock in target_list:
+                        if subportfolios.available_cash / current_data[stock].last_price > 100:
+                            self.utilstool.open_position(context, stock, value)
 
     def specialSell(self, context):
         log.info(self.name, '--SpecialSell调仓函数--',
@@ -593,19 +603,37 @@ class Strategy:
         hold_list = list(hold_positions)
         # 售卖列表：不在select_list前max_hold_count中的股票都要被卖掉
         sell_stocks = []
-        for stock in hold_list:
-            current_data = get_current_data()
-            MA5 = MA(stock, check_date=context.current_dt, timeperiod=5)  #
-            position = hold_positions[stock]
+        date = self.utilstool.transform_date(context, context.previous_date, 'str')
+        current_data = get_current_data()  #
+        if str(context.current_dt)[-8:-6] == '11':
+            for stock in hold_list:
+                position = hold_positions[stock]
+                # 有可卖出的仓位  &  当前股票没有涨停 & 当前的价格大于持仓价（有收益）
+                if ((position.closeable_amount != 0) and (
+                        current_data[stock].last_price < current_data[stock].high_limit) and (
+                        current_data[stock].last_price > 1 * position.avg_cost)):  # avg_cost当前持仓成本
+                    log.info('止盈卖出', [stock, get_security_info(stock, date).display_name])
+                    sell_stocks.append(stock)
 
-            # 有可卖出的仓位  &  当前股票没有涨停 & 当前的价格大于持仓价（有收益）
-            if ((position.closeable_amount != 0) and (
-                    current_data[stock].last_price < current_data[stock].high_limit) and (
-                    current_data[stock].last_price > 1 * position.avg_cost)):  # avg_cost当前持仓成本
-                sell_stocks.append(stock)
-            # 有可卖出的仓位  &  跌破5日线止损
-            if ((position.closeable_amount != 0) and (current_data[stock].last_price < MA5[stock])):
-                sell_stocks.append(stock)
+        if str(context.current_dt)[-8:-6] == '14':
+            for stock in hold_list:
+                position = hold_positions[stock]
+
+                close_data2 = attribute_history(stock, 4, '1d', ['close'])
+                M4 = close_data2['close'].mean()
+                MA5 = (M4 * 4 + current_data[stock].last_price) / 5
+
+                # MA5 = MA(stock, check_date=context.current_dt, timeperiod=5)
+                # 有可卖出的仓位  &  当前股票没有涨停 & 当前的价格大于持仓价（有收益）
+                if ((position.closeable_amount != 0) and (
+                        current_data[stock].last_price < current_data[stock].high_limit) and (
+                        current_data[stock].last_price > 1 * position.avg_cost)):  # avg_cost当前持仓成本
+                    log.info('止盈卖出', [stock, get_security_info(stock, date).display_name])
+                    sell_stocks.append(stock)
+                # 有可卖出的仓位  &  跌破5日线止损
+                if ((position.closeable_amount != 0) and (current_data[stock].last_price < MA5)):
+                    log.info('止损卖出', [stock, get_security_info(stock, date).display_name])
+                    sell_stocks.append(stock)
 
         self.sell(context, sell_stocks)
 

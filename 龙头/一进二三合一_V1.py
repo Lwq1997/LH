@@ -263,7 +263,7 @@ def filter_st_paused_stock(initial_list):
 
 
 def filter_kcbj_stock(initial_list):
-    return [stock for stock in initial_list if stock[:2] in (('60', '00', '30'))]
+    return [stock for stock in initial_list if stock[:2] in (('60', '00'))]
 
 
 def filter_st_stock(initial_list, date):

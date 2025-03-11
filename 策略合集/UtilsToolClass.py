@@ -24,6 +24,32 @@ class UtilsToolClass:
         self.name = name
         self.subportfolio_index = subportfolio_index
 
+    # 计算股票处于一段时间内相对位置
+    def get_relative_position_df(self, context, stock_list, date, watch_days):
+        if len(stock_list) != 0:
+            df = get_price(stock_list, end_date=date, fields=['high', 'low', 'close'], count=watch_days,
+                           fill_paused=False,
+                           skip_paused=False, panel=False).dropna()
+            close = df.groupby('code').apply(lambda df: df.iloc[-1, -1])
+            high = df.groupby('code').apply(lambda df: df['high'].max())
+            low = df.groupby('code').apply(lambda df: df['low'].min())
+            result = pd.DataFrame()
+            result['rp'] = (close - low) / (high - low)
+            return result
+        else:
+            return pd.DataFrame(columns=['rp'])
+
+
+    def rise_low_volume(self, context, stock):  # 上涨时，未放量 rising on low volume
+        hist = attribute_history(stock, 106, '1d', fields=['high', 'volume'], skip_paused=True, df=False)
+        high_prices = hist['high'][:102]
+        prev_high = high_prices[-1]
+        zyts_0 = next((i - 1 for i, high in enumerate(high_prices[-3::-1], 2) if high >= prev_high), 100)
+        zyts = zyts_0 + 5
+        if hist['volume'][-1] <= max(hist['volume'][-zyts:-1]) * 0.9:
+            return True
+        return False
+
     # 计算左压天数
     def calculate_zyts(self, context, stock):
         high_prices = attribute_history(stock, 101, '1d', fields=['high'], skip_paused=True)['high']
