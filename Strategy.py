@@ -564,7 +564,7 @@ class Strategy:
         # 计算后复权因子, amount 代表分红金额
         g.after_factor[column_index] *= last_value / (last_value - amount)
 
-    def specialBuy(self, context, total_amount=0, split=True):
+    def specialBuy(self, context, total_amount=0, split=1):
         log.info(self.name, '--specialBuy调仓函数--',
                  str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
         # 实时过滤部分股票，否则也买不了，放出去也没有意义
@@ -579,7 +579,7 @@ class Strategy:
             if total_amount > 0:
                 for stock in target_list:
                     self.utilstool.open_position(context, stock, total_amount)
-            elif split:
+            elif split == 1:
                 if subportfolios.long_positions:
                     value = subportfolios.available_cash / len(target_list)
                     for stock in target_list:
@@ -588,6 +588,13 @@ class Strategy:
                     value = subportfolios.total_value * 0.5 / len(target_list)
                     for stock in target_list:
                         self.utilstool.open_position(context, stock, value)
+            elif split == 2:
+                if subportfolios.available_cash / subportfolios.total_value > 0.3:
+                    value = subportfolios.available_cash * 0.5 if len(
+                        target_list) == 1 else subportfolios.available_cash / len(target_list)
+                    for stock in target_list:
+                        if subportfolios.available_cash / current_data[stock].last_price > 100:
+                            self.utilstool.open_position(context, stock, value)
             else:
                 if subportfolios.available_cash / subportfolios.total_value > 0.3:
                     value = subportfolios.available_cash / len(target_list)
