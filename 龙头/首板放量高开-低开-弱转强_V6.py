@@ -113,7 +113,7 @@ def after_code_changed(context):  # 输出运行时间
     if g.portfolio_value_proportion[3] > 0:
         # 选股
         run_daily(total_select, time='09:26')
-        run_daily(total_buy, time='09:31')
+        run_daily(total_buy, time='09:27')
         run_daily(total_sell, time='11:25')
         run_daily(total_sell, time='14:50')
 
@@ -139,10 +139,10 @@ def prepare_stock_list(context):
     hl2_list = utilstool.get_ever_hl_stock(context, initial_list, date_2)
     # 合并 hl1_list 和 hl2_list 为一个集合，用于快速查找需要剔除的元素
     elements_to_remove = set(hl1_list + hl2_list)
-    # log.info('initial_list:', '603004.XSHG' in initial_list)
-    # log.info('yes_hl_list:', '603004.XSHG' in yes_hl_list)
-    # log.info('hl1_list:', '603004.XSHG' in hl1_list)
-    # log.info('hl2_list:', '603004.XSHG' in hl2_list)
+    # log.info('initial_list:', '001287.XSHE' in initial_list)
+    # log.info('yes_hl_list:', '001287.XSHE' in yes_hl_list)
+    # log.info('hl1_list:', '001287.XSHE' in hl1_list)
+    # log.info('hl2_list:', '001287.XSHE' in hl2_list)
     # 昨日涨停，但是前2天都没有涨停过，真昨日首板
     context.yes_first_hl_list = [stock for stock in yes_hl_list if stock not in elements_to_remove]
     # 昨日涨停，但是前1天都没有涨停过
@@ -169,7 +169,7 @@ def total_select(context):
 
 
 def total_buy(context):
-    g.strategys['统筹交易策略'].specialBuy(context, split=2)
+    g.strategys['统筹交易策略'].specialBuy(context, split=3)
 
 
 def total_sell(context):
