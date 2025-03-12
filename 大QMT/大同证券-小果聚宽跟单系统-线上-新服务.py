@@ -151,6 +151,7 @@ def get_del_buy_sell_data(c, name='测试1', password='123456'):
         print('组合 {} 策略授权码 {} {}今天没有跟单数据*********************'.format(name, password, now_date))
     return df
 
+
 # 发送微信消息
 def send_wx_message(message, item='大同QMT实盘'):
     url = "https://wxpusher.zjiecode.com/api/send/message"
