@@ -127,6 +127,7 @@ class UtilsToolClass:
 
     # 开仓单只
     def open_position(self, context, security, value, target=True):
+        now = str(context.current_dt.date()) + ' ' + str(context.current_dt.time())
         now_time = context.current_dt.time()
         current_data = get_current_data()
         before_buy = dt.time(9, 30) >= now_time
