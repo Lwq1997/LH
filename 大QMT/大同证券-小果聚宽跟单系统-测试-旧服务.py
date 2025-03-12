@@ -520,7 +520,7 @@ def adjust_amount(c, stock='', amount=''):
     if stock[:3] in ['110', '113', '123', '127', '128', '111'] or stock[:2] in ['11', '12']:
         amount = math.floor(amount / 10) * 10
     else:
-        amount = math.floor(amount / 100) * 100
+        amount = int(round(amount, -2))
     return amount
 
 
