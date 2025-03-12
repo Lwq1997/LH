@@ -117,7 +117,8 @@ class Strategy:
     # 基础股票池-全市场选股
     def stockpool(self, context, pool_id=1, index=None, is_filter_kcbj=True, is_filter_st=True, is_filter_paused=True,
                   is_filter_highlimit=True,
-                  is_filter_lowlimit=True, is_filter_new=True, is_filter_sold=True, all_filter=False):
+                  is_filter_lowlimit=True, is_filter_new=True, is_filter_sold=True, is_updown_limit=True,
+                  all_filter=False):
         log.info(self.name, '--stockpool函数--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
         if index is None:
             lists = list(get_all_securities(types=['stock'], date=context.previous_date).index)
@@ -133,7 +134,7 @@ class Strategy:
                 if is_filter_kcbj:
                     lists = self.utilstool.filter_kcbj_stock(context, lists)
                 if is_filter_st:
-                    lists = self.utilstool.filter_st_stock(context, lists)
+                    lists = self.utilstool.filter_st_stock(context, lists, is_updown_limit=is_updown_limit)
                 if is_filter_paused:
                     lists = self.utilstool.filter_paused_stock(context, lists)
                 if is_filter_highlimit:

@@ -98,7 +98,7 @@ class UtilsToolClass:
 
     def stockpool(self, context, pool_id=1, index=None, is_filter_kcbj=True, is_filter_st=True, is_filter_paused=True,
                   is_filter_highlimit=True,
-                  is_filter_lowlimit=True, is_filter_new=True):
+                  is_filter_lowlimit=True, is_filter_new=True, is_updown_limit=True):
         log.info(self.name, '--stockpool函数--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
         if index is None:
             lists = list(get_all_securities(types=['stock'], date=context.previous_date).index)
@@ -111,7 +111,7 @@ class UtilsToolClass:
             if is_filter_kcbj:
                 lists = self.filter_kcbj_stock(context, lists)
             if is_filter_st:
-                lists = self.filter_st_stock(context, lists)
+                lists = self.filter_st_stock(context, lists, is_updown_limit=is_updown_limit)
             if is_filter_paused:
                 lists = self.filter_paused_stock(context, lists)
             if is_filter_highlimit:
@@ -127,10 +127,9 @@ class UtilsToolClass:
 
     # 开仓单只
     def open_position(self, context, security, value, target=True):
-        now = str(context.current_dt.date()) + ' ' + str(context.current_dt.time())
         now_time = context.current_dt.time()
         current_data = get_current_data()
-        before_buy = dt.time(9, 30) > now_time
+        before_buy = dt.time(9, 30) >= now_time
         # log.info('before_buy:',before_buy)
         style_arg = MarketOrderStyle(current_data[security].day_open) if before_buy else None
         if target:
@@ -276,19 +275,22 @@ class UtilsToolClass:
         return [stock for stock in stock_list if not current_data[stock].paused]
 
     # 过滤ST及其他具有退市标签的股票
-    def filter_st_stock(self, context, stock_list):
+    def filter_st_stock(self, context, stock_list, is_updown_limit=True)
         log.info(self.name, '--filter_st_stock过滤ST及其他具有退市标签的股票函数--',
                  str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
 
         current_data = get_current_data()
-        return [stock for stock in stock_list
-                if not current_data[stock].is_st
-                and 'ST' not in current_data[stock].name
-                and '*' not in current_data[stock].name
-                and '退' not in current_data[stock].name
-                and not current_data[stock].last_price >= current_data[stock].high_limit * 0.97
-                and not current_data[stock].last_price <= current_data[stock].low_limit * 1.04
-                ]
+        result_list = [stock for stock in stock_list
+                       if not current_data[stock].is_st
+                       and 'ST' not in current_data[stock].name
+                       and '*' not in current_data[stock].name
+                       and '退' not in current_data[stock].name]
+        if is_updown_limit:
+            result_list = [stock for stock in result_list
+                           if not current_data[stock].last_price >= current_data[stock].high_limit * 0.97
+                           and not current_data[stock].last_price <= current_data[stock].low_limit * 1.04
+                           ]
+        return result_list
 
     # 过滤涨停的股票
     def filter_highlimit_stock(self, context, stock_list):

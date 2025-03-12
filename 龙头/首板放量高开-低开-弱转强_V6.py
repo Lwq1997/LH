@@ -129,7 +129,7 @@ def prepare_stock_list(context):
 
     # 初始列表
     initial_list = utilstool.stockpool(context, is_filter_highlimit=False,
-                                       is_filter_lowlimit=False)
+                                       is_filter_lowlimit=False, is_updown_limit=False)
 
     # 昨日涨停
     yes_hl_list = utilstool.get_hl_stock(context, initial_list, date)
