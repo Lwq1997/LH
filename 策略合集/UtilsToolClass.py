@@ -275,7 +275,7 @@ class UtilsToolClass:
         return [stock for stock in stock_list if not current_data[stock].paused]
 
     # 过滤ST及其他具有退市标签的股票
-    def filter_st_stock(self, context, stock_list, is_updown_limit=True)
+    def filter_st_stock(self, context, stock_list, is_updown_limit=True):
         log.info(self.name, '--filter_st_stock过滤ST及其他具有退市标签的股票函数--',
                  str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
 
