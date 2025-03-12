@@ -640,7 +640,7 @@ class Strategy:
                     sell_stocks.append(stock)
                 # 有可卖出的仓位  &  跌破5日线止损
                 if ((position.closeable_amount != 0) and (current_data[stock].last_price < MA5)):
-                    log.info('止损卖出', [stock, get_security_info(stock, date).display_name])
+                    log.info('破五日线止损卖出', [stock, get_security_info(stock, date).display_name])
                     sell_stocks.append(stock)
 
         self.sell(context, sell_stocks)

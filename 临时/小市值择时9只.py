@@ -750,8 +750,7 @@ def print_position_info_func(context: Any) -> None:
 # 创建全局策略实例，供全局任务调用
 strategy = TradingStrategy()
 
-# 2024-12-05	09:31:00	中电港(001287.XSHE)
-# 2024-09-12	09:31:00	鼎龙科技(603004.XSHG)
+
 def initialize(context: Any) -> None:
     """
     聚宽平台全局初始化函数：
