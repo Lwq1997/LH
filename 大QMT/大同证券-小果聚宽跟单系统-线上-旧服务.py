@@ -151,8 +151,9 @@ def get_del_buy_sell_data(c, name='测试1', password='123456'):
         print('组合 {} 策略授权码 {} {}今天没有跟单数据*********************'.format(name, password, now_date))
     return df
 
+
 # 发送微信消息
-def send_wx_message(message ,item='大同QMT实盘' ):
+def send_wx_message(message, item='大同QMT实盘'):
     url = "https://wxpusher.zjiecode.com/api/send/message"
 
     data = {
@@ -173,24 +174,25 @@ def send_wx_message(message ,item='大同QMT实盘' ):
     # print(response.text)
 
 
-def seed_dingding(message='买卖交易成功',access_token_list=['2615283ba0ab84900235e4ecc262671a0c79f3fb13acdf35f22cfd4b0407295f']):
-    access_token=random.choice(access_token_list)
-    url='https://oapi.dingtalk.com/robot/send?access_token={}'.format(access_token)
+def seed_dingding(message='买卖交易成功',
+                  access_token_list=['2615283ba0ab84900235e4ecc262671a0c79f3fb13acdf35f22cfd4b0407295f']):
+    access_token = random.choice(access_token_list)
+    url = 'https://oapi.dingtalk.com/robot/send?access_token={}'.format(access_token)
     headers = {'Content-Type': 'application/json;charset=utf-8'}
     data = {
         "msgtype": "text",  # 发送消息类型为文本
         "at": {
-            #"atMobiles": reminders,
+            # "atMobiles": reminders,
             "isAtAll": False,  # 不@所有人
         },
         "text": {
-            "content": '大同QMT交易通知\n'+message,  # 消息正文
+            "content": '大同QMT交易通知\n' + message,  # 消息正文
         }
     }
     r = requests.post(url, data=json.dumps(data), headers=headers)
-    text=r.json()
-    errmsg=text['errmsg']
-    if errmsg=='ok':
+    text = r.json()
+    errmsg = text['errmsg']
+    if errmsg == 'ok':
         print('钉钉发送成功')
         return text
     else:
