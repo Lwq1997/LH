@@ -139,6 +139,10 @@ def prepare_stock_list(context):
     hl2_list = utilstool.get_ever_hl_stock(context, initial_list, date_2)
     # 合并 hl1_list 和 hl2_list 为一个集合，用于快速查找需要剔除的元素
     elements_to_remove = set(hl1_list + hl2_list)
+    # log.info('initial_list:', '603004.XSHG' in initial_list)
+    # log.info('yes_hl_list:', '603004.XSHG' in yes_hl_list)
+    # log.info('hl1_list:', '603004.XSHG' in hl1_list)
+    # log.info('hl2_list:', '603004.XSHG' in hl2_list)
     # 昨日涨停，但是前2天都没有涨停过，真昨日首板
     context.yes_first_hl_list = [stock for stock in yes_hl_list if stock not in elements_to_remove]
     # 昨日涨停，但是前1天都没有涨停过
@@ -165,7 +169,7 @@ def total_select(context):
 
 
 def total_buy(context):
-    g.strategys['统筹交易策略'].specialBuy(context,split=False)
+    g.strategys['统筹交易策略'].specialBuy(context, split=False)
 
 
 def total_sell(context):

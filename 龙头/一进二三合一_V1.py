@@ -81,6 +81,7 @@ def buy(context):
     end_times1 = ' 09:26:00'
     start = date_now + mid_time1
     end = date_now + end_times1
+    log.info('首板高开选股池:', g.gap_up)
     # 高开
     for s in g.gap_up:
         # 条件一：均价，金额，市值，换手率
@@ -119,6 +120,7 @@ def buy(context):
 
     if g.gap_down:
         stock_list = g.gap_down
+        log.info('首板低开选股池:', stock_list)
         # 计算相对位置
         rpd = get_relative_position_df(stock_list, date, 60)
         rpd = rpd[rpd['rp'] <= 0.5]
@@ -141,6 +143,7 @@ def buy(context):
                 qualified_stocks.append(s)
 
     # 弱转强
+    log.info('弱转强选股池:', g.reversal)
     for s in g.reversal:
         # 过滤前面三天涨幅超过28%的票
         price_data = attribute_history(s, 4, '1d', fields=['close'], skip_paused=True)
