@@ -60,7 +60,7 @@ def initialize(context):
         'max_hold_count': 1,  # 最大持股数
         'max_industry_cnt': 1,  # 最大行业数
         'max_select_count': 20,  # 最大输出选股数
-        'fill_stock': '511880.XSHG',
+        'fill_stock': '518880.XSHG',
     }
     pj_strategy = PJ_Strategy(context, subportfolio_index=1, name='破净策略', params=params)
     g.strategys[pj_strategy.name] = pj_strategy
@@ -71,7 +71,7 @@ def initialize(context):
         'max_select_count': 30,  # 最大输出选股数
         'use_empty_month': True,  # 是否在指定月份空仓
         'empty_month': [1, 4],  # 指定空仓的月份列表
-        'fill_stock': '511880.XSHG',
+        'fill_stock': '518880.XSHG',
     }
     jsg_strategy = JSG2_Strategy(context, subportfolio_index=2, name='搅屎棍策略', params=params)
     g.strategys[jsg_strategy.name] = jsg_strategy
@@ -171,7 +171,7 @@ def prepare_jsg_strategy(context):
 
 
 def jsg_open_market(context):
-    g.strategys['搅屎棍策略'].close_for_empty_month(context, exempt_stocks=['511880.XSHG'])
+    g.strategys['搅屎棍策略'].close_for_empty_month(context, exempt_stocks=['518880.XSHG'])
 
 
 def select_jsg_strategy(context):
@@ -179,14 +179,14 @@ def select_jsg_strategy(context):
 
 
 def adjust_jsg_strategy(context):
-    g.strategys["搅屎棍策略"].adjustwithnoRM(context, exempt_stocks=['511880.XSHG'])
+    g.strategys["搅屎棍策略"].adjustwithnoRM(context, exempt_stocks=['518880.XSHG'])
 
 
 def jsg_sell_when_highlimit_open(context):
     g.strategys['搅屎棍策略'].sell_when_highlimit_open(context)
     if g.strategys['搅屎棍策略'].is_stoplost_or_highlimit:
         g.strategys['搅屎棍策略'].select(context)
-        g.strategys['搅屎棍策略'].adjustwithnoRM(context, exempt_stocks=['511880.XSHG'])
+        g.strategys['搅屎棍策略'].adjustwithnoRM(context, exempt_stocks=['518880.XSHG'])
         g.strategys['搅屎棍策略'].is_stoplost_or_highlimit = False
 
 

@@ -61,7 +61,7 @@ def initialize(context):
         'max_industry_cnt': 1,  # 最大行业数
         'sold_diff_day': 10,  # 是否过滤最近10天内涨停并卖出股票
         'max_select_count': 20,  # 最大输出选股数
-        'fill_stock': '511880.XSHG',
+        'fill_stock': '518880.XSHG',
     }
     pj_strategy = PJ_Strategy(context, subportfolio_index=1, name='破净策略', params=params)
     g.strategys[pj_strategy.name] = pj_strategy
@@ -73,7 +73,7 @@ def initialize(context):
         'sold_diff_day': 10,  # 是否过滤最近10天内涨停并卖出股票
         'use_empty_month': True,  # 是否在指定月份空仓
         'empty_month': [1, 4],  # 指定空仓的月份列表
-        'fill_stock': '511880.XSHG',
+        'fill_stock': '518880.XSHG',
     }
     wp_strategy = WP_Strategy(context, subportfolio_index=2, name='微盘策略', params=params)
     g.strategys[wp_strategy.name] = wp_strategy
