@@ -61,6 +61,7 @@ def initialize(context):
         'max_industry_cnt': 1,  # 最大行业数
         'sold_diff_day': 10,  # 是否过滤最近10天内涨停并卖出股票
         'max_select_count': 20,  # 最大输出选股数
+        'fill_stock': '511880.XSHG',
     }
     pj_strategy = PJ_Strategy(context, subportfolio_index=1, name='破净策略', params=params)
     g.strategys[pj_strategy.name] = pj_strategy
@@ -71,7 +72,8 @@ def initialize(context):
         'max_industry_cnt': 1,  # 最大行业数
         'sold_diff_day': 10,  # 是否过滤最近10天内涨停并卖出股票
         'use_empty_month': True,  # 是否在指定月份空仓
-        'empty_month': [1, 4]  # 指定空仓的月份列表
+        'empty_month': [1, 4],  # 指定空仓的月份列表
+        'fill_stock': '511880.XSHG',
     }
     wp_strategy = WP_Strategy(context, subportfolio_index=2, name='微盘策略', params=params)
     g.strategys[wp_strategy.name] = wp_strategy
@@ -115,6 +117,7 @@ def after_code_changed(context):  # 输出运行时间
     if g.portfolio_value_proportion[3] > 0:
         run_monthly(adjust_qt_strategy, 1, "10:00")
 
+    # run_daily(after_market_close, 'after_close')
     # 核心策略调仓设置
     # if g.portfolio_value_proportion[4] > 0:
     #     run_daily(adjust_hx_strategy, "10:05")
@@ -163,6 +166,7 @@ def pj_sell_when_highlimit_open(context):
         g.strategys['破净策略'].adjustwithnoRM(context)
         g.strategys['破净策略'].is_stoplost_or_highlimit = False
 
+
 # 微盘策略
 def prepare_wp_strategy(context):
     g.strategys["微盘策略"].day_prepare(context)
@@ -191,3 +195,9 @@ def wp_sell_when_highlimit_open(context):
 # 全天策略
 def adjust_qt_strategy(context):
     g.strategys["全天候策略"].adjust(context)
+
+
+def after_market_close(context):
+    g.strategys['微盘策略'].after_market_close(context)
+    g.strategys['全天候策略'].after_market_close(context)
+    g.strategys['破净策略'].after_market_close(context)
