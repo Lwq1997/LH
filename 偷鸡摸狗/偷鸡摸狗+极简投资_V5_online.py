@@ -985,6 +985,8 @@ class Strategy:
         self.strategyID = self.params['strategyID'] if 'strategyID' in self.params else ''
         self.inout_cash = 0
 
+        self.fill_stock = self.params[
+            'fill_stock'] if 'fill_stock' in self.params else '511880.XSHG'  # 大盘止损位
         self.stoploss_market = self.params[
             'stoploss_market'] if 'stoploss_market' in self.params else 0.94  # 大盘止损位
         self.stoploss_limit = self.params[
@@ -1985,7 +1987,6 @@ class Strategy:
 class PJ_Strategy(Strategy):
     def __init__(self, context, subportfolio_index, name, params):
         super().__init__(context, subportfolio_index, name, params)
-        self.fill_stock = "518880.XSHG"
 
     def select(self, context):
         log.info(self.name, '--Select函数--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
@@ -2049,7 +2050,6 @@ class JSG2_Strategy(Strategy):
     def __init__(self, context, subportfolio_index, name, params):
         super().__init__(context, subportfolio_index, name, params)
         self.max_industry_cnt = 1
-        self.fill_stock = "518880.XSHG"
 
     def select(self, context):
         log.info(self.name, '--select函数--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
