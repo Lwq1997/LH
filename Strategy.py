@@ -36,6 +36,8 @@ class Strategy:
         self.strategyID = self.params['strategyID'] if 'strategyID' in self.params else ''
         self.inout_cash = 0
 
+        self.fill_stock = self.params[
+            'fill_stock'] if 'fill_stock' in self.params else '511880.XSHG'  # 大盘止损位
         self.stoploss_market = self.params[
             'stoploss_market'] if 'stoploss_market' in self.params else 0.94  # 大盘止损位
         self.stoploss_limit = self.params[

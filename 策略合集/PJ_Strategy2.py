@@ -16,7 +16,6 @@ import datetime as datet
 class PJ_Strategy2(Strategy):
     def __init__(self, context, subportfolio_index, name, params):
         super().__init__(context, subportfolio_index, name, params)
-        self.fill_stock = "518880.XSHG"
 
     def select(self, context):
         log.info(self.name, '--Select函数--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
