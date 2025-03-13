@@ -18,7 +18,6 @@ from JSG2_Strategy import JSG2_Strategy
 from All_Day2_Strategy import All_Day2_Strategy
 
 
-
 # 初始化函数，设定基准等等
 def initialize(context):
     log.warn('--initialize函数(只运行一次)--',
@@ -61,6 +60,7 @@ def initialize(context):
         'max_hold_count': 1,  # 最大持股数
         'max_industry_cnt': 1,  # 最大行业数
         'max_select_count': 20,  # 最大输出选股数
+        'fill_stock': '511880.XSHG',
     }
     pj_strategy = PJ_Strategy(context, subportfolio_index=1, name='破净策略', params=params)
     g.strategys[pj_strategy.name] = pj_strategy
@@ -70,7 +70,8 @@ def initialize(context):
         'max_industry_cnt': 1,  # 最大行业数
         'max_select_count': 30,  # 最大输出选股数
         'use_empty_month': True,  # 是否在指定月份空仓
-        'empty_month': [1, 4]  # 指定空仓的月份列表
+        'empty_month': [1, 4],  # 指定空仓的月份列表
+        'fill_stock': '511880.XSHG',
     }
     jsg_strategy = JSG2_Strategy(context, subportfolio_index=2, name='搅屎棍策略', params=params)
     g.strategys[jsg_strategy.name] = jsg_strategy
@@ -114,7 +115,7 @@ def after_code_changed(context):  # 输出运行时间
     if g.portfolio_value_proportion[3] > 0:
         run_monthly(adjust_qt_strategy, 1, "10:00")
 
-    run_daily(after_market_close, 'after_close')
+    # run_daily(after_market_close, 'after_close')
     # 核心策略调仓设置
     # if g.portfolio_value_proportion[4] > 0:
     #     run_daily(adjust_hx_strategy, "10:05")
@@ -170,7 +171,7 @@ def prepare_jsg_strategy(context):
 
 
 def jsg_open_market(context):
-    g.strategys['搅屎棍策略'].close_for_empty_month(context, exempt_stocks=['518880.XSHG'])
+    g.strategys['搅屎棍策略'].close_for_empty_month(context, exempt_stocks=['511880.XSHG'])
 
 
 def select_jsg_strategy(context):
@@ -178,14 +179,14 @@ def select_jsg_strategy(context):
 
 
 def adjust_jsg_strategy(context):
-    g.strategys["搅屎棍策略"].adjustwithnoRM(context, exempt_stocks=['518880.XSHG'])
+    g.strategys["搅屎棍策略"].adjustwithnoRM(context, exempt_stocks=['511880.XSHG'])
 
 
 def jsg_sell_when_highlimit_open(context):
     g.strategys['搅屎棍策略'].sell_when_highlimit_open(context)
     if g.strategys['搅屎棍策略'].is_stoplost_or_highlimit:
         g.strategys['搅屎棍策略'].select(context)
-        g.strategys['搅屎棍策略'].adjustwithnoRM(context, exempt_stocks=['518880.XSHG'])
+        g.strategys['搅屎棍策略'].adjustwithnoRM(context, exempt_stocks=['511880.XSHG'])
         g.strategys['搅屎棍策略'].is_stoplost_or_highlimit = False
 
 
@@ -223,7 +224,6 @@ class UtilsToolClass:
             return result
         else:
             return pd.DataFrame(columns=['rp'])
-
 
     def rise_low_volume(self, context, stock):  # 上涨时，未放量 rising on low volume
         hist = attribute_history(stock, 106, '1d', fields=['high', 'volume'], skip_paused=True, df=False)
@@ -2045,7 +2045,6 @@ class PJ_Strategy(Strategy):
         return final_list
 
 
-
 class JSG2_Strategy(Strategy):
     def __init__(self, context, subportfolio_index, name, params):
         super().__init__(context, subportfolio_index, name, params)
@@ -2088,7 +2087,6 @@ class JSG2_Strategy(Strategy):
         return final_stocks
 
 
-
 class All_Day2_Strategy(Strategy):
     def __init__(self, context, subportfolio_index, name, params):
         super().__init__(context, subportfolio_index, name, params)
@@ -2106,7 +2104,8 @@ class All_Day2_Strategy(Strategy):
         self.min_volume = 2000
 
     def adjust(self, context):
-        log.info(self.name, '--adject函数（全天候定制）--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+        log.info(self.name, '--adject函数（全天候定制）--',
+                 str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
 
         subportfolio = context.subportfolios[self.subportfolio_index]
 
@@ -2118,7 +2117,7 @@ class All_Day2_Strategy(Strategy):
 
         # 获取当前持仓
         current_positions = subportfolio.long_positions
-        log.info(self.name, '的选股列表:', targets,'--当前持仓--',current_positions)
+        log.info(self.name, '的选股列表:', targets, '--当前持仓--', current_positions)
 
         # 计算最小交易单位的价值（假设一手是100股）
         min_trade_value = {etf: current_positions[etf].price * 100 if etf in current_positions else 0 for etf in
@@ -2130,11 +2129,11 @@ class All_Day2_Strategy(Strategy):
         else:
             # 先卖出
             for etf, target in targets.items():
-                    value = current_positions[etf].value
-                    minV = min_trade_value[etf]
-                    if value - target > self.min_volume and value - target >= minV:
-                        log.info(f'全天候策略开始卖出{etf}，仓位{target}')
-                        self.utilstool.open_position(context, etf, target)
+                value = current_positions[etf].value
+                minV = min_trade_value[etf]
+                if value - target > self.min_volume and value - target >= minV:
+                    log.info(f'全天候策略开始卖出{etf}，仓位{target}')
+                    self.utilstool.open_position(context, etf, target)
 
             # self.balance_subportfolios(context)
 
