@@ -170,8 +170,7 @@ def prepare_jsg_strategy(context):
 
 
 def jsg_open_market(context):
-    g.strategys['搅屎棍策略'].close_for_empty_month(context)
-    g.strategys['搅屎棍策略'].close_for_stoplost(context)
+    g.strategys['搅屎棍策略'].close_for_empty_month(context, exempt_stocks=['518880.XSHG'])
 
 
 def select_jsg_strategy(context):
@@ -179,14 +178,14 @@ def select_jsg_strategy(context):
 
 
 def adjust_jsg_strategy(context):
-    g.strategys["搅屎棍策略"].adjustwithnoRM(context)
+    g.strategys["搅屎棍策略"].adjustwithnoRM(context, exempt_stocks=['518880.XSHG'])
 
 
 def jsg_sell_when_highlimit_open(context):
     g.strategys['搅屎棍策略'].sell_when_highlimit_open(context)
     if g.strategys['搅屎棍策略'].is_stoplost_or_highlimit:
         g.strategys['搅屎棍策略'].select(context)
-        g.strategys['搅屎棍策略'].adjustwithnoRM(context)
+        g.strategys['搅屎棍策略'].adjustwithnoRM(context, exempt_stocks=['518880.XSHG'])
         g.strategys['搅屎棍策略'].is_stoplost_or_highlimit = False
 
 

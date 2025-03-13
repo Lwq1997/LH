@@ -13,7 +13,7 @@ class JSG_Strategy(Strategy):
     def __init__(self, context, subportfolio_index, name, params):
         super().__init__(context, subportfolio_index, name, params)
         self.max_industry_cnt = 1
-        self.fill_stock = "511880.XSHG"
+        self.fill_stock = "518880.XSHG"
 
     def select(self, context):
         log.info(self.name, '--select函数--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))

@@ -36,6 +36,10 @@ class Strategy:
         self.strategyID = self.params['strategyID'] if 'strategyID' in self.params else ''
         self.inout_cash = 0
 
+        self.stoploss_market = self.params[
+            'stoploss_market'] if 'stoploss_market' in self.params else 0.94  # 大盘止损位
+        self.stoploss_limit = self.params[
+            'stoploss_limit'] if 'stoploss_limit' in self.params else 0.88  # 个股止损位
         self.sold_diff_day = self.params[
             'sold_diff_day'] if 'sold_diff_day' in self.params else 0  # 是否过滤N天内涨停并卖出股票
         self.max_industry_cnt = self.params[
@@ -369,6 +373,30 @@ class Strategy:
             else:
                 log.info(self.name, f'--止损期没有需要卖出的股票，保留{exempt_stocks}--',
                          str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+
+    # 止损检查
+    # 实现了一个止损检查功能，它会根据股票的跌幅来决定是否需要止损，并在需要止损时记录止损日期和打印止损的股票列表。
+    def stoploss(self, context, stocks_index=None):
+        log.info(self.name, '--stoploss函数--',
+                 str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+        positions = context.subportfolios[self.subportfolio_index].positions
+        # 联合止损：结合大盘及个股情况进行止损判断
+        if stocks_index:
+            stock_list = get_index_stocks(stocks_index)
+            df = get_price(stock_list, end_date=context.previous_date, frequency='daily',
+                           fields=['close', 'open'], count=1, panel=False, fill_paused=False)
+            if df is not None and not df.empty:
+                down_ratio = (df['close'] / df['open']).mean()
+                if down_ratio <= self.stoploss_market:
+                    log.info(f"{stocks_index}:的大盘跌幅达到 {down_ratio:.2%}，执行平仓操作。")
+                    for stock in list(positions.keys()):
+                        self.sell(context, [stock])
+        else:
+            for stock in list(positions.keys()):
+                pos = positions[stock]
+                if pos.price < pos.avg_cost * self.stoploss_limit:
+                    log.info(f"{stock}:的跌幅达到 {self.stoploss_limit:.2%}，执行清仓操作。")
+                    self.sell(context, [stock])
 
     # 3-8 判断今天是否为账户资金再平衡的日期(暂无使用)
     # date_flag,1-单个月，2-两个月1和4，3-三个月1和4和6

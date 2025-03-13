@@ -58,7 +58,7 @@ def initialize(context):
 
     params = {
         'max_hold_count': 1,  # 最大持股数
-        'max_industry_cnt' : 1, #最大行业数
+        'max_industry_cnt': 1,  # 最大行业数
         'sold_diff_day': 10,  # 是否过滤最近10天内涨停并卖出股票
         'max_select_count': 20,  # 最大输出选股数
     }
@@ -68,7 +68,7 @@ def initialize(context):
     params = {
         'max_hold_count': 6,  # 最大持股数
         'max_select_count': 30,  # 最大输出选股数
-        'max_industry_cnt' : 1, #最大行业数
+        'max_industry_cnt': 1,  # 最大行业数
         'sold_diff_day': 10,  # 是否过滤最近10天内涨停并卖出股票
         'use_empty_month': True,  # 是否在指定月份空仓
         'empty_month': [1, 4]  # 指定空仓的月份列表
@@ -122,7 +122,6 @@ def after_code_changed(context):  # 输出运行时间
 
 # 资金平衡函数==========================================================
 def balance_subportfolios(context):
-
     # g.strategys["破净策略"].balance_subportfolios(context)
     # g.strategys["微盘策略"].balance_subportfolios(context)
     # g.strategys["全天候策略"].balance_subportfolios(context)
@@ -133,11 +132,13 @@ def balance_subportfolios(context):
         deviation = abs((value - target) / target) if target != 0 else 0
         if deviation > 0.3:
             if context.subportfolios[i].available_cash > 0 and target < value:
-                log.info('第', i, '个仓位调整了【', min(value - target, context.subportfolios[i].available_cash), '】元到仓位：0')
+                log.info('第', i, '个仓位调整了【', min(value - target, context.subportfolios[i].available_cash),
+                         '】元到仓位：0')
                 transfer_cash(from_pindex=i, to_pindex=0,
                               cash=min(value - target, context.subportfolios[i].available_cash))
             if target > value and context.subportfolios[0].available_cash > 0:
-                log.info('第0个仓位调整了【', min(target - value, context.subportfolios[0].available_cash), '】元到仓位：',i)
+                log.info('第0个仓位调整了【', min(target - value, context.subportfolios[0].available_cash), '】元到仓位：',
+                         i)
                 transfer_cash(from_pindex=0, to_pindex=i,
                               cash=min(target - value, context.subportfolios[0].available_cash))
 
@@ -162,15 +163,13 @@ def pj_sell_when_highlimit_open(context):
         g.strategys['破净策略'].adjustwithnoRM(context)
         g.strategys['破净策略'].is_stoplost_or_highlimit = False
 
-
 # 微盘策略
 def prepare_wp_strategy(context):
     g.strategys["微盘策略"].day_prepare(context)
 
 
 def wp_open_market(context):
-    g.strategys['微盘策略'].close_for_empty_month(context)
-    g.strategys['微盘策略'].close_for_stoplost(context)
+    g.strategys['微盘策略'].close_for_empty_month(context, exempt_stocks=['518880.XSHG'])
 
 
 def select_wp_strategy(context):
@@ -178,14 +177,14 @@ def select_wp_strategy(context):
 
 
 def adjust_wp_strategy(context):
-    g.strategys["微盘策略"].adjustwithnoRM(context)
+    g.strategys["微盘策略"].adjustwithnoRM(context, exempt_stocks=['518880.XSHG'])
 
 
 def wp_sell_when_highlimit_open(context):
     g.strategys['微盘策略'].sell_when_highlimit_open(context)
     if g.strategys['微盘策略'].is_stoplost_or_highlimit:
         g.strategys['微盘策略'].select(context)
-        g.strategys['微盘策略'].adjustwithnoRM(context)
+        g.strategys['微盘策略'].adjustwithnoRM(context, exempt_stocks=['518880.XSHG'])
         g.strategys['微盘策略'].is_stoplost_or_highlimit = False
 
 
