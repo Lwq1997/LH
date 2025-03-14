@@ -1,6 +1,7 @@
 # 导入函数库
 # -*- coding: utf-8 -*-
 # 如果你的文件包含中文, 请在文件的第一行使用上面的语句指定你的文件编码
+from datetime import datetime
 
 # 用到策略及数据相关API请加入下面的语句(如果要兼容研究使用可以使用 try except导入
 from kuanke.user_space_api import *
@@ -113,6 +114,7 @@ def after_code_changed(context):  # 输出运行时间
 def prepare_stock_list(context):
     utilstool = UtilsToolClass()
     utilstool.name = '总策略'
+    g.fengban_rate = 0
 
     # 文本日期
     date = context.previous_date
@@ -125,6 +127,8 @@ def prepare_stock_list(context):
 
     # 昨日涨停
     yes_hl_list = utilstool.get_hl_stock(context, initial_list, date)
+    # 昨日曾涨停过（包含涨停+涨停炸板）
+    hl0_list = utilstool.get_ever_hl_stock(context, initial_list, date)
     # 前日曾涨停过（包含涨停+涨停炸板）
     hl1_list = utilstool.get_ever_hl_stock(context, initial_list, date_1)
     # 前前日曾涨停过（包含涨停+涨停炸板）
@@ -148,16 +152,140 @@ def prepare_stock_list(context):
     # 过滤上上个交易日涨停、曾涨停
     context.yes_first_no_hl_list = [stock for stock in h1_list if stock not in elements_to_remove2]
 
+    if len(yes_hl_list) > 0 and len(hl0_list) > 0:
+        log.info(
+            f'{date}的涨停家数{len(yes_hl_list)},涨停过的股票数{len(hl0_list)},封板率是{len(yes_hl_list) / len(hl0_list)}'
+        )
+        g.fengban_rate = len(yes_hl_list) / len(hl0_list)
+
 
 def total_select(context):
     g.strategys['弱转强'].select(context)
     g.strategys['首板高开'].select(context)
     g.strategys['首板低开'].select(context)
-    g.strategys['统筹交易策略'].select_list = set(
+    total_stocks = set(
         g.strategys['弱转强'].select_list
         + g.strategys['首板高开'].select_list
         + g.strategys['首板低开'].select_list
     )
+    g.strategys['统筹交易策略'].select_list = total_stocks
+    if total_stocks:
+        g.strategys['统筹交易策略'].select_list = firter_industry(context, total_stocks)
+
+
+def firter_industry(context, total_stocks):
+    if g.fengban_rate<0.6:
+        return []  # 返回空列表或其他默认值
+    final_sotcks = []
+    qualified_stocks = []
+    # 前置过滤
+    for s in total_stocks:
+        history_data = attribute_history(s, 20, '1d', ['close', 'volume'], skip_paused=True)
+        # 条件1：股价在20日均线上方，且短期均线多头排列
+        ma5 = history_data['close'][-5:].mean()
+        ma10 = history_data['close'][-10:].mean()
+        ma20 = history_data['close'].mean()
+        if not (ma5 > ma10 > ma20 and history_data['close'][-1] > ma20):
+            continue
+        final_sotcks.append(s)
+
+    if final_sotcks:
+        # 获取最近 5 天的行业热度
+        start_date = (context.current_dt.date() - dt.timedelta(days=6)).strftime('%Y-%m-%d')
+        end_date = context.previous_date.strftime('%Y-%m-%d')
+        industry_heat_df = get_industry_heat(context, start_date, end_date)
+        # 获取行业热度排名前三的行业
+        top_industries = industry_heat_df.head(5)["行业"].tolist()
+        log.info("行业热度排名前五的行业：", top_industries)
+
+        for s in total_stocks:
+            # 获取股票所属行业
+            stock_industry = get_industry(s, date=context.current_dt.date())
+            industry_name = stock_industry[s]["sw_l1"]["industry_name"]
+            log.info(f'当前股票{s}所属行业{industry_name}')
+            # 如果股票所属行业在热度排名前三的行业中，则加入选股列表
+            if industry_name in top_industries:
+                qualified_stocks.append(s)
+
+        print("今日最终选股: " + str(qualified_stocks))
+    # 将选股结果存储到全局变量
+    return qualified_stocks
+
+
+# 获取指定日期范围内的行业热度
+def get_industry_heat(context, start_date, end_date):
+    industry_heat_dict = {}  # 存储行业热度的字典
+    date_range = pd.date_range(start=start_date, end=end_date)
+
+    for search_date in date_range:
+        search_date = search_date.strftime('%Y-%m-%d')
+        # 获取当天涨停的股票
+        today_limit_stocks = get_today_limit_stocks(context, search_date)
+        # 获取股票所属行业
+        stock_industry_df = get_stock_industry_df(context, search_date, today_limit_stocks)
+        # 统计每个行业的涨停股数量
+        stock_industry_df["涨停数量"] = 1
+        industry_count_df = stock_industry_df.groupby(["sw_L1"]).count()
+        industry_count_df = industry_count_df.drop(["code", "sw_L2", "sw_L3"], axis=1)
+
+        # 累加行业热度
+        for industry, count in industry_count_df.iterrows():
+            if industry in industry_heat_dict:
+                industry_heat_dict[industry] += count["涨停数量"]
+            else:
+                industry_heat_dict[industry] = count["涨停数量"]
+
+    # 将行业热度字典转换为 DataFrame
+    industry_heat_df = pd.DataFrame(list(industry_heat_dict.items()), columns=["行业", "涨停总数"])
+    industry_heat_df = industry_heat_df.sort_values(by="涨停总数", ascending=False)
+
+    # 输出结果
+    print("行业热度统计（{} 至 {}）：".format(start_date, end_date))
+    print(industry_heat_df)
+
+    return industry_heat_df
+
+
+# 获取当天涨停的股票，过滤掉上市不足半年的票
+def get_today_limit_stocks(context, search_date):
+    # 获取所有股票，排除上市不足半年
+    all_stocks = get_all_securities(types=['stock'], date=search_date)
+    # 半年前的日期
+    pre_half_year_date = dt.datetime.strptime(search_date, "%Y-%m-%d") - dt.timedelta(days=180)
+    pre_half_year_date = pre_half_year_date.date()
+    # 过滤上市不足半年的股票
+    all_stocks = all_stocks[all_stocks['start_date'] < pre_half_year_date]
+
+    # 获取当天的收盘价和涨停价
+    today_df = get_price(list(all_stocks.index), end_date=search_date, count=1, frequency='1d',
+                         fields=['close', 'high_limit'], panel=False, fill_paused=False)
+    # 筛选出当天涨停的股票
+    today_limit_df = today_df[today_df['close'] == today_df['high_limit']]
+
+    return list(today_limit_df.code)
+
+
+# 获取股票所属行业
+def get_stock_industry_df(context, search_date, stocks):
+    stock_industry_dict = get_industry(stocks, date=search_date)
+    # 申万一、二、三级行业
+    sw_L1 = []
+    sw_L2 = []
+    sw_L3 = []
+
+    for stock in stocks:
+        industry_dict = stock_industry_dict[stock]
+        sw_L1.append(industry_dict["sw_l1"]["industry_name"])
+        sw_L2.append(industry_dict["sw_l2"]["industry_name"])
+        sw_L3.append(industry_dict["sw_l3"]["industry_name"])
+
+    stock_industry_df = pd.DataFrame(columns=['code', 'sw_L1', 'sw_L2', 'sw_L3'])
+    stock_industry_df["code"] = stocks
+    stock_industry_df["sw_L1"] = sw_L1
+    stock_industry_df["sw_L2"] = sw_L2
+    stock_industry_df["sw_L3"] = sw_L3
+
+    return stock_industry_df
 
 
 def total_buy(context):
@@ -166,4 +294,3 @@ def total_buy(context):
 
 def total_sell(context):
     g.strategys['统筹交易策略'].specialSell(context)
-

@@ -373,7 +373,7 @@ def start_trader_on(c, name='测试1', password='123456', zh_ratio=0.1):
                 try:
 
                     price = get_price(c, stock)
-                    passorder(24, 1101, c.account, str(stock), 5, 0, int(amount), str(maker), 1, str(maker), c)
+                    passorder(24, 1101, c.account, str(stock), 44, 0, int(amount), str(maker), 1, str(maker), c)
                     print('组合{} 卖出标的{} 数量{} 价格{}'.format(name, stock, amount, price))
                     if is_open_id_log == '是':
                         trader_id = str(maker).split(',')[-1]
@@ -393,7 +393,7 @@ def start_trader_on(c, name='测试1', password='123456', zh_ratio=0.1):
                 try:
 
                     price = get_price(c, stock)
-                    passorder(23, 1101, c.account, str(stock), 5, 0, int(amount), str(maker), 1, str(maker), c)
+                    passorder(23, 1101, c.account, str(stock), 44, 0, int(amount), str(maker), 1, str(maker), c)
                     # passorder(23, 1101, c.account, stock, 5, 0, int(amount), '',1,'',c)
                     print('组合{} 买入标的{} 数量{} 价格{}'.format(name, stock, amount, price))
                     if is_open_id_log == '是':
