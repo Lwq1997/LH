@@ -414,7 +414,7 @@ def filter_kcbj_stock(initial_list):
     return [stock for stock in initial_list
             if stock[0] != '4'
             and stock[0] != '8'
-            and stock[0] != '30'
+            and stock[:2] != '30'
             and stock[:2] != '68']
 
 

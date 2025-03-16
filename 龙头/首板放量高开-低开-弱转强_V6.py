@@ -105,8 +105,8 @@ def after_code_changed(context):  # 输出运行时间
 
     if g.portfolio_value_proportion[3] > 0:
         # 选股
-        run_daily(total_select, time='09:26')
-        run_daily(total_buy, time='09:27')
+        run_daily(total_select, time='09:27')
+        run_daily(total_buy, time='09:28')
         run_daily(total_sell, time='11:25')
         run_daily(total_sell, time='14:50')
 
@@ -174,7 +174,7 @@ def total_select(context):
 
 
 def firter_industry(context, total_stocks):
-    if g.fengban_rate<0.6:
+    if g.fengban_rate<0.5:
         return []  # 返回空列表或其他默认值
     final_sotcks = []
     qualified_stocks = []
