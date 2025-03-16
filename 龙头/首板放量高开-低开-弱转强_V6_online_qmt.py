@@ -193,7 +193,6 @@ order_target = xg_order_target(order_target)
 order_value = xg_order_value(order_value)
 order_target_value = xg_order_target_value(order_target_value)
 
-
 # 初始化函数，设定基准等等
 def initialize(context):
     log.warn('--initialize函数(只运行一次)--',
@@ -491,6 +490,7 @@ class UtilsToolClass:
             return result
         else:
             return pd.DataFrame(columns=['rp'])
+
 
     def rise_low_volume(self, context, stock):  # 上涨时，未放量 rising on low volume
         hist = attribute_history(stock, 106, '1d', fields=['high', 'volume'], skip_paused=True, df=False)
@@ -2249,7 +2249,6 @@ class Strategy:
                 if stock not in self.bought_stocks:
                     self.bought_stocks[stock] = cash
 
-
 class RZQ_Strategy_V3(Strategy):
     def __init__(self, context, subportfolio_index, name, params):
         super().__init__(context, subportfolio_index, name, params)
@@ -2306,6 +2305,7 @@ class RZQ_Strategy_V3(Strategy):
                     turnover_ratio_data['circulating_market_cap'][0] > 520:
                 # log.debug('均价，金额，市值，换手率2')
                 continue
+
 
             # 条件：左压
             if self.utilstool.rise_low_volume(context, s):
