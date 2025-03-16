@@ -277,8 +277,8 @@ def after_code_changed(context):  # 输出运行时间
 
     if g.portfolio_value_proportion[3] > 0:
         # 选股
-        run_daily(total_select, time='09:26')
-        run_daily(total_buy, time='09:27')
+        run_daily(total_select, time='09:27')
+        run_daily(total_buy, time='09:28')
         run_daily(total_sell, time='11:25')
         run_daily(total_sell, time='14:50')
 
@@ -286,6 +286,7 @@ def after_code_changed(context):  # 输出运行时间
 def prepare_stock_list(context):
     utilstool = UtilsToolClass()
     utilstool.name = '总策略'
+    g.fengban_rate = 0
 
     # 文本日期
     date = context.previous_date
@@ -298,6 +299,8 @@ def prepare_stock_list(context):
 
     # 昨日涨停
     yes_hl_list = utilstool.get_hl_stock(context, initial_list, date)
+    # 昨日曾涨停过（包含涨停+涨停炸板）
+    hl0_list = utilstool.get_ever_hl_stock(context, initial_list, date)
     # 前日曾涨停过（包含涨停+涨停炸板）
     hl1_list = utilstool.get_ever_hl_stock(context, initial_list, date_1)
     # 前前日曾涨停过（包含涨停+涨停炸板）
@@ -321,16 +324,140 @@ def prepare_stock_list(context):
     # 过滤上上个交易日涨停、曾涨停
     context.yes_first_no_hl_list = [stock for stock in h1_list if stock not in elements_to_remove2]
 
+    if len(yes_hl_list) > 0 and len(hl0_list) > 0:
+        log.info(
+            f'{date}的涨停家数{len(yes_hl_list)},涨停过的股票数{len(hl0_list)},封板率是{len(yes_hl_list) / len(hl0_list)}'
+        )
+        g.fengban_rate = len(yes_hl_list) / len(hl0_list)
+
 
 def total_select(context):
     g.strategys['弱转强'].select(context)
     g.strategys['首板高开'].select(context)
     g.strategys['首板低开'].select(context)
-    g.strategys['统筹交易策略'].select_list = set(
+    total_stocks = set(
         g.strategys['弱转强'].select_list
         + g.strategys['首板高开'].select_list
         + g.strategys['首板低开'].select_list
     )
+    g.strategys['统筹交易策略'].select_list = total_stocks
+    if total_stocks:
+        g.strategys['统筹交易策略'].select_list = firter_industry(context, total_stocks)
+
+
+def firter_industry(context, total_stocks):
+    if g.fengban_rate < 0.5:
+        return []  # 返回空列表或其他默认值
+    final_sotcks = []
+    qualified_stocks = []
+    # 前置过滤
+    for s in total_stocks:
+        history_data = attribute_history(s, 20, '1d', ['close', 'volume'], skip_paused=True)
+        # 条件1：股价在20日均线上方，且短期均线多头排列
+        ma5 = history_data['close'][-5:].mean()
+        ma10 = history_data['close'][-10:].mean()
+        ma20 = history_data['close'].mean()
+        if not (ma5 > ma10 > ma20 and history_data['close'][-1] > ma20):
+            continue
+        final_sotcks.append(s)
+
+    if final_sotcks:
+        # 获取最近 5 天的行业热度
+        start_date = (context.current_dt.date() - dt.timedelta(days=6)).strftime('%Y-%m-%d')
+        end_date = context.previous_date.strftime('%Y-%m-%d')
+        industry_heat_df = get_industry_heat(context, start_date, end_date)
+        # 获取行业热度排名前三的行业
+        top_industries = industry_heat_df.head(5)["行业"].tolist()
+        log.info("行业热度排名前五的行业：", top_industries)
+
+        for s in total_stocks:
+            # 获取股票所属行业
+            stock_industry = get_industry(s, date=context.current_dt.date())
+            industry_name = stock_industry[s]["sw_l1"]["industry_name"]
+            log.info(f'当前股票{s}所属行业{industry_name}')
+            # 如果股票所属行业在热度排名前三的行业中，则加入选股列表
+            if industry_name in top_industries:
+                qualified_stocks.append(s)
+
+        print("今日最终选股: " + str(qualified_stocks))
+    # 将选股结果存储到全局变量
+    return qualified_stocks
+
+
+# 获取指定日期范围内的行业热度
+def get_industry_heat(context, start_date, end_date):
+    industry_heat_dict = {}  # 存储行业热度的字典
+    date_range = pd.date_range(start=start_date, end=end_date)
+
+    for search_date in date_range:
+        search_date = search_date.strftime('%Y-%m-%d')
+        # 获取当天涨停的股票
+        today_limit_stocks = get_today_limit_stocks(context, search_date)
+        # 获取股票所属行业
+        stock_industry_df = get_stock_industry_df(context, search_date, today_limit_stocks)
+        # 统计每个行业的涨停股数量
+        stock_industry_df["涨停数量"] = 1
+        industry_count_df = stock_industry_df.groupby(["sw_L1"]).count()
+        industry_count_df = industry_count_df.drop(["code", "sw_L2", "sw_L3"], axis=1)
+
+        # 累加行业热度
+        for industry, count in industry_count_df.iterrows():
+            if industry in industry_heat_dict:
+                industry_heat_dict[industry] += count["涨停数量"]
+            else:
+                industry_heat_dict[industry] = count["涨停数量"]
+
+    # 将行业热度字典转换为 DataFrame
+    industry_heat_df = pd.DataFrame(list(industry_heat_dict.items()), columns=["行业", "涨停总数"])
+    industry_heat_df = industry_heat_df.sort_values(by="涨停总数", ascending=False)
+
+    # 输出结果
+    print("行业热度统计（{} 至 {}）：".format(start_date, end_date))
+    print(industry_heat_df)
+
+    return industry_heat_df
+
+
+# 获取当天涨停的股票，过滤掉上市不足半年的票
+def get_today_limit_stocks(context, search_date):
+    # 获取所有股票，排除上市不足半年
+    all_stocks = get_all_securities(types=['stock'], date=search_date)
+    # 半年前的日期
+    pre_half_year_date = dt.datetime.strptime(search_date, "%Y-%m-%d") - dt.timedelta(days=180)
+    pre_half_year_date = pre_half_year_date.date()
+    # 过滤上市不足半年的股票
+    all_stocks = all_stocks[all_stocks['start_date'] < pre_half_year_date]
+
+    # 获取当天的收盘价和涨停价
+    today_df = get_price(list(all_stocks.index), end_date=search_date, count=1, frequency='1d',
+                         fields=['close', 'high_limit'], panel=False, fill_paused=False)
+    # 筛选出当天涨停的股票
+    today_limit_df = today_df[today_df['close'] == today_df['high_limit']]
+
+    return list(today_limit_df.code)
+
+
+# 获取股票所属行业
+def get_stock_industry_df(context, search_date, stocks):
+    stock_industry_dict = get_industry(stocks, date=search_date)
+    # 申万一、二、三级行业
+    sw_L1 = []
+    sw_L2 = []
+    sw_L3 = []
+
+    for stock in stocks:
+        industry_dict = stock_industry_dict[stock]
+        sw_L1.append(industry_dict["sw_l1"]["industry_name"])
+        sw_L2.append(industry_dict["sw_l2"]["industry_name"])
+        sw_L3.append(industry_dict["sw_l3"]["industry_name"])
+
+    stock_industry_df = pd.DataFrame(columns=['code', 'sw_L1', 'sw_L2', 'sw_L3'])
+    stock_industry_df["code"] = stocks
+    stock_industry_df["sw_L1"] = sw_L1
+    stock_industry_df["sw_L2"] = sw_L2
+    stock_industry_df["sw_L3"] = sw_L3
+
+    return stock_industry_df
 
 
 def total_buy(context):
@@ -364,7 +491,6 @@ class UtilsToolClass:
             return result
         else:
             return pd.DataFrame(columns=['rp'])
-
 
     def rise_low_volume(self, context, stock):  # 上涨时，未放量 rising on low volume
         hist = attribute_history(stock, 106, '1d', fields=['high', 'volume'], skip_paused=True, df=False)
@@ -1125,6 +1251,12 @@ class Strategy:
         self.strategyID = self.params['strategyID'] if 'strategyID' in self.params else ''
         self.inout_cash = 0
 
+        self.fill_stock = self.params[
+            'fill_stock'] if 'fill_stock' in self.params else '511880.XSHG'  # 大盘止损位
+        self.stoploss_market = self.params[
+            'stoploss_market'] if 'stoploss_market' in self.params else 0.94  # 大盘止损位
+        self.stoploss_limit = self.params[
+            'stoploss_limit'] if 'stoploss_limit' in self.params else 0.88  # 个股止损位
         self.sold_diff_day = self.params[
             'sold_diff_day'] if 'sold_diff_day' in self.params else 0  # 是否过滤N天内涨停并卖出股票
         self.max_industry_cnt = self.params[
@@ -1458,6 +1590,30 @@ class Strategy:
             else:
                 log.info(self.name, f'--止损期没有需要卖出的股票，保留{exempt_stocks}--',
                          str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+
+    # 止损检查
+    # 实现了一个止损检查功能，它会根据股票的跌幅来决定是否需要止损，并在需要止损时记录止损日期和打印止损的股票列表。
+    def stoploss(self, context, stocks_index=None):
+        log.info(self.name, '--stoploss函数--',
+                 str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+        positions = context.subportfolios[self.subportfolio_index].positions
+        # 联合止损：结合大盘及个股情况进行止损判断
+        if stocks_index:
+            stock_list = get_index_stocks(stocks_index)
+            df = get_price(stock_list, end_date=context.previous_date, frequency='daily',
+                           fields=['close', 'open'], count=1, panel=False, fill_paused=False)
+            if df is not None and not df.empty:
+                down_ratio = (df['close'] / df['open']).mean()
+                if down_ratio <= self.stoploss_market:
+                    log.info(f"{stocks_index}:的大盘跌幅达到 {down_ratio:.2%}，执行平仓操作。")
+                    for stock in list(positions.keys()):
+                        self.sell(context, [stock])
+        else:
+            for stock in list(positions.keys()):
+                pos = positions[stock]
+                if pos.price < pos.avg_cost * self.stoploss_limit:
+                    log.info(f"{stock}:的跌幅达到 {self.stoploss_limit:.2%}，执行清仓操作。")
+                    self.sell(context, [stock])
 
     # 3-8 判断今天是否为账户资金再平衡的日期(暂无使用)
     # date_flag,1-单个月，2-两个月1和4，3-三个月1和4和6
@@ -2093,6 +2249,7 @@ class Strategy:
                 if stock not in self.bought_stocks:
                     self.bought_stocks[stock] = cash
 
+
 class RZQ_Strategy_V3(Strategy):
     def __init__(self, context, subportfolio_index, name, params):
         super().__init__(context, subportfolio_index, name, params)
@@ -2149,7 +2306,6 @@ class RZQ_Strategy_V3(Strategy):
                     turnover_ratio_data['circulating_market_cap'][0] > 520:
                 # log.debug('均价，金额，市值，换手率2')
                 continue
-
 
             # 条件：左压
             if self.utilstool.rise_low_volume(context, s):

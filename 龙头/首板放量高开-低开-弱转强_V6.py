@@ -174,7 +174,7 @@ def total_select(context):
 
 
 def firter_industry(context, total_stocks):
-    if g.fengban_rate<0.5:
+    if g.fengban_rate < 0.5:
         return []  # 返回空列表或其他默认值
     final_sotcks = []
     qualified_stocks = []
