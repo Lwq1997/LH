@@ -46,8 +46,8 @@ text = {
     "跟单设置": "跟单设置***********",
     "账户跟单比例": 1,
     "多策略用逗号隔开": "多策略用逗号隔开********",
-    "组合名称": ["大小外分仓策略", "偷鸡摸狗-极简分仓策略"],
-    "组合授权码": ["大小外分仓策略", "偷鸡摸狗-极简分仓策略"],
+    "组合名称": ["低回撤搅屎棍组合策略", "高收益小市值组合策略"],
+    "组合授权码": ["低回撤搅屎棍组合策略", "高收益小市值组合策略"],
     "组合跟单比例": [1, 1],
     "不同策略间隔更新时间": 0,
     "下单默认说明": "默认/金额/数量",
@@ -56,7 +56,7 @@ text = {
     "时间设置": "时间设置********",
     "交易时间段": 4,
     "交易开始时间": 8,
-    "交易结束时间": 24,
+    "交易结束时间": 16,
     "是否参加集合竞价": "否",
     "开始交易分钟": 0,
     "是否开启临时id记录": "是",
@@ -86,7 +86,7 @@ def init(c):
     # c.run_time("update_all_data","1nDay","2024-07-25 09:45:00")
     # c.run_time("update_all_data","1nDay","2024-07-25 14:45:00")
     # 循环模式3秒
-    c.run_time("update_all_data", "3nSecond", "2024-07-25 13:20:00")
+    c.run_time("update_all_data", "2nSecond", "2024-07-25 13:20:00")
     # c.run_time("tarder_test","3nSecond","2024-07-25 13:20:00")
     print(get_account(c, c.account, c.account_type))
     print(get_position(c, c.account, c.account_type))
@@ -428,6 +428,7 @@ def update_all_data(c):
             time.sleep(update_time * 60)
     else:
         print('跟单{} 目前不是交易时间***************'.format(datetime.now()))
+        time.sleep(30)
 
 
 def order_stock_value(c, accountid, datatype, stock, value, trader_type):
