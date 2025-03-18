@@ -653,7 +653,7 @@ class Strategy:
                     log.info('止盈卖出', [stock, get_security_info(stock, date).display_name])
                     sell_stocks.append(stock)
 
-        if str(context.current_dt)[-8:-6] == '14':
+        if str(context.current_dt)[-8:-6] != '11':
             for stock in hold_list:
                 position = hold_positions[stock]
 
