@@ -176,25 +176,27 @@ def total_select(context):
 def firter_industry(context, total_stocks):
     if g.fengban_rate < 0.5:
         return []  # 返回空列表或其他默认值
-    final_sotcks = []
-    qualified_stocks = []
+    first_filter_stocks = []
+    final_stocks = []
+    industry_qualified_stocks = []
+    concept_qualified_stocks = []
     # 前置过滤
     for s in total_stocks:
-        history_data = attribute_history(s, 20, '1d', ['close', 'volume'], skip_paused=True)
-        # 条件1：股价在20日均线上方，且短期均线多头排列
-        ma5 = history_data['close'][-5:].mean()
-        ma10 = history_data['close'][-10:].mean()
-        ma20 = history_data['close'].mean()
-        if not (ma5 > ma10 > ma20 and history_data['close'][-1] > ma20):
-            continue
-        final_sotcks.append(s)
+        # history_data = attribute_history(s, 20, '1d', ['close', 'volume'], skip_paused=True)
+        # # 条件1：股价在20日均线上方，且短期均线多头排列
+        # ma5 = history_data['close'][-5:].mean()
+        # ma10 = history_data['close'][-10:].mean()
+        # ma20 = history_data['close'].mean()
+        # if not (ma5 > ma10 > ma20 and history_data['close'][-1] > ma20):
+        #     continue
+        first_filter_stocks.append(s)
 
-    if final_sotcks:
+    if first_filter_stocks:
         # 获取最近 5 天的行业热度
         start_date = (context.current_dt.date() - dt.timedelta(days=6)).strftime('%Y-%m-%d')
         end_date = context.previous_date.strftime('%Y-%m-%d')
-        industry_heat_df = get_industry_heat(context, start_date, end_date)
-        # 获取行业热度排名前三的行业
+        industry_heat_df, concept_heat_df = get_industry_concpet_heat(context, start_date, end_date)
+        # 获取行业热度排名前5的行业
         top_industries = industry_heat_df.head(5)["行业"].tolist()
         log.info("行业热度排名前五的行业：", top_industries)
 
@@ -205,16 +207,33 @@ def firter_industry(context, total_stocks):
             log.info(f'当前股票{s}所属行业{industry_name}')
             # 如果股票所属行业在热度排名前三的行业中，则加入选股列表
             if industry_name in top_industries:
-                qualified_stocks.append(s)
+                industry_qualified_stocks.append(s)
 
-        print("今日最终选股: " + str(qualified_stocks))
+        # 获取行业热度排名前10的概念
+        top_concepts = concept_heat_df.head(5)["概念"].tolist()
+        log.info("概念热度排名前5的概念：", top_concepts)
+
+        for s in total_stocks:
+            # 获取股票所属概念
+            stock_concept = get_concept(s, date=context.current_dt.date())
+            concept_names = stock_concept[s]["jq_concept"]
+            log.info(f'当前股票{s}所属概念{concept_names}')
+            for concept in concept_names:
+                # 如果股票所属行业在热度排名前三的行业中，则加入选股列表
+                if concept['concept_name'] in top_concepts:
+                    concept_qualified_stocks.append(s)
+        final_stocks = set(set(concept_qualified_stocks))
+        print("行业今日最终选股: " + str(set(industry_qualified_stocks)))
+        print("概念今日最终选股: " + str(set(concept_qualified_stocks)))
+        print("总今日最终选股(交集): " + str(final_stocks))
     # 将选股结果存储到全局变量
-    return qualified_stocks
+    return final_stocks
 
 
 # 获取指定日期范围内的行业热度
-def get_industry_heat(context, start_date, end_date):
+def get_industry_concpet_heat(context, start_date, end_date):
     industry_heat_dict = {}  # 存储行业热度的字典
+    concept_heat_dict = {}  # 存储概念热度的字典
     date_range = pd.date_range(start=start_date, end=end_date)
 
     for search_date in date_range:
@@ -223,6 +242,8 @@ def get_industry_heat(context, start_date, end_date):
         today_limit_stocks = get_today_limit_stocks(context, search_date)
         # 获取股票所属行业
         stock_industry_df = get_stock_industry_df(context, search_date, today_limit_stocks)
+        # 获取股票所属概念
+        stock_concept_df = get_stock_concept_df(context, search_date, today_limit_stocks)
         # 统计每个行业的涨停股数量
         stock_industry_df["涨停数量"] = 1
         industry_count_df = stock_industry_df.groupby(["sw_L1"]).count()
@@ -235,15 +256,28 @@ def get_industry_heat(context, start_date, end_date):
             else:
                 industry_heat_dict[industry] = count["涨停数量"]
 
+        # 统计每个概念的涨停股数量
+        stock_concept_df["涨停数量"] = 1
+        concept_count_df = stock_concept_df.groupby(["concept"]).count()
+
+        # 累加行业热度
+        for concept, count in concept_count_df.iterrows():
+            if concept in concept_heat_dict:
+                concept_heat_dict[concept] += count["涨停数量"]
+            else:
+                concept_heat_dict[concept] = count["涨停数量"]
     # 将行业热度字典转换为 DataFrame
     industry_heat_df = pd.DataFrame(list(industry_heat_dict.items()), columns=["行业", "涨停总数"])
     industry_heat_df = industry_heat_df.sort_values(by="涨停总数", ascending=False)
 
-    # 输出结果
-    print("行业热度统计（{} 至 {}）：".format(start_date, end_date))
-    print(industry_heat_df)
+    # 将概念热度字典转换为 DataFrame
+    concept_heat_df = pd.DataFrame(list(concept_heat_dict.items()), columns=["概念", "涨停总数"])
+    concept_heat_df = concept_heat_df.sort_values(by="涨停总数", ascending=False)
 
-    return industry_heat_df
+    print('行业热度:', industry_heat_df)
+    print('概念热度:', concept_heat_df)
+
+    return industry_heat_df, concept_heat_df
 
 
 # 获取当天涨停的股票，过滤掉上市不足半年的票
@@ -286,6 +320,31 @@ def get_stock_industry_df(context, search_date, stocks):
     stock_industry_df["sw_L3"] = sw_L3
 
     return stock_industry_df
+
+
+# 获取股票所属概念
+def get_stock_concept_df(context, search_date, stocks):
+    stock_concpet_dict = get_concept(stocks, date=search_date)
+    # 聚宽概念
+    data = []
+    black_concept_name = [
+        '转融券标的',
+        '融资融券',
+        '国企改革',
+        '深股通',
+        '沪股通'
+    ]
+
+    for stock in stocks:
+        jq_concept_dict = stock_concpet_dict[stock]['jq_concept']
+        for concept in jq_concept_dict:
+            if concept['concept_name'] not in black_concept_name:
+                data.append({'code': stock, 'concept': concept['concept_name']})
+    # 创建多行DataFrame
+    stock_concept_df = pd.DataFrame(data)
+    # log.info(search_date, '日，概念涨停明细:', stock_concept_df)
+
+    return stock_concept_df
 
 
 def total_buy(context):
