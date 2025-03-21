@@ -40,8 +40,8 @@ class SBDK_Strategy_V3(Strategy):
         if yes_no_first_hl_list:
             date = self.utilstool.transform_date(context, context.previous_date, 'str')
             # 计算相对位置
-            rpd = self.utilstool.get_relative_position_df(context, yes_no_first_hl_list, date, 60)
-            rpd = rpd[rpd['rp'] <= 0.5]
+            rpd = self.utilstool.get_relative_position_df(context, yes_no_first_hl_list, date, 120)
+            rpd = rpd[rpd['rp'] <= 0.4]
             stock_list = list(rpd.index)
 
             # 低开
