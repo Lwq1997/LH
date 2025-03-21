@@ -40,9 +40,6 @@ class RZQ_Strategy_V3(Strategy):
 
         # 弱转强
         for s in yes_first_no_hl_list:
-            zyts = self.utilstool.calculate_zyts(context, s)
-
-            his_day = zyts if zyts > 4 else 4
             all_date = attribute_history(s, 4, '1d', fields=['close', 'volume', 'money', 'open'],
                                          skip_paused=True)
 
