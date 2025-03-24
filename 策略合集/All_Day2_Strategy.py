@@ -54,11 +54,11 @@ class All_Day2_Strategy(Strategy):
         else:
             # 先卖出
             for etf, target in targets.items():
-                    value = current_positions[etf].value
-                    minV = min_trade_value[etf]
-                    if value - target > self.min_volume and value - target >= minV:
-                        log.info(f'全天候策略开始卖出{etf}，仓位{target}')
-                        self.utilstool.open_position(context, etf, target)
+                value = current_positions[etf].value
+                minV = min_trade_value[etf]
+                if value - target > self.min_volume and value - target >= minV:
+                    log.info(f'全天候策略开始卖出{etf}，仓位{target}')
+                    self.utilstool.open_position(context, etf, target)
 
             # self.balance_subportfolios(context)
 
