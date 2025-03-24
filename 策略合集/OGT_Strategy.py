@@ -143,7 +143,7 @@ class OGT_Strategy(Strategy):
             # 将符合条件的股票添加到保存的股票列表中
             ogt_stocks.append(s)
 
-        ogt_stocks = set(ogt_stocks)
+        ogt_stocks = list(set(ogt_stocks))
         log.info('今日一进二选股：' + ','.join('%s%s' % (s, get_security_info(s).display_name) for s in ogt_stocks))
 
         return ogt_stocks
