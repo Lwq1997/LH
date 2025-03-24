@@ -104,44 +104,44 @@ class OGT_Strategy(Strategy):
 
             # 将符合条件的股票添加到保存的股票列表中
             ogt_stocks.append(s)
-
-        for s in three_hl_list:
-            # 过滤前面三天涨幅超过18%的票
-            price_data = attribute_history(s, 4, '1d', fields=['close'], skip_paused=True)
-            increase_ratio = (price_data['close'][-1] - price_data['close'][0]) / price_data['close'][0]
-            if len(price_data) < 4 or increase_ratio > 0.18:
-                continue
-
-            # 条件一：均价，金额，市值，换手率
-            prev_day_data = attribute_history(s, 1, '1d', fields=['close', 'volume', 'money'], skip_paused=True)
-            avg_price_increase_value = prev_day_data['money'][0] / prev_day_data['volume'][0] / prev_day_data['close'][
-                0] * 1.1 - 1
-            # 如果平均价格涨幅小于0.07或者前一个交易日的成交金额小于7亿或者大于20亿，则跳过
-            if avg_price_increase_value < 0.07 or prev_day_data['money'][0] < 7e8 or prev_day_data['money'][0] > 20e8:
-                continue
-            # 如果换手率为空或者市值小于70，则跳过
-            turnover_ratio_data = get_valuation(s, start_date=context.previous_date, end_date=context.previous_date,
-                                                fields=['turnover_ratio', 'market_cap', 'circulating_market_cap'])
-            if turnover_ratio_data.empty or turnover_ratio_data['market_cap'][0] < 70 or \
-                    turnover_ratio_data['circulating_market_cap'][0] > 300:
-                continue
-            # 如果近期有跌停，则跳过
-            df = get_price(s, end_date=context.previous_date, frequency='daily', fields=['low', 'close', 'low_limit'],
-                           count=10,
-                           panel=False,
-                           fill_paused=False, skip_paused=False)
-            low_limit_count = len(df[df.close == df.low_limit])
-            if low_limit_count >= 1:
-                continue
-
-            # 条件二：左压
-            zyts = self.utilstool.calculate_zyts(context, s)
-            volume_data = attribute_history(s, zyts, '1d', fields=['volume'], skip_paused=True)
-            if len(volume_data) < 2 or volume_data['volume'][-1] <= max(volume_data['volume'][:-1]) * 0.90:
-                continue
-
-            # 将符合条件的股票添加到保存的股票列表中
-            ogt_stocks.append(s)
+        #
+        # for s in three_hl_list:
+        #     # 过滤前面三天涨幅超过18%的票
+        #     price_data = attribute_history(s, 4, '1d', fields=['close'], skip_paused=True)
+        #     increase_ratio = (price_data['close'][-1] - price_data['close'][0]) / price_data['close'][0]
+        #     if len(price_data) < 4 or increase_ratio > 0.18:
+        #         continue
+        #
+        #     # 条件一：均价，金额，市值，换手率
+        #     prev_day_data = attribute_history(s, 1, '1d', fields=['close', 'volume', 'money'], skip_paused=True)
+        #     avg_price_increase_value = prev_day_data['money'][0] / prev_day_data['volume'][0] / prev_day_data['close'][
+        #         0] * 1.1 - 1
+        #     # 如果平均价格涨幅小于0.07或者前一个交易日的成交金额小于7亿或者大于20亿，则跳过
+        #     if avg_price_increase_value < 0.07 or prev_day_data['money'][0] < 7e8 or prev_day_data['money'][0] > 20e8:
+        #         continue
+        #     # 如果换手率为空或者市值小于70，则跳过
+        #     turnover_ratio_data = get_valuation(s, start_date=context.previous_date, end_date=context.previous_date,
+        #                                         fields=['turnover_ratio', 'market_cap', 'circulating_market_cap'])
+        #     if turnover_ratio_data.empty or turnover_ratio_data['market_cap'][0] < 70 or \
+        #             turnover_ratio_data['circulating_market_cap'][0] > 300:
+        #         continue
+        #     # 如果近期有跌停，则跳过
+        #     df = get_price(s, end_date=context.previous_date, frequency='daily', fields=['low', 'close', 'low_limit'],
+        #                    count=10,
+        #                    panel=False,
+        #                    fill_paused=False, skip_paused=False)
+        #     low_limit_count = len(df[df.close == df.low_limit])
+        #     if low_limit_count >= 1:
+        #         continue
+        #
+        #     # 条件二：左压
+        #     zyts = self.utilstool.calculate_zyts(context, s)
+        #     volume_data = attribute_history(s, zyts, '1d', fields=['volume'], skip_paused=True)
+        #     if len(volume_data) < 2 or volume_data['volume'][-1] <= max(volume_data['volume'][:-1]) * 0.90:
+        #         continue
+        #
+        #     # 将符合条件的股票添加到保存的股票列表中
+        #     ogt_stocks.append(s)
 
         ogt_stocks = list(set(ogt_stocks))
         log.info('今日一进二选股：' + ','.join('%s%s' % (s, get_security_info(s).display_name) for s in ogt_stocks))
