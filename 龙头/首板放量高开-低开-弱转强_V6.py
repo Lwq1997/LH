@@ -18,6 +18,7 @@ from UtilsToolClass import UtilsToolClass
 from SBGK_Strategy_V3 import SBGK_Strategy_V3
 from RZQ_Strategy_V3 import RZQ_Strategy_V3
 from SBDK_Strategy_V3 import SBDK_Strategy_V3
+from OGT_Strategy import OGT_Strategy
 
 from Strategy import Strategy
 
@@ -49,7 +50,7 @@ def initialize(context):
     # 持久变量
     g.strategys = {}
     # 子账户 分仓
-    g.portfolio_value_proportion = [0, 0, 0, 1]
+    g.portfolio_value_proportion = [0, 0, 0,0, 1]
 
     # 创建策略实例
     # 初始化策略子账户 subportfolios
@@ -58,6 +59,7 @@ def initialize(context):
         SubPortfolioConfig(context.portfolio.starting_cash * g.portfolio_value_proportion[1], 'stock'),
         SubPortfolioConfig(context.portfolio.starting_cash * g.portfolio_value_proportion[2], 'stock'),
         SubPortfolioConfig(context.portfolio.starting_cash * g.portfolio_value_proportion[3], 'stock'),
+        SubPortfolioConfig(context.portfolio.starting_cash * g.portfolio_value_proportion[4], 'stock'),
     ])
 
     # 是否发送微信消息，回测环境不发送，模拟环境发送
@@ -88,9 +90,15 @@ def initialize(context):
         'max_hold_count': 100,  # 最大持股数
         'max_select_count': 100,  # 最大输出选股数
     }
-    total_strategy = Strategy(context, subportfolio_index=3, name='统筹交易策略', params=params)
-    g.strategys[total_strategy.name] = total_strategy
+    ogt_strategy = OGT_Strategy(context, subportfolio_index=3, name='一进二', params=params)
+    g.strategys[ogt_strategy.name] = ogt_strategy
 
+    params = {
+        'max_hold_count': 100,  # 最大持股数
+        'max_select_count': 100,  # 最大输出选股数
+    }
+    total_strategy = Strategy(context, subportfolio_index=4, name='统筹交易策略', params=params)
+    g.strategys[total_strategy.name] = total_strategy
 
 # 模拟盘在每天的交易时间结束后会休眠，第二天开盘时会恢复，如果在恢复时发现代码已经发生了修改，则会在恢复时执行这个函数。 具体的使用场景：可以利用这个函数修改一些模拟盘的数据。
 def after_code_changed(context):  # 输出运行时间
@@ -103,7 +111,7 @@ def after_code_changed(context):  # 输出运行时间
 
     run_daily(prepare_stock_list, time='09:00')
 
-    if g.portfolio_value_proportion[3] > 0:
+    if g.portfolio_value_proportion[4] > 0:
         # 选股
         run_daily(total_select, time='09:27')
         run_daily(total_buy, time='09:28')
@@ -119,7 +127,7 @@ def prepare_stock_list(context):
     # 文本日期
     date = context.previous_date
 
-    date_2, date_1, date = get_trade_days(end_date=date, count=3)
+    date_3, date_2, date_1, date = get_trade_days(end_date=date, count=4)
 
     # 初始列表
     initial_list = utilstool.stockpool(context, is_filter_highlimit=False,
@@ -127,6 +135,8 @@ def prepare_stock_list(context):
 
     # 昨日涨停
     yes_hl_list = utilstool.get_hl_stock(context, initial_list, date)
+    # 前日涨停
+    yes_yes_hl_list = utilstool.get_hl_stock(context, initial_list, date_1)
     # 昨日曾涨停过（包含涨停+涨停炸板）
     hl0_list = utilstool.get_ever_hl_stock(context, initial_list, date)
     # 前日曾涨停过（包含涨停+涨停炸板）
@@ -145,12 +155,22 @@ def prepare_stock_list(context):
     context.yes_no_first_hl_list = [stock for stock in yes_hl_list if stock not in hl1_list]
 
     # 昨日曾涨停炸板
-    h1_list = utilstool.get_ever_hl_stock2(context, initial_list, date)
+    h0_list = utilstool.get_ever_hl_stock2(context, initial_list, date)
+    h1_list = utilstool.get_ever_hl_stock2(context, initial_list, date_1)
+    h2_list = utilstool.get_ever_hl_stock2(context, initial_list, date_2)
+    h3_list = utilstool.get_ever_hl_stock2(context, initial_list, date_3)
     # 上上个交易日涨停
     elements_to_remove2 = utilstool.get_hl_stock(context, initial_list, date_1)
 
     # 过滤上上个交易日涨停、曾涨停
-    context.yes_first_no_hl_list = [stock for stock in h1_list if stock not in elements_to_remove2]
+    context.yes_first_no_hl_list = [stock for stock in h0_list if stock not in elements_to_remove2]
+
+    two_hl_list = list(set(yes_hl_list) & set(yes_yes_hl_list))  # 取交集，确保两个交易日均涨停
+    early_two_remove = list(set(h2_list) | set(h3_list))  # 取并集，确保前2个交易日没有涨停过
+    early_three_remove = list(set(h1_list) | set(h2_list))  # 取并集，确保前2个交易日没有涨停过
+
+    context.two_hl_list = [stock for stock in two_hl_list if stock not in early_two_remove]
+    context.three_hl_list = [stock for stock in yes_hl_list if stock not in early_three_remove]
 
     if len(yes_hl_list) > 0 and len(hl0_list) > 0:
         log.info(
@@ -163,10 +183,12 @@ def total_select(context):
     g.strategys['弱转强'].select(context)
     g.strategys['首板高开'].select(context)
     g.strategys['首板低开'].select(context)
+    g.strategys['一进二'].select(context)
     total_stocks = set(
         g.strategys['弱转强'].select_list
         + g.strategys['首板高开'].select_list
         + g.strategys['首板低开'].select_list
+        + g.strategys['一进二'].select_list
     )
     g.strategys['统筹交易策略'].select_list = total_stocks
     if total_stocks:
