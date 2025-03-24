@@ -1,4 +1,4 @@
-#-*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 # 如果你的文件包含中文, 请在文件的第一行使用上面的语句指定你的文件编码
 
 # 用到策略及数据相关API请加入下面的语句(如果要兼容研究使用可以使用 try except导入
@@ -30,7 +30,8 @@ class All_Day2_Strategy(Strategy):
         self.min_volume = 2000
 
     def adjust(self, context):
-        log.info(self.name, '--adject函数（全天候定制）--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+        log.info(self.name, '--adject函数（全天候定制）--',
+                 str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
 
         subportfolio = context.subportfolios[self.subportfolio_index]
 
@@ -42,7 +43,7 @@ class All_Day2_Strategy(Strategy):
 
         # 获取当前持仓
         current_positions = subportfolio.long_positions
-        log.info(self.name, '的选股列表:', targets,'--当前持仓--',current_positions)
+        log.info(self.name, '的选股列表:', targets, '--当前持仓--', current_positions)
 
         # 计算最小交易单位的价值（假设一手是100股）
         min_trade_value = {etf: current_positions[etf].price * 100 if etf in current_positions else 0 for etf in
