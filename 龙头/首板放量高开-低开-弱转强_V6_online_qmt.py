@@ -275,7 +275,7 @@ def after_code_changed(context):  # 输出运行时间
     log.info('函数运行时间(after_code_changed)：' + str(context.current_dt.time()))
 
     # 是否发送微信消息，回测环境不发送，模拟环境发送
-    context.is_send_wx_message = 0
+    context.is_send_wx_message = 1
 
     unschedule_all()  # 取消所有定时运行
 
@@ -287,6 +287,15 @@ def after_code_changed(context):  # 输出运行时间
         run_daily(total_buy, time='09:28')
         run_daily(total_sell, time='11:25')
         run_daily(total_sell, time='14:50')
+        run_daily(after_market_close, 'after_close')
+
+
+
+def after_market_close(context):
+    g.strategys['首板高开'].after_market_close(context)
+    g.strategys['弱转强'].after_market_close(context)
+    g.strategys['首板低开'].after_market_close(context)
+    g.strategys['一进二'].after_market_close(context)
 
 
 def prepare_stock_list(context):
