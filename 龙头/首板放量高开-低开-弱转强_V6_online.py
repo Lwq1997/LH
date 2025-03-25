@@ -41,7 +41,7 @@ def initialize(context):
     # 持久变量
     g.strategys = {}
     # 子账户 分仓
-    g.portfolio_value_proportion = [0, 0, 0,0, 1]
+    g.portfolio_value_proportion = [0, 0, 0, 0, 1]
 
     # 创建策略实例
     # 初始化策略子账户 subportfolios
@@ -111,6 +111,8 @@ def after_code_changed(context):  # 输出运行时间
 
 
 def prepare_stock_list(context):
+    log.info('--prepare_stock_list选股函数--',
+             str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
     utilstool = UtilsToolClass()
     utilstool.name = '总策略'
     g.fengban_rate = 0
@@ -181,16 +183,19 @@ def total_select(context):
         + g.strategys['首板低开'].select_list
         + g.strategys['一进二'].select_list
     )
-    g.strategys['统筹交易策略'].select_list = total_stocks
+    g.strategys['统筹交易策略'].special_select_list = {}
     if total_stocks:
-        g.strategys['统筹交易策略'].select_list = firter_industry(context, total_stocks)
+        g.strategys['统筹交易策略'].special_select_list = firter_industry(context, total_stocks)
 
 
 def firter_industry(context, total_stocks):
+    log.info('--firter_industry函数--',
+             str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
     if g.fengban_rate < 0.5:
-        return []  # 返回空列表或其他默认值
+        return {}  # 返回空列表或其他默认值
     first_filter_stocks = []
-    final_stocks = []
+    concept_final_stocks = []
+    industry_final_stocks = []
     industry_qualified_stocks = []
     concept_qualified_stocks = []
     # 前置过滤
@@ -235,12 +240,16 @@ def firter_industry(context, total_stocks):
                 # 如果股票所属行业在热度排名前三的行业中，则加入选股列表
                 if concept['concept_name'] in top_concepts:
                     concept_qualified_stocks.append(s)
-        final_stocks = set(set(concept_qualified_stocks))
-        print("行业今日最终选股: " + str(set(industry_qualified_stocks)))
-        print("概念今日最终选股: " + str(set(concept_qualified_stocks)))
-        print("总今日最终选股(交集): " + str(final_stocks))
+        concept_final_stocks = set(concept_qualified_stocks)
+        industry_final_stocks = set(industry_qualified_stocks)
+
+    special_select_list = {
+        '行业': industry_final_stocks,
+        '概念': concept_final_stocks
+    }
+    print("今日最终选股: " + str(special_select_list))
     # 将选股结果存储到全局变量
-    return final_stocks
+    return special_select_list
 
 
 # 获取指定日期范围内的行业热度
@@ -1179,6 +1188,7 @@ class Strategy:
         self.stoplost_level = self.params['stoplost_level'] if 'stoplost_level' in self.params else 0.2  # 止损的下跌幅度（按买入价）
 
         self.select_list = []
+        self.special_select_list = {}
         self.hold_list = []  # 昨收持仓
         self.history_hold_list = []  # 最近持有列表
         self.not_buy_again_list = []  # 最近持有不再购买列表
@@ -1713,14 +1723,25 @@ class Strategy:
     def specialBuy(self, context, total_amount=0, split=1):
         log.info(self.name, '--specialBuy调仓函数--',
                  str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+        special_select_list = self.special_select_list
         # 实时过滤部分股票，否则也买不了，放出去也没有意义
-        target_list = self.utilstool.filter_lowlimit_stock(context, self.select_list)
-        target_list = self.utilstool.filter_highlimit_stock(context, target_list)
-        target_list = self.utilstool.filter_paused_stock(context, target_list)
+        industry_final_stocks = special_select_list.get('行业', [])
+        concept_final_stocks = special_select_list.get('概念', [])
+        flag = 0
+        if concept_final_stocks:
+            target_list = self.utilstool.filter_lowlimit_stock(context, concept_final_stocks)
+            target_list = self.utilstool.filter_highlimit_stock(context, target_list)
+            target_list = self.utilstool.filter_paused_stock(context, target_list)
+            flag = 1
+        else:
+            target_list = self.utilstool.filter_lowlimit_stock(context, industry_final_stocks)
+            target_list = self.utilstool.filter_highlimit_stock(context, target_list)
+            target_list = self.utilstool.filter_paused_stock(context, target_list)
+            flag = 0.5
+
         current_data = get_current_data()
         # 持仓列表
         subportfolios = context.subportfolios[self.subportfolio_index]
-        log.debug('当前持仓:', subportfolios.long_positions)
         if target_list:
             if total_amount > 0:
                 for stock in target_list:
@@ -1743,7 +1764,7 @@ class Strategy:
                             self.utilstool.open_position(context, stock, value)
             else:
                 if subportfolios.available_cash / subportfolios.total_value > 0.3:
-                    value = subportfolios.available_cash / len(target_list)
+                    value = subportfolios.available_cash * flag / len(target_list)
                     for stock in target_list:
                         if subportfolios.available_cash / current_data[stock].last_price > 100:
                             self.utilstool.open_position(context, stock, value)
