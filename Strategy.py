@@ -644,7 +644,7 @@ class Strategy:
                         if subportfolios.available_cash / current_data[stock].last_price > 100:
                             self.utilstool.open_position(context, stock, value)
 
-    def specialSell(self, context):
+    def specialSell(self, context, eveny_bar = False):
         log.info(self.name, '--SpecialSell调仓函数--',
                  str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
 
@@ -655,7 +655,21 @@ class Strategy:
         sell_stocks = []
         date = self.utilstool.transform_date(context, context.previous_date, 'str')
         current_data = get_current_data()  #
-        if str(context.current_dt)[-8:-6] == '11':
+
+        if eveny_bar:
+            for stock in hold_list:
+                position = hold_positions[stock]
+                # 获取昨日收盘价
+                prev_close = attribute_history(stock, 1, '1d', fields=['close'], skip_paused=True)['close'][0]
+                # 有可卖出的仓位  &  当前股票没有涨停 & 当前的价格大于持仓价（有收益）
+                if ((position.closeable_amount != 0) and (
+                        current_data[stock].last_price < current_data[stock].high_limit) and
+                        (prev_close < position.avg_cost) and# avg_cost当前持仓成本大于昨日的收盘价，说明亏了
+                        (current_data[stock].last_price >= position.avg_cost * 1.002) # 赶紧跑
+                        ):
+                    log.info('以成本价 * 1.002 卖出', [stock, get_security_info(stock, date).display_name])
+                    sell_stocks.append(stock)
+        elif str(context.current_dt)[-8:-6] == '11':
             for stock in hold_list:
                 position = hold_positions[stock]
                 # 有可卖出的仓位  &  当前股票没有涨停 & 当前的价格大于持仓价（有收益）
@@ -664,8 +678,7 @@ class Strategy:
                         current_data[stock].last_price > 1 * position.avg_cost)):  # avg_cost当前持仓成本
                     log.info('止盈卖出', [stock, get_security_info(stock, date).display_name])
                     sell_stocks.append(stock)
-
-        if str(context.current_dt)[-8:-6] != '11':
+        else:
             for stock in hold_list:
                 position = hold_positions[stock]
 

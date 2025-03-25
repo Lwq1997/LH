@@ -118,6 +118,7 @@ def after_code_changed(context):  # 输出运行时间
         run_daily(total_buy, time='09:28')
         run_daily(total_sell, time='11:25')
         run_daily(total_sell, time='14:50')
+        run_daily(total_sell_bar, time='every_bar')
 
 
 def prepare_stock_list(context):
@@ -385,3 +386,7 @@ def total_buy(context):
 
 def total_sell(context):
     g.strategys['统筹交易策略'].specialSell(context)
+
+
+def total_sell_bar(context):
+    g.strategys['统筹交易策略'].specialSell(context, eveny_bar=True)
