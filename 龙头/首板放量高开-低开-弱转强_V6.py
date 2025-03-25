@@ -50,7 +50,7 @@ def initialize(context):
     # 持久变量
     g.strategys = {}
     # 子账户 分仓
-    g.portfolio_value_proportion = [0, 0, 0,0, 1]
+    g.portfolio_value_proportion = [0, 0, 0, 0, 1]
 
     # 创建策略实例
     # 初始化策略子账户 subportfolios
@@ -100,6 +100,7 @@ def initialize(context):
     total_strategy = Strategy(context, subportfolio_index=4, name='统筹交易策略', params=params)
     g.strategys[total_strategy.name] = total_strategy
 
+
 # 模拟盘在每天的交易时间结束后会休眠，第二天开盘时会恢复，如果在恢复时发现代码已经发生了修改，则会在恢复时执行这个函数。 具体的使用场景：可以利用这个函数修改一些模拟盘的数据。
 def after_code_changed(context):  # 输出运行时间
     log.info('函数运行时间(after_code_changed)：' + str(context.current_dt.time()))
@@ -120,6 +121,8 @@ def after_code_changed(context):  # 输出运行时间
 
 
 def prepare_stock_list(context):
+    log.info('--prepare_stock_list选股函数--',
+             str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
     utilstool = UtilsToolClass()
     utilstool.name = '总策略'
     g.fengban_rate = 0
@@ -190,16 +193,19 @@ def total_select(context):
         + g.strategys['首板低开'].select_list
         + g.strategys['一进二'].select_list
     )
-    g.strategys['统筹交易策略'].select_list = total_stocks
+    g.strategys['统筹交易策略'].special_select_list = {}
     if total_stocks:
-        g.strategys['统筹交易策略'].select_list = firter_industry(context, total_stocks)
+        g.strategys['统筹交易策略'].special_select_list = firter_industry(context, total_stocks)
 
 
 def firter_industry(context, total_stocks):
+    log.info('--firter_industry函数--',
+             str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
     if g.fengban_rate < 0.5:
-        return []  # 返回空列表或其他默认值
+        return {}  # 返回空列表或其他默认值
     first_filter_stocks = []
-    final_stocks = []
+    concept_final_stocks = []
+    industry_final_stocks = []
     industry_qualified_stocks = []
     concept_qualified_stocks = []
     # 前置过滤
@@ -244,12 +250,16 @@ def firter_industry(context, total_stocks):
                 # 如果股票所属行业在热度排名前三的行业中，则加入选股列表
                 if concept['concept_name'] in top_concepts:
                     concept_qualified_stocks.append(s)
-        final_stocks = set(set(concept_qualified_stocks))
-        print("行业今日最终选股: " + str(set(industry_qualified_stocks)))
-        print("概念今日最终选股: " + str(set(concept_qualified_stocks)))
-        print("总今日最终选股(交集): " + str(final_stocks))
+        concept_final_stocks = set(concept_qualified_stocks)
+        industry_final_stocks = set(industry_qualified_stocks)
+
+    special_select_list = {
+        '行业': industry_final_stocks,
+        '概念': concept_final_stocks
+    }
+    print("今日最终选股: " + str(special_select_list))
     # 将选股结果存储到全局变量
-    return final_stocks
+    return special_select_list
 
 
 # 获取指定日期范围内的行业热度

@@ -63,6 +63,7 @@ class Strategy:
         self.stoplost_level = self.params['stoplost_level'] if 'stoplost_level' in self.params else 0.2  # 止损的下跌幅度（按买入价）
 
         self.select_list = []
+        self.special_select_list = {}
         self.hold_list = []  # 昨收持仓
         self.history_hold_list = []  # 最近持有列表
         self.not_buy_again_list = []  # 最近持有不再购买列表
@@ -597,14 +598,25 @@ class Strategy:
     def specialBuy(self, context, total_amount=0, split=1):
         log.info(self.name, '--specialBuy调仓函数--',
                  str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+        special_select_list = self.special_select_list
         # 实时过滤部分股票，否则也买不了，放出去也没有意义
-        target_list = self.utilstool.filter_lowlimit_stock(context, self.select_list)
-        target_list = self.utilstool.filter_highlimit_stock(context, target_list)
-        target_list = self.utilstool.filter_paused_stock(context, target_list)
+        industry_final_stocks = special_select_list.get('行业', [])
+        concept_final_stocks = special_select_list.get('概念', [])
+        flag = 0
+        if concept_final_stocks:
+            target_list = self.utilstool.filter_lowlimit_stock(context, concept_final_stocks)
+            target_list = self.utilstool.filter_highlimit_stock(context, target_list)
+            target_list = self.utilstool.filter_paused_stock(context, target_list)
+            flag = 1
+        else:
+            target_list = self.utilstool.filter_lowlimit_stock(context, industry_final_stocks)
+            target_list = self.utilstool.filter_highlimit_stock(context, target_list)
+            target_list = self.utilstool.filter_paused_stock(context, target_list)
+            flag = 0.5
+
         current_data = get_current_data()
         # 持仓列表
         subportfolios = context.subportfolios[self.subportfolio_index]
-        log.debug('当前持仓:', subportfolios.long_positions)
         if target_list:
             if total_amount > 0:
                 for stock in target_list:
@@ -627,7 +639,7 @@ class Strategy:
                             self.utilstool.open_position(context, stock, value)
             else:
                 if subportfolios.available_cash / subportfolios.total_value > 0.3:
-                    value = subportfolios.available_cash / len(target_list)
+                    value = subportfolios.available_cash * flag / len(target_list)
                     for stock in target_list:
                         if subportfolios.available_cash / current_data[stock].last_price > 100:
                             self.utilstool.open_position(context, stock, value)
