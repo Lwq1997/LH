@@ -62,13 +62,11 @@ class OGT_Strategy(Strategy):
             # 获取昨日成交量
             yesterday_volume = prev_day_data['volume'][0]
 
-            log.info(f'{s}昨日成交量{yesterday_volume}')
             # 获取过去100个交易日的成交量
             past_volume_data = attribute_history(s, 100, '1d', fields=['volume'], skip_paused=True)
             if past_volume_data.empty:
                 continue
             max_past_volume = past_volume_data['volume'].max()
-            log.info(f'{s}最大成交量{max_past_volume}')
             if yesterday_volume < max_past_volume:
                 continue
 
