@@ -700,6 +700,68 @@ class Strategy:
 
         self.sell(context, sell_stocks)
 
+    # 换手率计算
+    def huanshoulv(self, context, stock, is_avg=False):
+        log.info(self.name, '--huanshoulv计算换手率函数--涉及股票:',stock,'--',
+                 str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+        if is_avg:
+            # 计算平均换手率
+            start_date = context.current_dt - datetime.timedelta(days=20)
+            end_date = context.previous_date
+            df_volume = get_price(stock, start_date=start_date, end_date=end_date, frequency='daily', fields=['volume'])
+            df_cap = get_valuation(stock, end_date=end_date, fields=['circulating_cap'], count=1)
+            circulating_cap = df_cap['circulating_cap'].iloc[0] if not df_cap.empty else 0
+            if circulating_cap == 0:
+                return 0.0
+            df_volume['turnover_ratio'] = df_volume['volume'] / (circulating_cap * 10000)
+            return df_volume['turnover_ratio'].mean()
+        else:
+            # 计算实时换手率
+            date_now = context.current_dt
+            df_vol = get_price(stock, start_date=date_now.date(), end_date=date_now, frequency='1m', fields=['volume'],
+                               skip_paused=False, fq='pre', panel=True, fill_paused=False)
+            volume = df_vol['volume'].sum()
+            date_pre = context.current_dt - datetime.timedelta(days=1)
+            df_circulating_cap = get_valuation(stock, end_date=date_pre, fields=['circulating_cap'], count=1)
+            circulating_cap = df_circulating_cap['circulating_cap'][0]
+            turnover_ratio = volume / (circulating_cap * 10000)
+            return turnover_ratio
+
+    # 换手率卖出
+    def sell_when_hsl(self, context):
+        log.info(self.name, '--sell_when_hsl换手率卖出股票函数--',
+                 str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+
+        cd = get_current_data()
+        thresh = {'破净策略': (0.001, 0.1), '微盘策略': (0.003, 0.1)}
+        if self.name not in thresh.keys():
+            return
+        shrink, expand = thresh[self.name]
+        excluded = {'518880.XSHG', '511880.XSHG'}
+        filtered_positions = [s for s in context.subportfolios[self.subportfolio_index].long_positions if
+                              s not in excluded]
+
+        for s in filtered_positions:
+            if cd[s].last_price >= cd[s].high_limit * 0.997:
+                # 涨停跳过
+                continue
+            rt = self.huanshoulv(context, s, False)
+            avg = self.huanshoulv(context, s, True)
+            if avg == 0:
+                continue
+            r = rt / avg
+            action, icon = '', ''
+            if avg < 0.003:
+                action, icon = '缩量', '❄️'
+            elif rt > expand and r > 2:
+                action, icon = '放量', '🔥'
+            if action:
+                self.is_stoplost_or_highlimit = True
+                g.global_sold_stock_record[s] = context.current_dt.date()
+                log.info(
+                    f"【{self.name}】{action} {s} {get_security_info(s).display_name} 换手率:{rt:.2%}→均:{avg:.2%} 倍率:{r:.1f}x {icon}")
+                self.sell(context, [s])
+
     # 涨停打开卖出
     def sell_when_highlimit_open(self, context):
         log.info(self.name, '--sell_when_highlimit_open涨停打开卖出股票函数--',
