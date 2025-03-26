@@ -37,11 +37,7 @@ class Strategy:
         self.inout_cash = 0
 
         self.fill_stock = self.params[
-            'fill_stock'] if 'fill_stock' in self.params else '511880.XSHG'  # 大盘止损位
-        self.stoploss_market = self.params[
-            'stoploss_market'] if 'stoploss_market' in self.params else 0.94  # 大盘止损位
-        self.stoploss_limit = self.params[
-            'stoploss_limit'] if 'stoploss_limit' in self.params else 0.88  # 个股止损位
+            'fill_stock'] if 'fill_stock' in self.params else '511880.XSHG'
         self.sold_diff_day = self.params[
             'sold_diff_day'] if 'sold_diff_day' in self.params else 0  # 是否过滤N天内涨停并卖出股票
         self.max_industry_cnt = self.params[
@@ -379,27 +375,39 @@ class Strategy:
 
     # 止损检查
     # 实现了一个止损检查功能，它会根据股票的跌幅来决定是否需要止损，并在需要止损时记录止损日期和打印止损的股票列表。
-    def stoploss(self, context, stocks_index=None):
+    def stoploss(self, context, stocks_index=None, index_drop_threshold = 0, stock_drop_threshold = 0):
         log.info(self.name, '--stoploss函数--',
                  str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+        # 定义不同策略对应的指数、跌幅阈值以及个股跌幅阈值
         positions = context.subportfolios[self.subportfolio_index].positions
         # 联合止损：结合大盘及个股情况进行止损判断
         if stocks_index:
-            stock_list = get_index_stocks(stocks_index)
-            df = get_price(stock_list, end_date=context.previous_date, frequency='daily',
-                           fields=['close', 'open'], count=1, panel=False, fill_paused=False)
-            if df is not None and not df.empty:
-                down_ratio = (df['close'] / df['open']).mean()
-                if down_ratio <= self.stoploss_market:
-                    log.info(f"{stocks_index}:的大盘跌幅达到 {down_ratio:.2%}，执行平仓操作。")
+            # 计算指数日内最高和当前价格
+            index_data = get_price(stocks_index, start_date=context.current_dt.date(), end_date=context.current_dt,
+                                   frequency='1m', fields=['high', 'close'], skip_paused=False, fq='pre', panel=False)
+            if not index_data.empty:
+                index_high = index_data['high'].max()
+                index_current = index_data['close'].iloc[-1]
+                index_drop = (index_high - index_current) / index_high
+                if index_drop > index_drop_threshold:
+                    # 指数下跌超过阈值，清仓对应策略
+                    log.info(f"【{self.name}】因{stocks_index}指数下跌超过{index_drop_threshold * 100}%清仓📉")
                     for stock in list(positions.keys()):
                         self.sell(context, [stock])
         else:
             for stock in list(positions.keys()):
-                pos = positions[stock]
-                if pos.price < pos.avg_cost * self.stoploss_limit:
-                    log.info(f"{stock}:的跌幅达到 {self.stoploss_limit:.2%}，执行清仓操作。")
-                    self.sell(context, [stock])
+                stock_data = get_price(stock, start_date=context.current_dt.date(), end_date=context.current_dt,
+                                       frequency='1m', fields=['high', 'close'], skip_paused=False, fq='pre', panel=False)
+                if not stock_data.empty:
+                    stock_high = stock_data['high'].max()
+                    stock_current = stock_data['close'].iloc[-1]
+                    stock_drop = (stock_high - stock_current) / stock_high
+                    if stock_drop > stock_drop_threshold:
+                        # 个股下跌超过阈值，清仓个股并重新调仓
+                        if self.sell(context, [stock]):
+                            log.info(f"【{self.name}】{stock} 因下跌超过{stock_drop_threshold * 100}%清仓🚨")
+                            self.select(context)
+                            self.adjustwithnoRM(context, exempt_stocks=['518880.XSHG'])
 
     # 3-8 判断今天是否为账户资金再平衡的日期(暂无使用)
     # date_flag,1-单个月，2-两个月1和4，3-三个月1和4和6
