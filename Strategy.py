@@ -405,6 +405,7 @@ class Strategy:
                     if stock_drop > stock_drop_threshold:
                         # 个股下跌超过阈值，清仓个股并重新调仓
                         if self.sell(context, [stock]):
+                            g.global_sold_stock_record[stock] = context.current_dt.date()
                             log.info(f"【{self.name}】{stock} 因下跌超过{stock_drop_threshold * 100}%清仓🚨")
                             self.select(context)
                             self.adjustwithnoRM(context, exempt_stocks=['518880.XSHG'])
