@@ -381,7 +381,8 @@ class Strategy:
         # 定义不同策略对应的指数、跌幅阈值以及个股跌幅阈值
         positions = context.subportfolios[self.subportfolio_index].positions
         # 联合止损：结合大盘及个股情况进行止损判断
-        if stocks_index:
+        if stocks_index and not (self.use_empty_month and context.current_dt.month in (self.empty_month)):
+            # 非1/4再止损
             # 计算指数日内最高和当前价格
             index_data = get_price(stocks_index, start_date=context.current_dt.date(), end_date=context.current_dt,
                                    frequency='1m', fields=['high', 'close'], skip_paused=False, fq='pre', panel=False)
