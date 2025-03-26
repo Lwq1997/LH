@@ -1,3 +1,7 @@
+# 克隆自聚宽文章：https://www.joinquant.com/post/54703
+# 标题：连板龙头优化策略V3.0
+# 作者：FanChen
+
 # 克隆自聚宽文章：https://www.joinquant.com/post/44926
 # 标题：连板龙头策略
 # 作者：wywy1995
@@ -15,14 +19,23 @@ def initialize(context):
     set_option('avoid_future_data', True)
     log.set_level('system', 'error')
     # 分仓数量
-    g.ps = 10  # 同时最高板龙头一般不会超过10个
+    g.ps = 1  # 同时最高板龙头一般不会超过10个
     # 聚宽因子
     g.jqfactor = 'VOL5'  # 5日平均换手率（只是做为示例）
     g.sort = True  # 选取因子值最小
+    g.emo_count = []
     # 每日运行
-    run_daily(get_stock_list, '9:01')
-    run_daily(buy, '09:30')
-    run_daily(sell, '14:50')
+    run_daily(get_stock_list, '09:25:05')
+    run_daily(buy, '09:25:10')
+    run_daily(sell, '10:00')
+    run_daily(sell, '10:30')
+    run_daily(sell, '11:00')
+    run_daily(sell, '11:15')
+    run_daily(sell, '13:00')
+    run_daily(sell, '13:30')
+    run_daily(sell, '14:00')
+    run_daily(sell, '14:30')
+    run_daily(sell, '14:55')
     run_daily(print_position_info, '15:02')
 
 
@@ -31,31 +44,125 @@ def get_stock_list(context):
     # 文本日期
     date = context.previous_date
     date = transform_date(date, 'str')
+    date_1 = get_shifted_date(date, -1, 'T')  # 获取前一个交易日的日期
 
     # 初始列表
     initial_list = prepare_stock_list(date)
-
     # 当日涨停
     hl_list = get_hl_stock(initial_list, date)
+
+    # 大盘判断及竞价择时
+    if not market_signal(context):
+        # 获取当日集合竞价数据
+        date_now = context.current_dt.strftime("%Y-%m-%d")
+        auction_start = date_now + ' 09:15:00'
+        auction_end = date_now + ' 09:25:00'
+        auctions = get_call_auction(hl_list, start_date=auction_start, end_date=auction_end,
+                                    fields=['time', 'current']).set_index('code')
+        if auctions.empty:
+            return []
+        # 获取前收盘价
+        h = get_price(hl_list, end_date=date, fields=['close'], count=1, panel=False).set_index('code')
+        if h.empty:
+            return []
+        # 筛选集合竞价高开的比例
+        auctions['pre_close'] = h['close']
+        gk_list = auctions.query('pre_close * 1.00 < current').index.tolist()
+        gkb = len(gk_list) / len(hl_list) * 100  # 昨日涨停早盘高开比
+        if gkb < 75:
+            g.target_list = []
+            log.info("涨停情绪竞价开盘退潮，今日空仓")
+            return
 
     # 全部连板股票
     ccd = get_continue_count_df(hl_list, date, 20) if len(hl_list) != 0 else pd.DataFrame(index=[], data={'count': [],
                                                                                                           'extreme_count': []})
-
     # 最高连板
     M = ccd['count'].max() if len(ccd) != 0 else 0
-    log.info('最高连板',M)
-    # 龙头
-    ccd0 = pd.DataFrame(index=[], data={'count': [], 'extreme_count': []})
-    CCD = ccd[ccd['count'] == M] if M != 0 else ccd0
-    log.info(CCD)
-    lt = list(CCD.index)
 
     # 可以利用多个因子对lt进行进一步筛选大幅提高收益并降低回撤，使用到的因子见代码末尾
+    ## 市场特征
+    # 1 龙头
+    ccd0 = pd.DataFrame(index=[], data={'count': [], 'extreme_count': []})
+    CCD = ccd[ccd['count'] == M] if M != 0 else ccd0
+    m = CCD['extreme_count'].min()
+    # CCD1 = CCD[CCD['extreme_count'] == m] if str(m) != 'nan' else ccd0
+    lt = list(CCD.index)
+    # 2 数量
+    l = len(CCD)
+    # 3 晋级
+    r = 100 * len(CCD) / len(hl_list) if len(hl_list) != 0 else 0
+    # 4 情绪
+    emo = M
+    g.emo_count.append(emo)  # 初始化时计算g.emo_count
+    # 5 周期
+    cyc = g.emo_count[-1] if g.emo_count[-1] == max(g.emo_count[-3:]) and g.emo_count[-1] != 0 else 0  # 根据连板数判断情绪周期
+    cyc = 1 if cyc == emo else 0
+
+    ## 热门股票池
+    try:
+        dct = get_concept(hl_list, date)
+        hot_concept = get_hot_concept(dct, date)
+        hot_stocks = filter_concept_stock(dct, hot_concept)
+    except:
+        pass
+
+    ## 龙头特征
+    condition_dct = {}
+    current_data = get_current_data()
+    for s in lt:
+        try:
+            # 6 独食
+            ds = ccd.loc[s]['extreme_count']
+            # 7 市值
+            sz = get_fundamentals(query(valuation.code, valuation.circulating_market_cap).filter(valuation.code == s),
+                                  date).iloc[0, 1]
+            # 8 换手
+            hs = HSL([s], date)[0][s]
+            # 9 龙头概念
+            try:
+                c = 1 if s in hot_stocks else 0
+            except:
+                c = 0
+            #  10 资金流
+            zj = get_money_flow(s, end_date=date, count=1, fields=["net_amount_main", "net_pct_main"])
+            if zj["net_amount_main"].iloc[-1] < -20000 or zj["net_pct_main"].iloc[-1] < -15:
+                continue
+            # #11 高开比
+            # auc = get_call_auction(s, start_date=auction_start, end_date=auction_end, fields=['time','volume', 'current'])
+            # auc_ratio = auc['current'][0] / (current_data[s].high_limit/1.1)
+            # if auc_ratio <= 1.0:
+            #     continue
+
+            # 逻辑判断
+            condition = ''
+            if hs < 35 and ds < 10 and emo > 2:
+                # 上升周期
+                if cyc == 1 and sz < 200:
+                    condition += '上升周期'
+                # 资金接力
+                if ds < 3 and 10 < hs < 25:
+                    condition += '资金接力'
+                # 题材初期
+                if c == 1 and emo <= 6:
+                    condition += '题材初期(' + str(hot_concept) + ')'
+                # # 热点集中
+                # if l>5 and r> 10:
+                #     condition += '热点集中'
+                # # # 情绪突破
+                # if emo> 10:
+                #     condition += '情绪突破'
+            # 获取符合逻辑的列表
+            if len(condition) != 0:
+                condition_dct[s] = get_security_info(s, date).display_name + ' —— ' + condition
+        except:
+            pass
+    stock_list = list(condition_dct.keys())
 
     # 打印全部合格股票
-    df = get_factor_filter_df(context, lt, g.jqfactor, g.sort)
+    df = get_factor_filter_df(context, stock_list, g.jqfactor, g.sort)
     stock_list = list(df.index)
+    print('代码:{}'.format(stock_list))
 
     # 根据仓位截取列表
     g.target_list = stock_list[:(g.ps - len(context.portfolio.positions))]
@@ -197,7 +304,7 @@ def filter_extreme_limit_stock(context, stock_list, date):
 # 每日初始股票池
 def prepare_stock_list(date):
     initial_list = get_all_securities('stock', date).index.tolist()
-    initial_list = filter_kcbj_stock(initial_list)
+    # initial_list = filter_kcbj_stock(initial_list)
     initial_list = filter_new_stock(initial_list, date)
     initial_list = filter_st_stock(initial_list, date)
     initial_list = filter_paused_stock(initial_list, date)
@@ -219,6 +326,16 @@ def get_init_emo_count(context, date):
         M = CCD['count'].max() if len(CCD) != 0 else 0
         emo_count.append(M)
     return emo_count
+
+
+# 判断大盘是否在五日均线之上
+def market_signal(context):
+    prices = attribute_history('000300.XSHG', 60, '1d', fields=['close'], skip_paused=True)
+    if len(prices) < 60:
+        return False
+    ma5 = prices['close'].rolling(window=5).mean()
+    ma20 = prices['close'].rolling(window=20).mean()
+    return (ma5[-1] > ma20[-1] and prices['close'][-1] > ma5[-1])
 
 
 # 计算热门概念
@@ -283,7 +400,6 @@ def get_hl_count_df(hl_list, date, watch_days):
 
 # 计算连板数
 def get_continue_count_df(hl_list, date, watch_days):
-    log.info(hl_list)
     df = pd.DataFrame()
     for d in range(2, watch_days + 1):
         HLC = get_hl_count_df(hl_list, date, d)
@@ -299,7 +415,6 @@ def get_continue_count_df(hl_list, date, watch_days):
         ccd = ccd.append(tmp)
     if len(ccd) != 0:
         ccd = ccd.sort_values(by='count', ascending=False)
-    log.info(ccd)
     return ccd
 
 
@@ -318,7 +433,7 @@ def get_factor_filter_df(context, stock_list, jqfactor, sort):
 # 打印持仓信息
 def print_position_info(context):
     position_percent = 100 * context.portfolio.positions_value / context.portfolio.total_value
-    record(仓位=round(position_percent, 2))
+    # record(仓位 = round(position_percent, 2))
     # 打印账户信息
     for position in list(context.portfolio.positions.values()):
         securities = position.security
@@ -336,73 +451,5 @@ def print_position_info(context):
         print('———————————————————————————————————')
     print('———————————————————————————————————————分割线————————————————————————————————————————')
 
-
 ############################################################################################################################################################################
-'''
-    ## 市场特征
-    #1 龙头
-    ccd0 = pd.DataFrame(index=[], data={'count':[],'extreme_count':[]})
-    CCD = ccd[ccd['count'] == M] if M != 0 else ccd0
-    m = CCD['extreme_count'].min()
-    CCD1 = CCD[CCD['extreme_count'] == m] if str(m) != 'nan' else ccd0
-    lt = list(CCD1.index)
-    #2 数量
-    l = len(CCD)
-    #3 晋级
-    r = 100 * len(CCD) / len(hl_list) if len(hl_list) != 0 else 0
-    #4 情绪
-    emo = M
-    g.emo_count.append(emo) #初始化时计算g.emo_count
-    #5 周期
-    cyc = g.emo_count[-1] if g.emo_count[-1] == max(g.emo_count[-3:]) and g.emo_count[-1] != 0 else 0 #根据连板数判断情绪周期  
-    cyc = 1 if cyc == emo else 0
 
-    ## 热门股票池
-    try:
-        dct = get_concept(hl_list, date)
-        hot_concept = get_hot_concept(dct, date)
-        hot_stocks = filter_concept_stock(dct, hot_concept)
-    except:
-        pass
-
-    ## 龙头特征
-    condition_dct = {}
-    for s in lt:
-        try:
-            #6 独食
-            ds = ccd.loc[s]['extreme_count']
-            #7 市值
-            sz = get_fundamentals(query(valuation.code, valuation.circulating_market_cap).filter(valuation.code==s), date).iloc[0,1]
-            #8 换手
-            hs = HSL([s], date)[0][s]
-            #9 龙头概念
-            try:
-                c = 1 if s in hot_stocks else 0
-            except:
-                c = 0
-
-            ## 逻辑判断
-            condition = ''
-            if hs? ds? emo?:
-                # 上升周期
-                if cyc? sz?:
-                    condition += '上升周期 '
-                # 资金接力
-                if ds? hs? hs?:
-                    condition += '资金接力 '
-                # 题材初期
-                if c? emo?:
-                    condition += '题材初期(' + str(hot_concept) + ') '
-                # 热点集中
-                if l? r?:
-                    condition += '热点集中 '
-                # 情绪突破
-                if emo?:
-                    condition += '情绪突破 '
-            #获取符合逻辑的列表
-            if len(condition) != 0:
-                condition_dct[s] = get_security_info(s, date).display_name+' —— ' + condition
-        except:
-            pass
-    stock_list = list(condition_dct.keys())
-'''

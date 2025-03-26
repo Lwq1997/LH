@@ -181,21 +181,68 @@ def prepare_stock_list(context):
         )
         g.fengban_rate = len(yes_hl_list) / len(hl0_list)
 
+# 判断大盘是否在五日均线之上
+def market_signal(context):
+    prices = attribute_history('000300.XSHG', 60, '1d', fields=['close'], skip_paused=True)
+    if len(prices) < 60:
+        return False
+    ma5 = prices['close'].rolling(window=5).mean()
+    ma20 = prices['close'].rolling(window=20).mean()
+    return (ma5[-1] > ma20[-1] and prices['close'][-1] > ma5[-1])
+
+
+def open_buy(context):
+    date = context.previous_date
+    utilstool = UtilsToolClass()
+    utilstool.name = '总策略'
+    # 文本日期
+    date_3, date_2, date_1, date = get_trade_days(end_date=date, count=4)
+
+    # 初始列表
+    initial_list = utilstool.stockpool(context, is_filter_highlimit=False,
+                                       is_filter_lowlimit=False, is_updown_limit=False)
+
+    # 昨日涨停
+    yes_hl_list = utilstool.get_hl_stock(context, initial_list, date)
+
+    # 大盘判断及竞价择时
+    if not market_signal(context):
+        # 获取当日集合竞价数据
+        date_now = context.current_dt.strftime("%Y-%m-%d")
+        auction_start = date_now + ' 09:15:00'
+        auction_end = date_now + ' 09:25:00'
+        auctions = get_call_auction(yes_hl_list, start_date=auction_start, end_date=auction_end,
+                                    fields=['time', 'current']).set_index('code')
+        if auctions.empty:
+            return False
+        # 获取前收盘价
+        h = get_price(yes_hl_list, end_date=date, fields=['close'], count=1, panel=False).set_index('code')
+        if h.empty:
+            return False
+        # 筛选集合竞价高开的比例
+        auctions['pre_close'] = h['close']
+        gk_list = auctions.query('pre_close * 1.00 < current').index.tolist()
+        gkb = len(gk_list) / len(yes_hl_list) * 100  # 昨日涨停早盘高开比
+        if gkb < 75:
+            log.info("涨停情绪竞价开盘退潮，今日空仓")
+            return False
+    return True
 
 def total_select(context):
-    g.strategys['弱转强'].select(context)
-    g.strategys['首板高开'].select(context)
-    g.strategys['首板低开'].select(context)
-    g.strategys['一进二'].select(context)
-    total_stocks = set(
-        g.strategys['弱转强'].select_list
-        + g.strategys['首板高开'].select_list
-        + g.strategys['首板低开'].select_list
-        + g.strategys['一进二'].select_list
-    )
-    g.strategys['统筹交易策略'].special_select_list = {}
-    if total_stocks:
-        g.strategys['统筹交易策略'].special_select_list = firter_industry(context, total_stocks)
+    if open_buy(context):
+        g.strategys['弱转强'].select(context)
+        g.strategys['首板高开'].select(context)
+        g.strategys['首板低开'].select(context)
+        g.strategys['一进二'].select(context)
+        total_stocks = set(
+            g.strategys['弱转强'].select_list
+            + g.strategys['首板高开'].select_list
+            + g.strategys['首板低开'].select_list
+            + g.strategys['一进二'].select_list
+        )
+        g.strategys['统筹交易策略'].special_select_list = {}
+        if total_stocks:
+            g.strategys['统筹交易策略'].special_select_list = firter_industry(context, total_stocks)
 
 
 def firter_industry(context, total_stocks):
