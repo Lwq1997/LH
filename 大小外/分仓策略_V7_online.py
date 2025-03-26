@@ -161,6 +161,7 @@ def adjust_pj_strategy(context):
 
 def pj_sell_when_highlimit_open(context):
     g.strategys['破净策略'].sell_when_highlimit_open(context)
+    g.strategys['破净策略'].sell_when_hsl(context)
     if g.strategys['破净策略'].is_stoplost_or_highlimit:
         g.strategys['破净策略'].select(context)
         g.strategys['破净策略'].adjustwithnoRM(context)
@@ -186,6 +187,7 @@ def adjust_wp_strategy(context):
 
 def wp_sell_when_highlimit_open(context):
     g.strategys['微盘策略'].sell_when_highlimit_open(context)
+    g.strategys['微盘策略'].sell_when_hsl(context)
     if g.strategys['微盘策略'].is_stoplost_or_highlimit:
         g.strategys['微盘策略'].select(context)
         g.strategys['微盘策略'].adjustwithnoRM(context, exempt_stocks=['518880.XSHG'])
@@ -972,6 +974,7 @@ class UtilsToolClass:
             )
         )
 
+
 # 策略基类
 class Strategy:
     def __init__(self, context, subportfolio_index, name, params):
@@ -988,11 +991,7 @@ class Strategy:
         self.inout_cash = 0
 
         self.fill_stock = self.params[
-            'fill_stock'] if 'fill_stock' in self.params else '511880.XSHG'  # 大盘止损位
-        self.stoploss_market = self.params[
-            'stoploss_market'] if 'stoploss_market' in self.params else 0.94  # 大盘止损位
-        self.stoploss_limit = self.params[
-            'stoploss_limit'] if 'stoploss_limit' in self.params else 0.88  # 个股止损位
+            'fill_stock'] if 'fill_stock' in self.params else '511880.XSHG'
         self.sold_diff_day = self.params[
             'sold_diff_day'] if 'sold_diff_day' in self.params else 0  # 是否过滤N天内涨停并卖出股票
         self.max_industry_cnt = self.params[
@@ -1014,6 +1013,7 @@ class Strategy:
         self.stoplost_level = self.params['stoplost_level'] if 'stoplost_level' in self.params else 0.2  # 止损的下跌幅度（按买入价）
 
         self.select_list = []
+        self.special_select_list = {}
         self.hold_list = []  # 昨收持仓
         self.history_hold_list = []  # 最近持有列表
         self.not_buy_again_list = []  # 最近持有不再购买列表
@@ -1329,27 +1329,41 @@ class Strategy:
 
     # 止损检查
     # 实现了一个止损检查功能，它会根据股票的跌幅来决定是否需要止损，并在需要止损时记录止损日期和打印止损的股票列表。
-    def stoploss(self, context, stocks_index=None):
+    def stoploss(self, context, stocks_index=None, index_drop_threshold = 0, stock_drop_threshold = 0):
         log.info(self.name, '--stoploss函数--',
                  str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+        # 定义不同策略对应的指数、跌幅阈值以及个股跌幅阈值
         positions = context.subportfolios[self.subportfolio_index].positions
         # 联合止损：结合大盘及个股情况进行止损判断
-        if stocks_index:
-            stock_list = get_index_stocks(stocks_index)
-            df = get_price(stock_list, end_date=context.previous_date, frequency='daily',
-                           fields=['close', 'open'], count=1, panel=False, fill_paused=False)
-            if df is not None and not df.empty:
-                down_ratio = (df['close'] / df['open']).mean()
-                if down_ratio <= self.stoploss_market:
-                    log.info(f"{stocks_index}:的大盘跌幅达到 {down_ratio:.2%}，执行平仓操作。")
+        if stocks_index and not (self.use_empty_month and context.current_dt.month in (self.empty_month)):
+            # 非1/4再止损
+            # 计算指数日内最高和当前价格
+            index_data = get_price(stocks_index, start_date=context.current_dt.date(), end_date=context.current_dt,
+                                   frequency='1m', fields=['high', 'close'], skip_paused=False, fq='pre', panel=False)
+            if not index_data.empty:
+                index_high = index_data['high'].max()
+                index_current = index_data['close'].iloc[-1]
+                index_drop = (index_high - index_current) / index_high
+                if index_drop > index_drop_threshold:
+                    # 指数下跌超过阈值，清仓对应策略
+                    log.info(f"【{self.name}】因{stocks_index}指数下跌超过{index_drop_threshold * 100}%清仓📉")
                     for stock in list(positions.keys()):
                         self.sell(context, [stock])
         else:
             for stock in list(positions.keys()):
-                pos = positions[stock]
-                if pos.price < pos.avg_cost * self.stoploss_limit:
-                    log.info(f"{stock}:的跌幅达到 {self.stoploss_limit:.2%}，执行清仓操作。")
-                    self.sell(context, [stock])
+                stock_data = get_price(stock, start_date=context.current_dt.date(), end_date=context.current_dt,
+                                       frequency='1m', fields=['high', 'close'], skip_paused=False, fq='pre', panel=False)
+                if not stock_data.empty:
+                    stock_high = stock_data['high'].max()
+                    stock_current = stock_data['close'].iloc[-1]
+                    stock_drop = (stock_high - stock_current) / stock_high
+                    if stock_drop > stock_drop_threshold:
+                        # 个股下跌超过阈值，清仓个股并重新调仓
+                        if self.sell(context, [stock]):
+                            g.global_sold_stock_record[stock] = context.current_dt.date()
+                            log.info(f"【{self.name}】{stock} 因下跌超过{stock_drop_threshold * 100}%清仓🚨")
+                            self.select(context)
+                            self.adjustwithnoRM(context, exempt_stocks=['518880.XSHG'])
 
     # 3-8 判断今天是否为账户资金再平衡的日期(暂无使用)
     # date_flag,1-单个月，2-两个月1和4，3-三个月1和4和6
@@ -1548,14 +1562,25 @@ class Strategy:
     def specialBuy(self, context, total_amount=0, split=1):
         log.info(self.name, '--specialBuy调仓函数--',
                  str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+        special_select_list = self.special_select_list
         # 实时过滤部分股票，否则也买不了，放出去也没有意义
-        target_list = self.utilstool.filter_lowlimit_stock(context, self.select_list)
-        target_list = self.utilstool.filter_highlimit_stock(context, target_list)
-        target_list = self.utilstool.filter_paused_stock(context, target_list)
+        industry_final_stocks = special_select_list.get('行业', [])
+        concept_final_stocks = special_select_list.get('概念', [])
+        flag = 0
+        if concept_final_stocks:
+            target_list = self.utilstool.filter_lowlimit_stock(context, concept_final_stocks)
+            target_list = self.utilstool.filter_highlimit_stock(context, target_list)
+            target_list = self.utilstool.filter_paused_stock(context, target_list)
+            flag = 1
+        else:
+            target_list = self.utilstool.filter_lowlimit_stock(context, industry_final_stocks)
+            target_list = self.utilstool.filter_highlimit_stock(context, target_list)
+            target_list = self.utilstool.filter_paused_stock(context, target_list)
+            flag = 0.5
+
         current_data = get_current_data()
         # 持仓列表
         subportfolios = context.subportfolios[self.subportfolio_index]
-        log.debug('当前持仓:', subportfolios.long_positions)
         if target_list:
             if total_amount > 0:
                 for stock in target_list:
@@ -1578,12 +1603,12 @@ class Strategy:
                             self.utilstool.open_position(context, stock, value)
             else:
                 if subportfolios.available_cash / subportfolios.total_value > 0.3:
-                    value = subportfolios.available_cash / len(target_list)
+                    value = subportfolios.available_cash * flag / len(target_list)
                     for stock in target_list:
                         if subportfolios.available_cash / current_data[stock].last_price > 100:
                             self.utilstool.open_position(context, stock, value)
 
-    def specialSell(self, context):
+    def specialSell(self, context, eveny_bar = False):
         log.info(self.name, '--SpecialSell调仓函数--',
                  str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
 
@@ -1594,7 +1619,21 @@ class Strategy:
         sell_stocks = []
         date = self.utilstool.transform_date(context, context.previous_date, 'str')
         current_data = get_current_data()  #
-        if str(context.current_dt)[-8:-6] == '11':
+
+        if eveny_bar:
+            for stock in hold_list:
+                position = hold_positions[stock]
+                # 获取昨日收盘价
+                prev_close = attribute_history(stock, 1, '1d', fields=['close'], skip_paused=True)['close'][0]
+                # 有可卖出的仓位  &  当前股票没有涨停 & 当前的价格大于持仓价（有收益）
+                if ((position.closeable_amount != 0) and (
+                        current_data[stock].last_price < current_data[stock].high_limit) and
+                        (prev_close < position.avg_cost) and# avg_cost当前持仓成本大于昨日的收盘价，说明亏了
+                        (current_data[stock].last_price >= position.avg_cost * 1.002) # 赶紧跑
+                        ):
+                    log.info('以成本价 * 1.002 卖出', [stock, get_security_info(stock, date).display_name])
+                    sell_stocks.append(stock)
+        elif str(context.current_dt)[-8:-6] == '11':
             for stock in hold_list:
                 position = hold_positions[stock]
                 # 有可卖出的仓位  &  当前股票没有涨停 & 当前的价格大于持仓价（有收益）
@@ -1603,8 +1642,7 @@ class Strategy:
                         current_data[stock].last_price > 1 * position.avg_cost)):  # avg_cost当前持仓成本
                     log.info('止盈卖出', [stock, get_security_info(stock, date).display_name])
                     sell_stocks.append(stock)
-
-        if str(context.current_dt)[-8:-6] == '14':
+        else:
             for stock in hold_list:
                 position = hold_positions[stock]
 
@@ -1625,6 +1663,68 @@ class Strategy:
                     sell_stocks.append(stock)
 
         self.sell(context, sell_stocks)
+
+    # 换手率计算
+    def huanshoulv(self, context, stock, is_avg=False):
+        log.info(self.name, '--huanshoulv计算换手率函数--涉及股票:',stock,'--',
+                 str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+        if is_avg:
+            # 计算平均换手率
+            start_date = context.current_dt - datetime.timedelta(days=20)
+            end_date = context.previous_date
+            df_volume = get_price(stock, start_date=start_date, end_date=end_date, frequency='daily', fields=['volume'])
+            df_cap = get_valuation(stock, end_date=end_date, fields=['circulating_cap'], count=1)
+            circulating_cap = df_cap['circulating_cap'].iloc[0] if not df_cap.empty else 0
+            if circulating_cap == 0:
+                return 0.0
+            df_volume['turnover_ratio'] = df_volume['volume'] / (circulating_cap * 10000)
+            return df_volume['turnover_ratio'].mean()
+        else:
+            # 计算实时换手率
+            date_now = context.current_dt
+            df_vol = get_price(stock, start_date=date_now.date(), end_date=date_now, frequency='1m', fields=['volume'],
+                               skip_paused=False, fq='pre', panel=True, fill_paused=False)
+            volume = df_vol['volume'].sum()
+            date_pre = context.current_dt - datetime.timedelta(days=1)
+            df_circulating_cap = get_valuation(stock, end_date=date_pre, fields=['circulating_cap'], count=1)
+            circulating_cap = df_circulating_cap['circulating_cap'][0]
+            turnover_ratio = volume / (circulating_cap * 10000)
+            return turnover_ratio
+
+    # 换手率卖出
+    def sell_when_hsl(self, context):
+        log.info(self.name, '--sell_when_hsl换手率卖出股票函数--',
+                 str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+
+        cd = get_current_data()
+        thresh = {'破净策略': (0.001, 0.1), '微盘策略': (0.003, 0.1)}
+        if self.name not in thresh.keys():
+            return
+        shrink, expand = thresh[self.name]
+        excluded = {'518880.XSHG', '511880.XSHG'}
+        filtered_positions = [s for s in context.subportfolios[self.subportfolio_index].long_positions if
+                              s not in excluded]
+
+        for s in filtered_positions:
+            if cd[s].last_price >= cd[s].high_limit * 0.997:
+                # 涨停跳过
+                continue
+            rt = self.huanshoulv(context, s, False)
+            avg = self.huanshoulv(context, s, True)
+            if avg == 0:
+                continue
+            r = rt / avg
+            action, icon = '', ''
+            if avg < 0.003:
+                action, icon = '缩量', '❄️'
+            elif rt > expand and r > 2:
+                action, icon = '放量', '🔥'
+            if action:
+                self.is_stoplost_or_highlimit = True
+                g.global_sold_stock_record[s] = context.current_dt.date()
+                log.info(
+                    f"【{self.name}】{action} {s} {get_security_info(s).display_name} 换手率:{rt:.2%}→均:{avg:.2%} 倍率:{r:.1f}x {icon}")
+                self.sell(context, [s])
 
     # 涨停打开卖出
     def sell_when_highlimit_open(self, context):
@@ -1985,6 +2085,7 @@ class Strategy:
                 if stock not in self.bought_stocks:
                     self.bought_stocks[stock] = cash
 
+
 class All_Day2_Strategy(Strategy):
     def __init__(self, context, subportfolio_index, name, params):
         super().__init__(context, subportfolio_index, name, params)
@@ -2002,7 +2103,8 @@ class All_Day2_Strategy(Strategy):
         self.min_volume = 2000
 
     def adjust(self, context):
-        log.info(self.name, '--adject函数（全天候定制）--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+        log.info(self.name, '--adject函数（全天候定制）--',
+                 str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
 
         subportfolio = context.subportfolios[self.subportfolio_index]
 
@@ -2014,7 +2116,7 @@ class All_Day2_Strategy(Strategy):
 
         # 获取当前持仓
         current_positions = subportfolio.long_positions
-        log.info(self.name, '的选股列表:', targets,'--当前持仓--',current_positions)
+        log.info(self.name, '的选股列表:', targets, '--当前持仓--', current_positions)
 
         # 计算最小交易单位的价值（假设一手是100股）
         min_trade_value = {etf: current_positions[etf].price * 100 if etf in current_positions else 0 for etf in
@@ -2026,11 +2128,11 @@ class All_Day2_Strategy(Strategy):
         else:
             # 先卖出
             for etf, target in targets.items():
-                    value = current_positions[etf].value
-                    minV = min_trade_value[etf]
-                    if value - target > self.min_volume and value - target >= minV:
-                        log.info(f'全天候策略开始卖出{etf}，仓位{target}')
-                        self.utilstool.open_position(context, etf, target)
+                value = current_positions[etf].value
+                minV = min_trade_value[etf]
+                if value - target > self.min_volume and value - target >= minV:
+                    log.info(f'全天候策略开始卖出{etf}，仓位{target}')
+                    self.utilstool.open_position(context, etf, target)
 
             # self.balance_subportfolios(context)
 
