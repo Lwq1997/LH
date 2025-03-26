@@ -160,6 +160,7 @@ def adjust_pj_strategy(context):
 
 def pj_sell_when_highlimit_open(context):
     g.strategys['破净策略'].sell_when_highlimit_open(context)
+    g.strategys['破净策略'].sell_when_hsl(context)
     if g.strategys['破净策略'].is_stoplost_or_highlimit:
         g.strategys['破净策略'].select(context)
         g.strategys['破净策略'].adjustwithnoRM(context)
@@ -185,6 +186,7 @@ def adjust_jsg_strategy(context):
 
 def jsg_sell_when_highlimit_open(context):
     g.strategys['搅屎棍策略'].sell_when_highlimit_open(context)
+    g.strategys['破净策略'].sell_when_hsl(context)
     if g.strategys['搅屎棍策略'].is_stoplost_or_highlimit:
         g.strategys['搅屎棍策略'].select(context)
         g.strategys['搅屎棍策略'].adjustwithnoRM(context, exempt_stocks=['518880.XSHG'])
