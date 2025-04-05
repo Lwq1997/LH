@@ -828,11 +828,23 @@ class Strategy:
                 # 定义核心条件
                 cond1 = (last_price != high_limit)  # 今日未触涨停
                 cond2_1 = ret < -3  # 亏损超3%
+                cond2_1_1 = ret < -5  # 亏损超5%
                 cond2_2 = ret > 0  # 盈利
                 cond2_3 = (df_history['close'].iloc[0] == df_history['high_limit'].iloc[0])  # 昨日涨停
 
                 # 组合条件并过滤
-                if cond1 and (cond2_1 or cond2_2 or cond2_3):
+                if str(context.current_dt)[-8:-6] < '13' and cond1 and (cond2_1_1 or cond2_2 or cond2_3):
+                    result = ''
+                    if cond2_1_1:
+                        result += '亏损超5%--'
+                    if cond2_2:
+                        result += '盈利--'
+                    if cond2_3:
+                        result += '昨日涨停--'
+                    if last_price > low_limit and position.closeable_amount != 0:  # 防止跌停价卖出
+                        log.info('因',result,'卖出ST股票', [stock, get_security_info(stock, date).display_name])
+                        sell_stocks.append(stock)
+                if str(context.current_dt)[-8:-6] >= '13' and cond1 and (cond2_1 or cond2_2 or cond2_3):
                     result = ''
                     if cond2_1:
                         result += '亏损超3%--'
