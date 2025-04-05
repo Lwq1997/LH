@@ -39,7 +39,6 @@ class UtilsToolClass:
         else:
             return pd.DataFrame(columns=['rp'])
 
-
     def rise_low_volume(self, context, stock):  # 上涨时，未放量 rising on low volume
         hist = attribute_history(stock, 106, '1d', fields=['high', 'volume'], skip_paused=True, df=False)
         high_prices = hist['high'][:102]
@@ -141,7 +140,7 @@ class UtilsToolClass:
 
         method_name = inspect.getframeinfo(inspect.currentframe()).function
         item = f"分仓策略:{self.name}<br>-函数名称:{method_name}<br>-时间:{now}"
-        if order_info != None and order_info.filled > 0:
+        if order_info != None and (before_buy or order_info.filled > 0):
             content = (f"策略: {self.name} "
                        f"--操作时间: {now} "
                        f"--买入股票: {security} "
@@ -314,6 +313,9 @@ class UtilsToolClass:
         last_prices = history(1, unit='1m', field='close', security_list=stock_list)
         current_data = get_current_data()
 
+        for stock in stock_list:
+            log.debug(
+                f'股票{stock},当前最新价格{last_prices[stock][-1]},当前跌停价{current_data[stock].low_limit},,当前涨停价{current_data[stock].high_limit}')
         return [stock for stock in stock_list if stock in subportfolio.long_positions
                 or last_prices[stock][-1] > current_data[stock].low_limit]
 
@@ -540,6 +542,15 @@ class UtilsToolClass:
                         fields=['close', 'high', 'high_limit', 'paused'],
                         count=1, panel=False, fill_paused=False, skip_paused=False
                         ).query('close!=high_limit and high==high_limit and paused==0').groupby('code').size()
+        return h_s.index.tolist()
+
+    # 筛选出某一日未涨停的股票
+    def get_ever_hl_stock3(self, context, stock_list, end_date):
+        if not stock_list: return []
+        h_s = get_price(stock_list, end_date=end_date, frequency='daily',
+                        fields=['close', 'high', 'high_limit', 'paused'],
+                        count=1, panel=False, fill_paused=False, skip_paused=False
+                        ).query('close!=high_limit').groupby('code').size()
         return h_s.index.tolist()
 
     def balance_subportfolios(self, context):
@@ -783,3 +794,14 @@ class UtilsToolClass:
                 ]
             )
         )
+
+    ##获取所有ST股##
+    def get_st(self, context):
+        yesterday = context.previous_date
+        stockList = get_all_securities(types='stock', date=yesterday).index
+        st_data = get_extras('is_st', stockList, count=1, end_date=yesterday)
+        st_data = st_data.T
+        st_data.columns = ['is_st']
+        st_data = st_data[st_data['is_st'] == True]
+        df = st_data.index.tolist()
+        return df
