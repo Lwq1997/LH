@@ -37,9 +37,11 @@ class ST_Strategy(Strategy):
             print(f'筛选后市面上所有的符合国九条ST股票个数：{len(init_st_list)}')
 
         init_st_list = self.st_filter_stocks(context, init_st_list)
+        log.debug(f'基础信息过滤后符合条件的ST股票池：{init_st_list}')
         if len(init_st_list) == 0:
             return st_list
         init_st_list = self.st_rzq_list(context, init_st_list)
+        log.debug(f'弱转强过滤后符合条件的ST股票池：{init_st_list}')
         if len(init_st_list) == 0:
             return st_list
             # 低开
@@ -106,7 +108,7 @@ class ST_Strategy(Strategy):
             stocks,
             count=11,
             frequency='1d',
-            fields=['close', 'low', 'volume'],
+            fields=['close', 'low', 'volume', 'money'],
             end_date=yesterday,
             panel=False
         ).reset_index()
@@ -116,11 +118,13 @@ class ST_Strategy(Strategy):
         ma10 = grouped['close'].transform(lambda x: x.rolling(10).mean())  # 10日均线
         prev_low = grouped['low'].shift(1)  # 前一日最低价
         prev_volume = grouped['volume'].shift(1)  # 前一日成交量
+        prev_money = grouped['money'].shift(1)  # 前一日成交量
         # 构建筛选条件
         conditions = (
                 (df['close'] > prev_low) &  # 多头排列
                 (df['close'] > ma10) &  # 10日线上方
                 (df['volume'] > prev_volume) &  # 放量
+                # (df['money'] >= 10000000 ) &  # 成交量大于3000w
                 (df['volume'] < 10 * prev_volume) &  # 成交量未暴增
                 (df['close'] > 1)  # 股价>1
         )
