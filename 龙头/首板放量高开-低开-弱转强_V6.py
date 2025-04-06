@@ -19,6 +19,7 @@ from SBGK_Strategy_V3 import SBGK_Strategy_V3
 from RZQ_Strategy_V3 import RZQ_Strategy_V3
 from SBDK_Strategy_V3 import SBDK_Strategy_V3
 from OGT_Strategy import OGT_Strategy
+from ST_Strategy import ST_Strategy
 
 from Strategy import Strategy
 
@@ -43,14 +44,14 @@ def initialize(context):
                    type='stock')
 
     # 为股票设定滑点为百分比滑点
-    set_slippage(PriceRelatedSlippage(0.002), type='stock')
+    set_slippage(FixedSlippage(0.01), type='stock')
 
     # 临时变量
 
     # 持久变量
     g.strategys = {}
     # 子账户 分仓
-    g.portfolio_value_proportion = [0, 0, 0, 0, 1]
+    g.portfolio_value_proportion = [0, 0, 0, 0, 0.5, 0.5]
 
     # 创建策略实例
     # 初始化策略子账户 subportfolios
@@ -60,6 +61,7 @@ def initialize(context):
         SubPortfolioConfig(context.portfolio.starting_cash * g.portfolio_value_proportion[2], 'stock'),
         SubPortfolioConfig(context.portfolio.starting_cash * g.portfolio_value_proportion[3], 'stock'),
         SubPortfolioConfig(context.portfolio.starting_cash * g.portfolio_value_proportion[4], 'stock'),
+        SubPortfolioConfig(context.portfolio.starting_cash * g.portfolio_value_proportion[5], 'stock'),
     ])
 
     # 是否发送微信消息，回测环境不发送，模拟环境发送
@@ -100,6 +102,14 @@ def initialize(context):
     total_strategy = Strategy(context, subportfolio_index=4, name='统筹交易策略', params=params)
     g.strategys[total_strategy.name] = total_strategy
 
+    params = {
+        'max_hold_count': 5,  # 最大持股数
+        'max_select_count': 10,  # 最大输出选股数
+        'buy_strategy_mode': 'equal'
+    }
+    st_strategy = ST_Strategy(context, subportfolio_index=5, name='ST策略', params=params)
+    g.strategys[st_strategy.name] = st_strategy
+
 
 # 模拟盘在每天的交易时间结束后会休眠，第二天开盘时会恢复，如果在恢复时发现代码已经发生了修改，则会在恢复时执行这个函数。 具体的使用场景：可以利用这个函数修改一些模拟盘的数据。
 def after_code_changed(context):  # 输出运行时间
@@ -120,12 +130,22 @@ def after_code_changed(context):  # 输出运行时间
         run_daily(total_sell, time='14:50')
         # run_daily(after_market_close, 'after_close')
 
+    if g.portfolio_value_proportion[5] > 0:
+        # 选股
+        run_daily(st_select, time='09:27')
+        run_daily(st_buy, time='09:28')
+        # run_daily(st_sell, time='10:00')
+        run_daily(st_sell, time='13:00')
+        run_daily(st_sell, time='14:00')
+        # run_daily(after_market_close, 'after_close')
+
 
 def after_market_close(context):
     g.strategys['首板高开'].after_market_close(context)
     g.strategys['弱转强'].after_market_close(context)
     g.strategys['首板低开'].after_market_close(context)
     g.strategys['一进二'].after_market_close(context)
+    g.strategys['ST策略'].after_market_close(context)
 
 
 def prepare_stock_list(context):
@@ -388,9 +408,20 @@ def get_stock_concept_df(context, search_date, stocks):
 
 
 def total_buy(context):
-    g.strategys['统筹交易策略'].specialBuy(context, split=3)
+    g.strategys['统筹交易策略'].specialBuy(context, split=999)
 
 
 def total_sell(context):
     g.strategys['统筹交易策略'].specialSell(context)
 
+
+def st_select(context):
+    g.strategys['ST策略'].select(context)
+
+
+def st_buy(context):
+    g.strategys['ST策略'].specialBuy(context, split=3)
+
+
+def st_sell(context):
+    g.strategys['ST策略'].specialSell(context, is_st_sell=True)
