@@ -129,12 +129,15 @@ def after_code_changed(context):  # 输出运行时间
         run_daily(st_sell, time='14:00')
         # run_daily(after_market_close, 'after_close')
 
+    run_daily(after_market_close, 'after_close')
+
 
 def after_market_close(context):
-    g.strategys['首板高开'].after_market_close(context)
-    g.strategys['弱转强'].after_market_close(context)
-    g.strategys['首板低开'].after_market_close(context)
-    g.strategys['一进二'].after_market_close(context)
+    # g.strategys['首板高开'].after_market_close(context)
+    # g.strategys['弱转强'].after_market_close(context)
+    # g.strategys['首板低开'].after_market_close(context)
+    # g.strategys['一进二'].after_market_close(context)
+    g.strategys['统筹交易策略'].after_market_close(context)
     g.strategys['ST策略'].after_market_close(context)
 
 
