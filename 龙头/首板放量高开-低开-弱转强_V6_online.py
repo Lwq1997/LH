@@ -34,14 +34,14 @@ def initialize(context):
                    type='stock')
 
     # 为股票设定滑点为百分比滑点
-    set_slippage(PriceRelatedSlippage(0.002), type='stock')
+    set_slippage(FixedSlippage(0.01), type='stock')
 
     # 临时变量
 
     # 持久变量
     g.strategys = {}
     # 子账户 分仓
-    g.portfolio_value_proportion = [0, 0, 0, 0, 1]
+    g.portfolio_value_proportion = [0, 0, 0, 0, 0.5, 0.5]
 
     # 创建策略实例
     # 初始化策略子账户 subportfolios
@@ -51,6 +51,7 @@ def initialize(context):
         SubPortfolioConfig(context.portfolio.starting_cash * g.portfolio_value_proportion[2], 'stock'),
         SubPortfolioConfig(context.portfolio.starting_cash * g.portfolio_value_proportion[3], 'stock'),
         SubPortfolioConfig(context.portfolio.starting_cash * g.portfolio_value_proportion[4], 'stock'),
+        SubPortfolioConfig(context.portfolio.starting_cash * g.portfolio_value_proportion[5], 'stock'),
     ])
 
     # 是否发送微信消息，回测环境不发送，模拟环境发送
@@ -91,6 +92,15 @@ def initialize(context):
     total_strategy = Strategy(context, subportfolio_index=4, name='统筹交易策略', params=params)
     g.strategys[total_strategy.name] = total_strategy
 
+    params = {
+        'max_hold_count': 5,  # 最大持股数
+        'max_select_count': 10,  # 最大输出选股数
+        'buy_strategy_mode': 'equal'
+    }
+    st_strategy = ST_Strategy(context, subportfolio_index=5, name='ST策略', params=params)
+    g.strategys[st_strategy.name] = st_strategy
+
+
 # 模拟盘在每天的交易时间结束后会休眠，第二天开盘时会恢复，如果在恢复时发现代码已经发生了修改，则会在恢复时执行这个函数。 具体的使用场景：可以利用这个函数修改一些模拟盘的数据。
 def after_code_changed(context):  # 输出运行时间
     log.info('函数运行时间(after_code_changed)：' + str(context.current_dt.time()))
@@ -108,8 +118,16 @@ def after_code_changed(context):  # 输出运行时间
         run_daily(total_buy, time='09:28')
         run_daily(total_sell, time='11:25')
         run_daily(total_sell, time='14:50')
-        run_daily(after_market_close, 'after_close')
+        # run_daily(after_market_close, 'after_close')
 
+    if g.portfolio_value_proportion[5] > 0:
+        # 选股
+        run_daily(st_select, time='09:27')
+        run_daily(st_buy, time='09:28')
+        # run_daily(st_sell, time='10:00')
+        run_daily(st_sell, time='13:00')
+        run_daily(st_sell, time='14:00')
+        # run_daily(after_market_close, 'after_close')
 
 
 def after_market_close(context):
@@ -117,6 +135,7 @@ def after_market_close(context):
     g.strategys['弱转强'].after_market_close(context)
     g.strategys['首板低开'].after_market_close(context)
     g.strategys['一进二'].after_market_close(context)
+    g.strategys['ST策略'].after_market_close(context)
 
 
 def prepare_stock_list(context):
@@ -379,12 +398,23 @@ def get_stock_concept_df(context, search_date, stocks):
 
 
 def total_buy(context):
-    g.strategys['统筹交易策略'].specialBuy(context, split=3)
+    g.strategys['统筹交易策略'].specialBuy(context, split=999)
 
 
 def total_sell(context):
     g.strategys['统筹交易策略'].specialSell(context)
 
+
+def st_select(context):
+    g.strategys['ST策略'].select(context)
+
+
+def st_buy(context):
+    g.strategys['ST策略'].specialBuy(context, split=3)
+
+
+def st_sell(context):
+    g.strategys['ST策略'].specialSell(context, is_st_sell=True)
 
 class UtilsToolClass:
     def __init__(self):
@@ -409,7 +439,6 @@ class UtilsToolClass:
             return result
         else:
             return pd.DataFrame(columns=['rp'])
-
 
     def rise_low_volume(self, context, stock):  # 上涨时，未放量 rising on low volume
         hist = attribute_history(stock, 106, '1d', fields=['high', 'volume'], skip_paused=True, df=False)
@@ -512,7 +541,7 @@ class UtilsToolClass:
 
         method_name = inspect.getframeinfo(inspect.currentframe()).function
         item = f"分仓策略:{self.name}<br>-函数名称:{method_name}<br>-时间:{now}"
-        if order_info != None and order_info.filled > 0:
+        if order_info != None and (before_buy or order_info.filled > 0):
             content = (f"策略: {self.name} "
                        f"--操作时间: {now} "
                        f"--买入股票: {security} "
@@ -674,7 +703,7 @@ class UtilsToolClass:
         current_data = get_current_data()
 
         return [stock for stock in stock_list if stock in subportfolio.long_positions
-                or last_prices[stock][-1] < current_data[stock].high_limit]
+                or current_data[stock].last_price < current_data[stock].high_limit]
 
     # 过滤跌停的股票
     def filter_lowlimit_stock(self, context, stock_list):
@@ -685,8 +714,11 @@ class UtilsToolClass:
         last_prices = history(1, unit='1m', field='close', security_list=stock_list)
         current_data = get_current_data()
 
+        for stock in stock_list:
+            log.debug(
+                f'股票{stock},当前最新价格{last_prices[stock][-1]},当前跌停价{current_data[stock].low_limit},,当前涨停价{current_data[stock].high_limit}')
         return [stock for stock in stock_list if stock in subportfolio.long_positions
-                or last_prices[stock][-1] > current_data[stock].low_limit]
+                or current_data[stock].last_price > current_data[stock].low_limit]
 
     # 过滤次新股（小市值专用）
     def filter_new_stock(self, context, stock_list, days):
@@ -911,6 +943,15 @@ class UtilsToolClass:
                         fields=['close', 'high', 'high_limit', 'paused'],
                         count=1, panel=False, fill_paused=False, skip_paused=False
                         ).query('close!=high_limit and high==high_limit and paused==0').groupby('code').size()
+        return h_s.index.tolist()
+
+    # 筛选出某一日未涨停的股票
+    def get_ever_hl_stock3(self, context, stock_list, end_date):
+        if not stock_list: return []
+        h_s = get_price(stock_list, end_date=end_date, frequency='daily',
+                        fields=['close', 'high', 'high_limit', 'paused'],
+                        count=1, panel=False, fill_paused=False, skip_paused=False
+                        ).query('close!=high_limit').groupby('code').size()
         return h_s.index.tolist()
 
     def balance_subportfolios(self, context):
@@ -1155,6 +1196,29 @@ class UtilsToolClass:
             )
         )
 
+    ##获取所有ST股##
+    def get_st(self, context, is_basic = True):
+        yesterday = context.previous_date
+        stockList = get_all_securities(types='stock', date=yesterday).index
+        st_data = get_extras('is_st', stockList, count=1, end_date=yesterday)
+        st_data = st_data.T
+        st_data.columns = ['is_st']
+        st_data = st_data[st_data['is_st'] == True]
+        df = st_data.index.tolist()
+
+        # 新增过滤逻辑
+        filtered_df = [
+            code for code in df
+            if not (
+                    str(code).startswith('4') or
+                    str(code).startswith('8') or
+                    str(code).startswith('68') or
+                    str(code).startswith('30')
+            )
+        ]
+
+        return filtered_df if is_basic else df
+
 # 策略基类
 class Strategy:
     def __init__(self, context, subportfolio_index, name, params):
@@ -1171,11 +1235,7 @@ class Strategy:
         self.inout_cash = 0
 
         self.fill_stock = self.params[
-            'fill_stock'] if 'fill_stock' in self.params else '511880.XSHG'  # 大盘止损位
-        self.stoploss_market = self.params[
-            'stoploss_market'] if 'stoploss_market' in self.params else 0.94  # 大盘止损位
-        self.stoploss_limit = self.params[
-            'stoploss_limit'] if 'stoploss_limit' in self.params else 0.88  # 个股止损位
+            'fill_stock'] if 'fill_stock' in self.params else '511880.XSHG'
         self.sold_diff_day = self.params[
             'sold_diff_day'] if 'sold_diff_day' in self.params else 0  # 是否过滤N天内涨停并卖出股票
         self.max_industry_cnt = self.params[
@@ -1513,27 +1573,41 @@ class Strategy:
 
     # 止损检查
     # 实现了一个止损检查功能，它会根据股票的跌幅来决定是否需要止损，并在需要止损时记录止损日期和打印止损的股票列表。
-    def stoploss(self, context, stocks_index=None):
+    def stoploss(self, context, stocks_index=None, index_drop_threshold = 0, stock_drop_threshold = 0):
         log.info(self.name, '--stoploss函数--',
                  str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+        # 定义不同策略对应的指数、跌幅阈值以及个股跌幅阈值
         positions = context.subportfolios[self.subportfolio_index].positions
         # 联合止损：结合大盘及个股情况进行止损判断
-        if stocks_index:
-            stock_list = get_index_stocks(stocks_index)
-            df = get_price(stock_list, end_date=context.previous_date, frequency='daily',
-                           fields=['close', 'open'], count=1, panel=False, fill_paused=False)
-            if df is not None and not df.empty:
-                down_ratio = (df['close'] / df['open']).mean()
-                if down_ratio <= self.stoploss_market:
-                    log.info(f"{stocks_index}:的大盘跌幅达到 {down_ratio:.2%}，执行平仓操作。")
+        if stocks_index and not (self.use_empty_month and context.current_dt.month in (self.empty_month)):
+            # 非1/4再止损
+            # 计算指数日内最高和当前价格
+            index_data = get_price(stocks_index, start_date=context.current_dt.date(), end_date=context.current_dt,
+                                   frequency='1m', fields=['high', 'close'], skip_paused=False, fq='pre', panel=False)
+            if not index_data.empty:
+                index_high = index_data['high'].max()
+                index_current = index_data['close'].iloc[-1]
+                index_drop = (index_high - index_current) / index_high
+                if index_drop > index_drop_threshold:
+                    # 指数下跌超过阈值，清仓对应策略
+                    log.info(f"【{self.name}】因{stocks_index}指数下跌超过{index_drop_threshold * 100}%清仓📉")
                     for stock in list(positions.keys()):
                         self.sell(context, [stock])
         else:
             for stock in list(positions.keys()):
-                pos = positions[stock]
-                if pos.price < pos.avg_cost * self.stoploss_limit:
-                    log.info(f"{stock}:的跌幅达到 {self.stoploss_limit:.2%}，执行清仓操作。")
-                    self.sell(context, [stock])
+                stock_data = get_price(stock, start_date=context.current_dt.date(), end_date=context.current_dt,
+                                       frequency='1m', fields=['high', 'close'], skip_paused=False, fq='pre', panel=False)
+                if not stock_data.empty:
+                    stock_high = stock_data['high'].max()
+                    stock_current = stock_data['close'].iloc[-1]
+                    stock_drop = (stock_high - stock_current) / stock_high
+                    if stock_drop > stock_drop_threshold:
+                        # 个股下跌超过阈值，清仓个股并重新调仓
+                        if self.sell(context, [stock]):
+                            g.global_sold_stock_record[stock] = context.current_dt.date()
+                            log.info(f"【{self.name}】{stock} 因下跌超过{stock_drop_threshold * 100}%清仓🚨")
+                            self.select(context)
+                            self.adjustwithnoRM(context, exempt_stocks=['518880.XSHG'])
 
     # 3-8 判断今天是否为账户资金再平衡的日期(暂无使用)
     # date_flag,1-单个月，2-两个月1和4，3-三个月1和4和6
@@ -1563,6 +1637,126 @@ class Strategy:
                 return False
 
     ##################################  交易函数群 ##################################
+
+    # 买入多只股票
+    def buy(self, context, buy_stocks, is_single_buy=False):
+
+        log.info(self.name, '--buy函数--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+
+        subportfolio = context.subportfolios[self.subportfolio_index]
+        if is_single_buy and len(subportfolio.long_positions) > 0:
+            # 如果有持仓，还有选票就先不买了
+            pass
+
+        current_holdings = subportfolio.long_positions
+        available_cash = subportfolio.available_cash
+        max_hold_count = self.max_hold_count
+        current_holding_count = len(current_holdings)
+
+        # 分离buy_stocks为已持仓和未持仓两部分
+        held_stocks = [stock for stock in buy_stocks if stock in current_holdings]
+        new_stocks = [stock for stock in buy_stocks if stock not in current_holdings]
+
+        # 计算可以买入的未持仓股票数量
+        total_new = min(max_hold_count - current_holding_count, len(new_stocks))
+        total_held = len(held_stocks)
+        log.info(self.buy_strategy_mode, '策略详情:目标股票列表--', buy_stocks,
+                 '--最大持仓股票数--', max_hold_count,
+                 '--当前持仓股票数--', current_holding_count,
+                 '--当前持仓股票明细--', current_holdings,
+                 '--目标股票中未持仓股票列表--', new_stocks,
+                 '--目标股票中已持仓股票列表--', held_stocks
+                 )
+
+        log.info(self.buy_strategy_mode, '策略详情:当前持仓--', current_holdings, '--已持仓股票列表--', held_stocks,
+                 '--未持仓股票列表--', new_stocks)
+
+        if self.buy_strategy_mode == 'equal':
+            # Strategy 1: Buy new and held stocks equally
+            # 计算总的购买金额
+            total_value = available_cash
+            if (total_new + total_held) <= 0 or total_value <= 0:
+                log.info('没有可购买的股票。')
+                return
+
+            stock_value = total_value / (total_new + total_held)
+            log.debug('equal买入策略：计算总的购买金额：', total_value)
+            log.debug('equal买入策略：每只股票的购买金额比例：', stock_value)
+            log.debug('equal买入策略：计算可以买入的未持仓股票数量：', total_new, '--待买入列表:', new_stocks)
+            log.debug('equal买入策略：计算可以买入的已持仓股票数量：', total_held, '--已持仓列表:', held_stocks)
+
+            # 加仓已持有的股票
+            if total_held > 0:
+                for stock in held_stocks:
+                    if available_cash <= 0:
+                        break
+                    value = min(stock_value, available_cash)
+                    if self.utilstool.open_position(context, stock, value, False):
+                        available_cash -= value
+                        log.info(f'加仓已持有股票 {stock}，金额: {value}')
+                    else:
+                        log.warning(f'加仓已持有股票 {stock} 失败，跳过。')
+
+            # 购买新股票
+            if total_new > 0:
+                for stock in new_stocks:
+                    if available_cash <= 0:
+                        break
+                    value = min(stock_value, available_cash)
+                    if self.utilstool.open_position(context, stock, value, False):
+                        available_cash -= value
+                        log.info(f'买入新股票 {stock}，金额: {value}')
+                    else:
+                        log.warning(f'买入新股票 {stock} 失败，跳过。')
+
+
+        elif self.buy_strategy_mode == 'priority':
+            # Strategy 2: Prioritize new stocks, then held stocks
+            if total_new > 0:
+                stock_value = available_cash / total_new
+                log.debug('priority买入策略：计算总的购买金额：', available_cash)
+                log.debug('priority买入策略：每只股票的购买金额比例：', stock_value)
+                log.debug('priority买入策略：计算可以买入的未持仓股票数量：', total_new, '--待买入列表:', new_stocks)
+                for stock in new_stocks:
+                    if available_cash <= 0:
+                        break
+                    value = min(stock_value, available_cash)
+                    if self.utilstool.open_position(context, stock, value, False):
+                        available_cash -= value
+                        log.info(f'买入新股票 {stock}，金额: {value}')
+                    else:
+                        log.warning(f'买入新股票 {stock} 失败，跳过。')
+
+            if total_held > 0:
+                stock_value = available_cash / total_held
+                log.debug('priority买入策略：计算总的购买金额：', available_cash)
+                log.debug('priority买入策略：每只股票的购买金额比例：', stock_value)
+                log.debug('priority买入策略：计算可以买入的已持仓股票数量：', total_held, '--待买入列表:', held_stocks)
+                for stock in held_stocks:
+                    if available_cash <= 0:
+                        break
+                    value = min(stock_value, available_cash)
+                    if self.utilstool.open_position(context, stock, value, False):
+                        available_cash -= value
+                        log.info(f'加仓已持有股票 {stock}，金额: {value}')
+                    else:
+                        log.warning(f'加仓已持有股票 {stock} 失败，跳过。')
+
+        else:
+            log.warning('无效的策略模式。')
+            return
+
+    # 卖出多只股票
+    def sell(self, context, sell_stocks):
+
+        log.info(self.name, '--sell函数--要卖出的股票列表--', sell_stocks,
+                 str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+
+        subportfolio = context.subportfolios[self.subportfolio_index]
+        for stock in sell_stocks:
+            if stock in subportfolio.long_positions:
+                self.utilstool.close_position(context, stock, 0)
+
     # 调仓
     def adjustwithnoRM(self, context, only_buy=False, only_sell=False, together=True, is_single_buy=False,
                        exempt_stocks=None):
@@ -1733,6 +1927,7 @@ class Strategy:
         log.info(self.name, '--specialBuy调仓函数--',
                  str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
         special_select_list = self.special_select_list
+        select_list = self.select_list
         # 实时过滤部分股票，否则也买不了，放出去也没有意义
         industry_final_stocks = special_select_list.get('行业', [])
         concept_final_stocks = special_select_list.get('概念', [])
@@ -1742,11 +1937,20 @@ class Strategy:
             target_list = self.utilstool.filter_highlimit_stock(context, target_list)
             target_list = self.utilstool.filter_paused_stock(context, target_list)
             flag = 1
-        else:
+        elif industry_final_stocks:
             target_list = self.utilstool.filter_lowlimit_stock(context, industry_final_stocks)
             target_list = self.utilstool.filter_highlimit_stock(context, target_list)
             target_list = self.utilstool.filter_paused_stock(context, target_list)
             flag = 0.5
+        else:
+            log.debug('当前股票池:',select_list)
+            target_list = self.utilstool.filter_lowlimit_stock(context, select_list)
+            log.debug('过滤跌停后的股票池:', target_list)
+            target_list = self.utilstool.filter_highlimit_stock(context, target_list)
+            log.debug('过滤涨停后的股票池:', target_list)
+            target_list = self.utilstool.filter_paused_stock(context, target_list)
+            log.debug('过滤停牌后的股票池:', target_list)
+            flag = 1
 
         current_data = get_current_data()
         # 持仓列表
@@ -1771,6 +1975,17 @@ class Strategy:
                     for stock in target_list:
                         if subportfolios.available_cash / current_data[stock].last_price > 100:
                             self.utilstool.open_position(context, stock, value)
+            elif split == 3:
+                hold_list = list(subportfolios.positions)
+                num = self.max_hold_count - len(hold_list)
+                # if (subportfolios.available_cash / subportfolios.total_value > 0.3) and (num > 0):
+                value = subportfolios.available_cash * flag / num
+                # target_list = [x for x in target_list if x not in hold_list][:num]
+                # log.debug(f'过滤前{num}的股票池:{target_list}')
+                # log.debug('最终的股票池:', target_list)
+                for stock in target_list:
+                    if subportfolios.available_cash / current_data[stock].last_price > 100:
+                        self.utilstool.open_position(context, stock, value)
             else:
                 if subportfolios.available_cash / subportfolios.total_value > 0.3:
                     value = subportfolios.available_cash * flag / len(target_list)
@@ -1778,7 +1993,7 @@ class Strategy:
                         if subportfolios.available_cash / current_data[stock].last_price > 100:
                             self.utilstool.open_position(context, stock, value)
 
-    def specialSell(self, context):
+    def specialSell(self, context, eveny_bar=False, is_st_sell=False):
         log.info(self.name, '--SpecialSell调仓函数--',
                  str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
 
@@ -1789,7 +2004,69 @@ class Strategy:
         sell_stocks = []
         date = self.utilstool.transform_date(context, context.previous_date, 'str')
         current_data = get_current_data()  #
-        if str(context.current_dt)[-8:-6] == '11':
+
+        if is_st_sell:
+            for stock in hold_list:
+                position = hold_positions[stock]
+
+                # 提取关键字段
+                df_history = get_price(stock, end_date=context.previous_date, frequency='daily',
+                                       fields=['close', 'high_limit'],
+                                       count=1, panel=False)
+
+                avg_cost = position.avg_cost
+                current_price = position.price
+                last_price = current_data[stock].last_price
+                high_limit = current_data[stock].high_limit
+                low_limit = current_data[stock].low_limit
+
+                # 计算必要指标
+                ret = (current_price / avg_cost - 1) * 100 if avg_cost != 0 else -float('inf')
+
+                # 定义核心条件
+                cond1 = (last_price != high_limit)  # 今日未触涨停
+                cond2_1 = ret < -3  # 亏损超3%
+                cond2_1_1 = ret < -5  # 亏损超5%
+                cond2_2 = ret > 0  # 盈利
+                cond2_3 = (df_history['close'].iloc[0] == df_history['high_limit'].iloc[0])  # 昨日涨停
+
+                # 组合条件并过滤
+                if str(context.current_dt)[-8:-6] < '13' and cond1 and (cond2_1_1 or cond2_2 or cond2_3):
+                    result = ''
+                    if cond2_1_1:
+                        result += '亏损超5%--'
+                    if cond2_2:
+                        result += '盈利--'
+                    if cond2_3:
+                        result += '昨日涨停--'
+                    if last_price > low_limit and position.closeable_amount != 0:  # 防止跌停价卖出
+                        log.info('因',result,'卖出ST股票', [stock, get_security_info(stock, date).display_name])
+                        sell_stocks.append(stock)
+                if str(context.current_dt)[-8:-6] >= '13' and cond1 and (cond2_1 or cond2_2 or cond2_3):
+                    result = ''
+                    if cond2_1:
+                        result += '亏损超3%--'
+                    if cond2_2:
+                        result += '盈利--'
+                    if cond2_3:
+                        result += '昨日涨停--'
+                    if last_price > low_limit and position.closeable_amount != 0:  # 防止跌停价卖出
+                        log.info('因',result,'卖出ST股票', [stock, get_security_info(stock, date).display_name])
+                        sell_stocks.append(stock)
+        elif eveny_bar:
+            for stock in hold_list:
+                position = hold_positions[stock]
+                # 获取昨日收盘价
+                prev_close = attribute_history(stock, 1, '1d', fields=['close'], skip_paused=True)['close'][0]
+                # 有可卖出的仓位  &  当前股票没有涨停 & 当前的价格大于持仓价（有收益）
+                if ((position.closeable_amount != 0) and (
+                        current_data[stock].last_price < current_data[stock].high_limit) and
+                        (prev_close < position.avg_cost) and# avg_cost当前持仓成本大于昨日的收盘价，说明亏了
+                        (current_data[stock].last_price >= position.avg_cost * 1.002) # 赶紧跑
+                        ):
+                    log.info('以成本价 * 1.002 卖出', [stock, get_security_info(stock, date).display_name])
+                    sell_stocks.append(stock)
+        elif str(context.current_dt)[-8:-6] == '11':
             for stock in hold_list:
                 position = hold_positions[stock]
                 # 有可卖出的仓位  &  当前股票没有涨停 & 当前的价格大于持仓价（有收益）
@@ -1798,8 +2075,7 @@ class Strategy:
                         current_data[stock].last_price > 1 * position.avg_cost)):  # avg_cost当前持仓成本
                     log.info('止盈卖出', [stock, get_security_info(stock, date).display_name])
                     sell_stocks.append(stock)
-
-        if str(context.current_dt)[-8:-6] != '11':
+        else:
             for stock in hold_list:
                 position = hold_positions[stock]
 
@@ -1821,6 +2097,68 @@ class Strategy:
 
         self.sell(context, sell_stocks)
 
+    # 换手率计算
+    def huanshoulv(self, context, stock, is_avg=False):
+        log.info(self.name, '--huanshoulv计算换手率函数--涉及股票:',stock,'--',
+                 str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+        if is_avg:
+            # 计算平均换手率
+            start_date = context.current_dt - datetime.timedelta(days=20)
+            end_date = context.previous_date
+            df_volume = get_price(stock, start_date=start_date, end_date=end_date, frequency='daily', fields=['volume'])
+            df_cap = get_valuation(stock, end_date=end_date, fields=['circulating_cap'], count=1)
+            circulating_cap = df_cap['circulating_cap'].iloc[0] if not df_cap.empty else 0
+            if circulating_cap == 0:
+                return 0.0
+            df_volume['turnover_ratio'] = df_volume['volume'] / (circulating_cap * 10000)
+            return df_volume['turnover_ratio'].mean()
+        else:
+            # 计算实时换手率
+            date_now = context.current_dt
+            df_vol = get_price(stock, start_date=date_now.date(), end_date=date_now, frequency='1m', fields=['volume'],
+                               skip_paused=False, fq='pre', panel=True, fill_paused=False)
+            volume = df_vol['volume'].sum()
+            date_pre = context.current_dt - datetime.timedelta(days=1)
+            df_circulating_cap = get_valuation(stock, end_date=date_pre, fields=['circulating_cap'], count=1)
+            circulating_cap = df_circulating_cap['circulating_cap'][0]
+            turnover_ratio = volume / (circulating_cap * 10000)
+            return turnover_ratio
+
+    # 换手率卖出
+    def sell_when_hsl(self, context):
+        log.info(self.name, '--sell_when_hsl换手率卖出股票函数--',
+                 str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+
+        cd = get_current_data()
+        thresh = {'破净策略': (0.001, 0.1), '微盘策略': (0.003, 0.1)}
+        if self.name not in thresh.keys():
+            return
+        shrink, expand = thresh[self.name]
+        excluded = {'518880.XSHG', '511880.XSHG'}
+        filtered_positions = [s for s in context.subportfolios[self.subportfolio_index].long_positions if
+                              s not in excluded]
+
+        for s in filtered_positions:
+            if cd[s].last_price >= cd[s].high_limit * 0.997:
+                # 涨停跳过
+                continue
+            rt = self.huanshoulv(context, s, False)
+            avg = self.huanshoulv(context, s, True)
+            if avg == 0:
+                continue
+            r = rt / avg
+            action, icon = '', ''
+            if avg < 0.003:
+                action, icon = '缩量', '❄️'
+            elif rt > expand and r > 2:
+                action, icon = '放量', '🔥'
+            if action:
+                self.is_stoplost_or_highlimit = True
+                g.global_sold_stock_record[s] = context.current_dt.date()
+                log.info(
+                    f"【{self.name}】{action} {s} {get_security_info(s).display_name} 换手率:{rt:.2%}→均:{avg:.2%} 倍率:{r:.1f}x {icon}")
+                self.sell(context, [s])
+
     # 涨停打开卖出
     def sell_when_highlimit_open(self, context):
         log.info(self.name, '--sell_when_highlimit_open涨停打开卖出股票函数--',
@@ -1839,125 +2177,6 @@ class Strategy:
                         content = context.current_dt.date().strftime(
                             "%Y-%m-%d") + ' ' + self.name + ': {}涨停打开，卖出'.format(stock) + "\n"
                         log.info(content)
-
-    # 买入多只股票
-    def buy(self, context, buy_stocks, is_single_buy=False):
-
-        log.info(self.name, '--buy函数--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
-
-        subportfolio = context.subportfolios[self.subportfolio_index]
-        if is_single_buy and len(subportfolio.long_positions) > 0:
-            # 如果有持仓，还有选票就先不买了
-            pass
-
-        current_holdings = subportfolio.long_positions
-        available_cash = subportfolio.available_cash
-        max_hold_count = self.max_hold_count
-        current_holding_count = len(current_holdings)
-
-        # 分离buy_stocks为已持仓和未持仓两部分
-        held_stocks = [stock for stock in buy_stocks if stock in current_holdings]
-        new_stocks = [stock for stock in buy_stocks if stock not in current_holdings]
-
-        # 计算可以买入的未持仓股票数量
-        total_new = min(max_hold_count - current_holding_count, len(new_stocks))
-        total_held = len(held_stocks)
-        log.info(self.buy_strategy_mode, '策略详情:目标股票列表--', buy_stocks,
-                 '--最大持仓股票数--', max_hold_count,
-                 '--当前持仓股票数--', current_holding_count,
-                 '--当前持仓股票明细--', current_holdings,
-                 '--目标股票中未持仓股票列表--', new_stocks,
-                 '--目标股票中已持仓股票列表--', held_stocks
-                 )
-
-        log.info(self.buy_strategy_mode, '策略详情:当前持仓--', current_holdings, '--已持仓股票列表--', held_stocks,
-                 '--未持仓股票列表--', new_stocks)
-
-        if self.buy_strategy_mode == 'equal':
-            # Strategy 1: Buy new and held stocks equally
-            # 计算总的购买金额
-            total_value = available_cash
-            if (total_new + total_held) <= 0 or total_value <= 0:
-                log.info('没有可购买的股票。')
-                return
-
-            stock_value = total_value / (total_new + total_held)
-            log.debug('equal买入策略：计算总的购买金额：', total_value)
-            log.debug('equal买入策略：每只股票的购买金额比例：', stock_value)
-            log.debug('equal买入策略：计算可以买入的未持仓股票数量：', total_new, '--待买入列表:', new_stocks)
-            log.debug('equal买入策略：计算可以买入的已持仓股票数量：', total_held, '--已持仓列表:', held_stocks)
-
-            # 加仓已持有的股票
-            if total_held > 0:
-                for stock in held_stocks:
-                    if available_cash <= 0:
-                        break
-                    value = min(stock_value, available_cash)
-                    if self.utilstool.open_position(context, stock, value, False):
-                        available_cash -= value
-                        log.info(f'加仓已持有股票 {stock}，金额: {value}')
-                    else:
-                        log.warning(f'加仓已持有股票 {stock} 失败，跳过。')
-
-            # 购买新股票
-            if total_new > 0:
-                for stock in new_stocks:
-                    if available_cash <= 0:
-                        break
-                    value = min(stock_value, available_cash)
-                    if self.utilstool.open_position(context, stock, value, False):
-                        available_cash -= value
-                        log.info(f'买入新股票 {stock}，金额: {value}')
-                    else:
-                        log.warning(f'买入新股票 {stock} 失败，跳过。')
-
-
-        elif self.buy_strategy_mode == 'priority':
-            # Strategy 2: Prioritize new stocks, then held stocks
-            if total_new > 0:
-                stock_value = available_cash / total_new
-                log.debug('priority买入策略：计算总的购买金额：', available_cash)
-                log.debug('priority买入策略：每只股票的购买金额比例：', stock_value)
-                log.debug('priority买入策略：计算可以买入的未持仓股票数量：', total_new, '--待买入列表:', new_stocks)
-                for stock in new_stocks:
-                    if available_cash <= 0:
-                        break
-                    value = min(stock_value, available_cash)
-                    if self.utilstool.open_position(context, stock, value, False):
-                        available_cash -= value
-                        log.info(f'买入新股票 {stock}，金额: {value}')
-                    else:
-                        log.warning(f'买入新股票 {stock} 失败，跳过。')
-
-            if total_held > 0:
-                stock_value = available_cash / total_held
-                log.debug('priority买入策略：计算总的购买金额：', available_cash)
-                log.debug('priority买入策略：每只股票的购买金额比例：', stock_value)
-                log.debug('priority买入策略：计算可以买入的已持仓股票数量：', total_held, '--待买入列表:', held_stocks)
-                for stock in held_stocks:
-                    if available_cash <= 0:
-                        break
-                    value = min(stock_value, available_cash)
-                    if self.utilstool.open_position(context, stock, value, False):
-                        available_cash -= value
-                        log.info(f'加仓已持有股票 {stock}，金额: {value}')
-                    else:
-                        log.warning(f'加仓已持有股票 {stock} 失败，跳过。')
-
-        else:
-            log.warning('无效的策略模式。')
-            return
-
-    # 卖出多只股票
-    def sell(self, context, sell_stocks):
-
-        log.info(self.name, '--sell函数--要卖出的股票列表--', sell_stocks,
-                 str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
-
-        subportfolio = context.subportfolios[self.subportfolio_index]
-        for stock in sell_stocks:
-            if stock in subportfolio.long_positions:
-                self.utilstool.close_position(context, stock, 0)
 
     # 计算夏普系数的函数
     def cal_sharpe_ratio(self, returns, rf, type):  # portfolio_daily_returns 是一个包含每日收益的列表
@@ -2256,6 +2475,7 @@ class RZQ_Strategy_V3(Strategy):
         return rzq_stocks
 
 
+
 class SBGK_Strategy_V3(Strategy):
     def __init__(self, context, subportfolio_index, name, params):
         super().__init__(context, subportfolio_index, name, params)
@@ -2315,6 +2535,7 @@ class SBGK_Strategy_V3(Strategy):
         log.info('今日首板高开选股：' + ','.join('%s%s' % (s, get_security_info(s).display_name) for s in sbgk_stocks))
 
         return sbgk_stocks
+
 
 
 class SBDK_Strategy_V3(Strategy):
@@ -2422,13 +2643,11 @@ class OGT_Strategy(Strategy):
             # 获取昨日成交量
             yesterday_volume = prev_day_data['volume'][0]
 
-            log.info(f'{s}昨日成交量{yesterday_volume}')
             # 获取过去100个交易日的成交量
             past_volume_data = attribute_history(s, 100, '1d', fields=['volume'], skip_paused=True)
             if past_volume_data.empty:
                 continue
             max_past_volume = past_volume_data['volume'].max()
-            log.info(f'{s}最大成交量{max_past_volume}')
             if yesterday_volume < max_past_volume:
                 continue
 
@@ -2507,3 +2726,149 @@ class OGT_Strategy(Strategy):
         log.info('今日一进二选股：' + ','.join('%s%s' % (s, get_security_info(s).display_name) for s in ogt_stocks))
 
         return ogt_stocks
+
+
+class ST_Strategy(Strategy):
+    def __init__(self, context, subportfolio_index, name, params):
+        super().__init__(context, subportfolio_index, name, params)
+        self.n_days_limit_up_list = []
+
+    def select(self, context):
+        log.info(self.name, '--select函数--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+
+        # 根据市场温度设置选股条件，选出股票
+        self.select_list = self.__get_rank(context)
+        # 编写操作计划
+        self.print_trade_plan(context, self.select_list)
+
+    def __get_rank(self, context):
+        log.info(self.name, '--get_rank函数--', str(context.current_dt.date()) + ' ' + str(context.current_dt.time()))
+
+        current_data = get_current_data()
+        st_list = []
+        init_st_list = self.utilstool.get_st(context)
+        # 1 4 12月 国九
+        singal = self.today_is_between(context)
+        if singal == True:
+            print(f'筛选前市面上所有的ST股票个数：{len(init_st_list)}')
+            init_st_list = self.GJT_filter_stocks(init_st_list)
+            print(f'筛选后市面上所有的符合国九条ST股票个数：{len(init_st_list)}')
+
+        init_st_list = self.st_filter_stocks(context, init_st_list)
+        log.debug(f'基础信息过滤后符合条件的ST股票池：{init_st_list}')
+        if len(init_st_list) == 0:
+            return st_list
+        init_st_list = self.st_rzq_list(context, init_st_list)
+        log.debug(f'弱转强过滤后符合条件的ST股票池：{init_st_list}')
+        if len(init_st_list) == 0:
+            return st_list
+            # 低开
+        df = get_price(init_st_list, end_date=context.previous_date, frequency='daily', fields=['close'], count=1,
+                       panel=False,
+                       fill_paused=False, skip_paused=True).set_index('code')
+        df['open_now'] = [current_data[s].day_open for s in init_st_list]
+        df = df[(df['open_now'] / df['close']) < 1.01]  # 低开越多风险越大，选择3个多点即可
+        df = df[(df['open_now'] / df['close']) > 0.95]
+        st_list = list(df.index)
+        if len(st_list) == 0:
+            return st_list
+        df = get_valuation(st_list, start_date=context.previous_date,
+                           end_date=context.previous_date,
+                           fields=['turnover_ratio', 'market_cap', 'circulating_market_cap']
+                           )
+        df = df.sort_values(by='turnover_ratio', ascending=False)
+        st_list = list(df.code)
+
+        log.info('今日ST选股：' + ','.join('%s%s' % (s, get_security_info(s).display_name) for s in st_list))
+
+        return st_list
+
+    def today_is_between(self, context):
+        today = context.current_dt.strftime('%m-%d')
+        if ('01-15' <= today) and (today <= '01-31'):
+            return True
+        elif ('04-15' <= today) and (today <= '04-31'):
+            return True
+        elif ('12-15' <= today) and (today <= '12-31'):
+            return True
+        else:
+            return False
+
+    ##国九条筛选##
+    def GJT_filter_stocks(self, stocks):
+        # 国九更新：过滤近一年净利润为负且营业收入小于1亿的
+        # 国九更新：过滤近一年期末净资产为负的 (经查询没有为负数的，所以直接pass这条)
+        q = query(
+            valuation.code,
+            valuation.market_cap,  # 总市值 circulating_market_cap/market_cap
+            income.np_parent_company_owners,  # 归属于母公司所有者的净利润
+            income.net_profit,  # 净利润
+            income.operating_revenue  # 营业收入
+            # security_indicator.net_assets
+        ).filter(
+            valuation.code.in_(stocks),
+            income.np_parent_company_owners > 0,
+            income.net_profit > 0,
+            income.operating_revenue > 1e8,
+            indicator.roe > 0,
+            indicator.roa > 0,
+        )
+        df = get_fundamentals(q)
+
+        final_list = list(df.code)
+
+        return final_list
+
+    ##技术指标筛选##
+    def st_filter_stocks(self, context, stocks):
+        yesterday = pd.Timestamp(context.previous_date)  # 关键修改点
+        df = get_price(
+            stocks,
+            count=11,
+            frequency='1d',
+            fields=['close', 'low', 'volume', 'money'],
+            end_date=yesterday,
+            panel=False
+        ).reset_index()
+        # 按股票分组处理
+        grouped = df.groupby('code')
+        # 计算技术指标
+        ma10 = grouped['close'].transform(lambda x: x.rolling(10).mean())  # 10日均线
+        prev_low = grouped['low'].shift(1)  # 前一日最低价
+        prev_volume = grouped['volume'].shift(1)  # 前一日成交量
+        prev_money = grouped['money'].shift(1)  # 前一日成交量
+        # 构建筛选条件
+        conditions = (
+                (df['close'] > prev_low) &  # 多头排列
+                (df['close'] > ma10) &  # 10日线上方
+                (df['volume'] > prev_volume) &  # 放量
+                # (df['money'] >= 10000000 ) &  # 成交量大于3000w
+                (df['volume'] < 10 * prev_volume) &  # 成交量未暴增
+                (df['close'] > 1)  # 股价>1
+        )
+
+        # 精准获取最新交易日数据（双重验证）
+        latest_mask = (df['time'] == yesterday) & (df['time'] == df['time'].max())
+        latest_data = df[latest_mask].copy()  # 创建独立副本
+
+        # 在最新数据子集上应用条件
+        final_mask = conditions[latest_mask]  # 保持索引对齐
+        valid_stocks = latest_data.loc[final_mask, 'code'].unique().tolist()
+
+        return valid_stocks
+
+    ##筛选昨日不涨停的股票##
+    def st_rzq_list(self, context, initial_list):
+        # 文本日期
+        date = context.previous_date
+
+        date_2, date_1, date = get_trade_days(end_date=date, count=3)
+
+        # 昨日不涨停
+        h1_list = self.utilstool.get_ever_hl_stock3(context, initial_list, date)
+        # 前日涨停过滤
+        elements_to_remove = self.utilstool.get_hl_stock(context, initial_list, date_1)
+
+        rzq_list = [stock for stock in h1_list if stock in elements_to_remove]
+
+        return rzq_list
