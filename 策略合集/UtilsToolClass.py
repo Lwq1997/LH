@@ -796,7 +796,7 @@ class UtilsToolClass:
         )
 
     ##获取所有ST股##
-    def get_st(self, context):
+    def get_st(self, context, is_basic = True):
         yesterday = context.previous_date
         stockList = get_all_securities(types='stock', date=yesterday).index
         st_data = get_extras('is_st', stockList, count=1, end_date=yesterday)
@@ -816,4 +816,4 @@ class UtilsToolClass:
             )
         ]
 
-        return filtered_df
+        return filtered_df if is_basic else df
