@@ -250,7 +250,7 @@ def initialize(context):
     ])
 
     # 是否发送微信消息，回测环境不发送，模拟环境发送
-    context.is_send_wx_message = 0
+    context.is_send_wx_message = 1
 
     params = {
         'max_hold_count': 100,  # 最大持股数
@@ -301,7 +301,7 @@ def after_code_changed(context):  # 输出运行时间
     log.info('函数运行时间(after_code_changed)：' + str(context.current_dt.time()))
 
     # 是否发送微信消息，回测环境不发送，模拟环境发送
-    context.is_send_wx_message = 0
+    context.is_send_wx_message = 1
 
     unschedule_all()  # 取消所有定时运行
 
