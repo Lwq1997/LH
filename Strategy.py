@@ -745,13 +745,7 @@ class Strategy:
             target_list = self.utilstool.filter_paused_stock(context, target_list)
             flag = 0.5
         else:
-            log.debug('当前股票池:',select_list)
-            target_list = self.utilstool.filter_lowlimit_stock(context, select_list)
-            log.debug('过滤跌停后的股票池:', target_list)
-            target_list = self.utilstool.filter_highlimit_stock(context, target_list)
-            log.debug('过滤涨停后的股票池:', target_list)
-            target_list = self.utilstool.filter_paused_stock(context, target_list)
-            log.debug('过滤停牌后的股票池:', target_list)
+            target_list = select_list
             flag = 1
 
         current_data = get_current_data()
@@ -782,9 +776,15 @@ class Strategy:
                 num = self.max_hold_count - len(hold_list)
                 # if (subportfolios.available_cash / subportfolios.total_value > 0.3) and (num > 0):
                 value = subportfolios.available_cash * flag / num
-                # target_list = [x for x in target_list if x not in hold_list][:num]
-                # log.debug(f'过滤前{num}的股票池:{target_list}')
-                # log.debug('最终的股票池:', target_list)
+                target_list = [x for x in target_list if x not in hold_list][:num]
+                log.debug(f'过滤前{num}的股票池:{target_list}')
+                target_list = self.utilstool.filter_lowlimit_stock(context, target_list)
+                log.debug('过滤跌停后的股票池:', target_list)
+                target_list = self.utilstool.filter_highlimit_stock(context, target_list)
+                log.debug('过滤涨停后的股票池:', target_list)
+                target_list = self.utilstool.filter_paused_stock(context, target_list)
+                log.debug('过滤停牌后的股票池:', target_list)
+                log.debug('最终的股票池:', target_list)
                 for stock in target_list:
                     if subportfolios.available_cash / current_data[stock].last_price > 100:
                         self.utilstool.open_position(context, stock, value)

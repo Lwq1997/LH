@@ -804,4 +804,16 @@ class UtilsToolClass:
         st_data.columns = ['is_st']
         st_data = st_data[st_data['is_st'] == True]
         df = st_data.index.tolist()
+
+        # 新增过滤逻辑
+        filtered_df = [
+            code for code in df
+            if not (
+                    str(code).startswith('4') or
+                    str(code).startswith('8') or
+                    str(code).startswith('68') or
+                    str(code).startswith('30')
+            )
+        ]
+
         return df
