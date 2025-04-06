@@ -816,4 +816,4 @@ class UtilsToolClass:
             )
         ]
 
-        return df
+        return filtered_df
