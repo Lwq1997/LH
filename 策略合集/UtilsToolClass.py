@@ -302,7 +302,7 @@ class UtilsToolClass:
         current_data = get_current_data()
 
         return [stock for stock in stock_list if stock in subportfolio.long_positions
-                or last_prices[stock][-1] < current_data[stock].high_limit]
+                or current_data[stock].last_price < current_data[stock].high_limit]
 
     # 过滤跌停的股票
     def filter_lowlimit_stock(self, context, stock_list):
@@ -317,7 +317,7 @@ class UtilsToolClass:
             log.debug(
                 f'股票{stock},当前最新价格{last_prices[stock][-1]},当前跌停价{current_data[stock].low_limit},,当前涨停价{current_data[stock].high_limit}')
         return [stock for stock in stock_list if stock in subportfolio.long_positions
-                or last_prices[stock][-1] > current_data[stock].low_limit]
+                or current_data[stock].last_price > current_data[stock].low_limit]
 
     # 过滤次新股（小市值专用）
     def filter_new_stock(self, context, stock_list, days):
