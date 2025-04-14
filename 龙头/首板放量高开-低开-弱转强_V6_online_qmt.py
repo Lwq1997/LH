@@ -32,7 +32,7 @@ from jqdata import *
 url = 'http://115.175.23.7'
 port = 2000
 # 记得把这个改成自己的一个策略一个,策略的名称找作者建立
-password = ('bska1')
+password = 'bska1'
 
 
 class joinquant_trader:
@@ -193,21 +193,6 @@ order_target = xg_order_target(order_target)
 order_value = xg_order_value(order_value)
 order_target_value = xg_order_target_value(order_target_value)
 
-# 导入函数库
-# -*- coding: utf-8 -*-
-# 如果你的文件包含中文, 请在文件的第一行使用上面的语句指定你的文件编码
-
-# 用到策略及数据相关API请加入下面的语句(如果要兼容研究使用可以使用 try except导入
-from kuanke.user_space_api import *
-from jqdata import *
-from kuanke.wizard import *
-import numpy as np
-import pandas as pd
-import datetime as dt
-from jqlib.technical_analysis import *
-import requests
-from prettytable import PrettyTable
-import inspect
 
 # 初始化函数，设定基准等等
 def initialize(context):
