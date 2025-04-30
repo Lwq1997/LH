@@ -29,14 +29,14 @@ from jqdata import *
 把下面的内容全部复制到策略的开头就可以
 作者微信15117320079
 '''
-url = 'http://115.175.23.7'
-port = 2000
+url = 'http://106.54.211.231'
+port = 3333
 # 记得把这个改成自己的一个策略一个,策略的名称找作者建立
-password = 'bska1'
+password = '打板ST策略'
 
 
 class joinquant_trader:
-    def __init__(self, url='http://115.175.23.7', port=2000, password='123456'):
+    def __init__(self, url='http://106.54.211.231', port=3333, password='123456'):
         '''
         获取服务器数据
         '''
