@@ -63,6 +63,7 @@ text = {
     "发送钉钉消息": "是"
 }
 data = [
+    # 两个跟车策略
     {
         "服务器": "http://115.175.23.7",
         "端口": "2000",
@@ -111,7 +112,7 @@ def init(c):
     for item in data:
         url = item['服务器']
         port = item['端口']
-        print('小果服务器提供数据支持************服务器{} 端口{}'.format(url, port))
+        print('\n 小果服务器提供数据支持************服务器{} 端口{}'.format(url, port))
     # 定时模式
     # c.run_time("update_all_data","1nDay","2024-07-25 09:45:00")
     # c.run_time("update_all_data","1nDay","2024-07-25 14:45:00")
@@ -174,10 +175,10 @@ def get_del_buy_sell_data(c, name='测试1', password='123456', item=None):
     else:
         df = pd.DataFrame()
     if df.shape[0] > 0:
-        print('组合 {} 策略授权码 {} {}今天有跟单数据*********************'.format(name, password, now_date))
+        print('\n 组合 {} 策略授权码 {} {}今天有跟单数据*********************'.format(name, password, now_date))
     # print(df)
     else:
-        print('组合 {} 策略授权码 {} {}今天没有跟单数据*********************'.format(name, password, now_date))
+        print('\n 组合 {} 策略授权码 {} {}今天没有跟单数据*********************'.format(name, password, now_date))
     return df
 
 
