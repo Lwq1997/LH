@@ -38,17 +38,17 @@ text = {
     "账户类型": "STOCK",
     "聚宽跟单": "跟单原理",
     "服务器设置": "服务器跟单设置",
-    "服务器": "http://115.175.23.7",
-    "端口": "2000",
-    "测试说明": "开启测试就是选择历史交易不开启就是选择今天的数据",
-    "是否开启测试": "否",
-    "测试数量": 100,
-    "跟单设置": "跟单设置***********",
-    "账户跟单比例": 0.5,
-    "多策略用逗号隔开": "多策略用逗号隔开********",
-    "组合名称": ["8n", "一进二", "xjy_001"],
-    "组合授权码": ["8n", "789789", "xjy_001"],
-    "组合跟单比例": [1, 1, 1],
+    # "服务器": "http://115.175.23.7",
+    # "端口": "2000",
+    # "测试说明": "开启测试就是选择历史交易不开启就是选择今天的数据",
+    # "是否开启测试": "否",
+    # "测试数量": 100,
+    # "跟单设置": "跟单设置***********",
+    # "账户跟单比例": 0.5,
+    # "多策略用逗号隔开": "多策略用逗号隔开********",
+    # "组合名称": ["8n", "一进二", "xjy_001"],
+    # "组合授权码": ["8n", "789789", "xjy_001"],
+    # "组合跟单比例": [1, 1, 1],
     "不同策略间隔更新时间": 0,
     "下单默认说明": "默认/金额/数量",
     "下单模式": "默认",
@@ -63,6 +63,34 @@ text = {
     "发送微信消息": "是",
     "发送钉钉消息": "是"
 }
+data = [
+    {
+        "服务器": "http://115.175.23.7",
+        "端口": "2000",
+        "测试说明": "开启测试就是选择历史交易不开启就是选择今天的数据",
+        "是否开启测试": "否",
+        "测试数量": 100,
+        "跟单设置": "跟单设置***********",
+        "账户跟单比例": 1,
+        "多策略用逗号隔开": "多策略用逗号隔开********",
+        "组合名称": ["xjy_001"],
+        "组合授权码": ["xjy_001"],
+        "组合跟单比例": [1]
+    },
+    {
+        "服务器": "http://115.175.23.7",
+        "端口": "3000",
+        "测试说明": "开启测试就是选择历史交易不开启就是选择今天的数据",
+        "是否开启测试": "否",
+        "测试数量": 100,
+        "跟单设置": "跟单设置***********",
+        "账户跟单比例": 1,
+        "多策略用逗号隔开": "多策略用逗号隔开********",
+        "组合名称": ["wuji"],
+        "组合授权码": ["wuji"],
+        "组合跟单比例": [0.5]
+    }
+]
 
 
 # 记录临时id,避免循环下没有用的单子
@@ -79,9 +107,10 @@ def init(c):
     c.account = text['账户']
     # 账户类型
     c.account_type = text['账户类型']
-    c.url = text['服务器']
-    c.port = text['端口']
-    print('小果服务器提供数据支持************服务器{} 端口{}'.format(c.url, c.port))
+    for item in data:
+        url = item['服务器']
+        port = item['端口']
+        print('小果服务器提供数据支持************服务器{} 端口{}'.format(url, port))
     # 定时模式
     # c.run_time("update_all_data","1nDay","2024-07-25 09:45:00")
     # c.run_time("update_all_data","1nDay","2024-07-25 14:45:00")
@@ -92,7 +121,6 @@ def init(c):
     print(get_position(c, c.account, c.account_type))
 
 
-# print(update_all_data(c))
 def handlebar(c):
     pass
 
@@ -105,13 +133,13 @@ def tarder_test(c):
     passorder(23, 1101, c.account, stock, 5, 0, amount, maker, 1, maker, c)
 
 
-def get_del_buy_sell_data(c, name='测试1', password='123456'):
+def get_del_buy_sell_data(c, name='测试1', password='123456', item=None):
     '''
     处理交易数据获取原始数据
     '''
-    test = text['是否开启测试']
-    url = text['服务器']
-    port = text['端口']
+    test = item['是否开启测试']
+    url = item['服务器']
+    port = item['端口']
     now_date = str(datetime.now())[:10]
     xg_data = xg_jq_data(url=url, port=port, password=password)
     info = xg_data.get_user_data(data_type='用户信息')
@@ -200,16 +228,16 @@ def seed_dingding(message='买卖交易成功',
         return text
 
 
-def get_trader_data(c, name='测试', password='123456', zh_ratio=0.1):
+def get_trader_data(c, name='测试', password='123456', zh_ratio=0.1, item=None):
     '''
     获取交易数据
     组合的跟单比例
     '''
-    test = text['是否开启测试']
-    adjust_ratio = text['账户跟单比例']
+    test = item['是否开启测试']
+    adjust_ratio = item['账户跟单比例']
     is_open_id_log = text['是否开启临时id记录']
     # 读取跟单数据
-    df = get_del_buy_sell_data(c, name=name, password=password)
+    df = get_del_buy_sell_data(c, name=name, password=password, item=item)
     try:
         df['证券代码'] = df['证券代码'].apply(lambda x: '0' * (6 - len(str(x))) + str(x))
     except:
@@ -262,8 +290,8 @@ def get_trader_data(c, name='测试', password='123456', zh_ratio=0.1):
                                                       df['交易类型'].tolist()):
                     try:
                         price = get_price(c, stock=stock)
-                        test = text['是否开启测试']
-                        test_amount = text['测试数量']
+                        test = item['是否开启测试']
+                        test_amount = item['测试数量']
                         down_type = text['下单模式']
                         down_value = text['下单值']
                         send_wx_msg = text['发送微信消息']
@@ -351,12 +379,12 @@ def get_trader_data(c, name='测试', password='123456', zh_ratio=0.1):
     return df
 
 
-def start_trader_on(c, name='测试1', password='123456', zh_ratio=0.1):
+def start_trader_on(c, name='测试1', password='123456', zh_ratio=0.1, item=None):
     '''
     开始下单
     '''
     is_open_id_log = text['是否开启临时id记录']
-    df = get_trader_data(c, name, password=password, zh_ratio=zh_ratio)
+    df = get_trader_data(c, name, password=password, zh_ratio=zh_ratio, item=item)
     try:
         df['证券代码'] = df['证券代码'].apply(lambda x: '0' * (6 - len(str(x))) + str(x))
     except:
@@ -418,14 +446,16 @@ def update_all_data(c):
     更新策略数据
     '''
     if check_is_trader_date_1():
-        name_list = text['组合名称']
-        password_list = text['组合授权码']
-        ratio_list = text['组合跟单比例']
-        update_time = text['不同策略间隔更新时间']
-        for name, password, ratio in zip(name_list, password_list, ratio_list):
-            print('【【【【【【【策略---{}---分隔符】】】】】】】】'.format(name))
-            start_trader_on(c, name=name, password=password, zh_ratio=ratio)
-            time.sleep(update_time * 60)
+        for item in data:
+            name_list = item['组合名称']
+            password_list = item['组合授权码']
+            ratio_list = item['组合跟单比例']
+            update_time = item['不同策略间隔更新时间']
+            for name, password, ratio in zip(name_list, password_list, ratio_list):
+                print('【【【【【【【策略---{}-----IP---{}----端口---{}---分隔符】】】】】】】】'.format(name, item['服务器'],
+                                                                                          item['端口']))
+                start_trader_on(c, name=name, password=password, zh_ratio=ratio, item=item)
+                time.sleep(update_time * 60)
     else:
         print('跟单{} 目前不是交易时间***************'.format(datetime.now()))
         time.sleep(30)
