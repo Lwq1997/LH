@@ -2161,14 +2161,15 @@ class Strategy:
             elif split == 3:
                 hold_list = list(subportfolios.positions)
                 num = self.max_hold_count - len(hold_list)
-                # if (subportfolios.available_cash / subportfolios.total_value > 0.3) and (num > 0):
-                value = subportfolios.available_cash * flag / num
-                # target_list = [x for x in target_list if x not in hold_list][:num]
-                # log.debug(f'过滤前{num}的股票池:{target_list}')
-                # log.debug('最终的股票池:', target_list)
-                for stock in target_list:
-                    if subportfolios.available_cash / current_data[stock].last_price > 100:
-                        self.utilstool.open_position(context, stock, value)
+                if num > 0:
+                    # if (subportfolios.available_cash / subportfolios.total_value > 0.3) and (num > 0):
+                    value = subportfolios.available_cash * flag / num
+                    # target_list = [x for x in target_list if x not in hold_list][:num]
+                    # log.debug(f'过滤前{num}的股票池:{target_list}')
+                    # log.debug('最终的股票池:', target_list)
+                    for stock in target_list:
+                        if subportfolios.available_cash / current_data[stock].last_price > 100:
+                            self.utilstool.open_position(context, stock, value)
             else:
                 if subportfolios.available_cash / subportfolios.total_value > 0.3:
                     value = subportfolios.available_cash * flag / len(target_list)
@@ -2581,6 +2582,7 @@ class Strategy:
                 self.utilstool.open_position(context, stock, cash, False)
                 if stock not in self.bought_stocks:
                     self.bought_stocks[stock] = cash
+
 
 class RZQ_Strategy_V3(Strategy):
     def __init__(self, context, subportfolio_index, name, params):
