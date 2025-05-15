@@ -138,7 +138,7 @@ data = [
         "卖出价格编码": 7,
         "黑名单说明": "黑名单里面的标的，不会买入也不会卖出",
         "黑名单": []
-    },
+    }
 ]
 
 
@@ -171,7 +171,7 @@ def init(c):
     # c.run_time("update_all_data","1nDay","2024-07-25 09:45:00")
     # c.run_time("update_all_data","1nDay","2024-07-25 14:45:00")
     # 循环模式3秒
-    c.run_time("update_all_data", "1nSecond", "2024-07-25 13:20:00")
+    c.run_time("update_all_data", "60nSecond", "2024-07-25 13:20:00")
     # c.run_time("tarder_test","3nSecond","2024-07-25 13:20:00")
     # 交易检查函数1分钟一次
     c.run_time("run_check_trader_func", "60nSecond", "2024-07-25 13:20:00")
@@ -349,7 +349,7 @@ def get_trader_data(c, name='测试', password='123456', zh_ratio=0.1, item=None):
                         send_wx_msg = text['发送微信消息']
                         send_dd_msg = text['发送钉钉消息']
                         if test == '是':
-                            value = test_amount * price
+                            value = price * test_amount * adjust_ratio * zh_ratio
                         else:
                             if down_type == '默认':
                                 value = price * amount * adjust_ratio * zh_ratio
@@ -647,13 +647,13 @@ def run_order_trader_func(c, item=None):
             trader_log['订单ID'] = trader_log['投资备注'].apply(lambda x: str(x).split(',')[-1])
             trader_log['订单ID'] = trader_log['订单ID'].astype(str)
             for name, password in zip(name_list, password_list):
-                trader_log = trader_log[trader_log['组合授权码'] == password]
-                if trader_log.shape[0] > 0:
-                    for stock, amount, trader_type, maker, oder_id in zip(trader_log['证券代码'].tolist(),
-                                                                          trader_log['未成交数量'].tolist(),
-                                                                          trader_log['买卖方向'].tolist(),
-                                                                          trader_log['投资备注'].tolist(),
-                                                                          trader_log['订单编号'].tolist()):
+                trader_log_new = trader_log[trader_log['组合授权码'] == password]
+                if trader_log_new.shape[0] > 0:
+                    for stock, amount, trader_type, maker, oder_id in zip(trader_log_new['证券代码'].tolist(),
+                                                                          trader_log_new['未成交数量'].tolist(),
+                                                                          trader_log_new['买卖方向'].tolist(),
+                                                                          trader_log_new['投资备注'].tolist(),
+                                                                          trader_log_new['订单编号'].tolist()):
                         price = get_price(c, stock)
                         # 未成交卖出
                         print(
