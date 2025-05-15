@@ -649,6 +649,7 @@ def run_order_trader_func(c, item=None):
             trader_log['订单ID'] = trader_log['订单ID'].astype(str)
             for name, password in zip(name_list, password_list):
                 trader_log_new = trader_log[trader_log['组合授权码'] == password]
+                trader_log_new['投资备注'] =  trader_log_new['投资备注'] + ',撤回后再交易'
                 if trader_log_new.shape[0] > 0:
                     for stock, amount, trader_type, maker, oder_id in zip(trader_log_new['证券代码'].tolist(),
                                                                           trader_log_new['未成交数量'].tolist(),
