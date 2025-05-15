@@ -171,7 +171,7 @@ def init(c):
     # c.run_time("update_all_data","1nDay","2024-07-25 09:45:00")
     # c.run_time("update_all_data","1nDay","2024-07-25 14:45:00")
     # 循环模式3秒
-    c.run_time("update_all_data", "60nSecond", "2024-07-25 13:20:00")
+    c.run_time("update_all_data", "3nSecond", "2024-07-25 13:20:00")
     # c.run_time("tarder_test","3nSecond","2024-07-25 13:20:00")
     # 交易检查函数1分钟一次
     c.run_time("run_check_trader_func", "60nSecond", "2024-07-25 13:20:00")
@@ -362,7 +362,7 @@ def get_trader_data(c, name='测试', password='123456', zh_ratio=0.1, item=None):
                         if trader_type == 'buy':
                             try:
                                 trader_type, amount, price = order_stock_value(c, c.account, c.account_type, stock,
-                                                                               value, 'buy')
+                                                                               value, 'buy', price)
                                 print(trader_type, amount, price)
                                 if trader_type == 'buy' and amount >= 10:
                                     amount = adjust_amount(c, stock=stock, amount=amount)
@@ -377,11 +377,11 @@ def get_trader_data(c, name='测试', password='123456', zh_ratio=0.1, item=None):
                                     seed_dingding(message=msg)
                             except Exception as e:
                                 print('组合【{}】 组合授权码【{}】【{}】买入有问题可能没有资金'.format(name, password, stock))
-                                amount_list.append(0)
+
                         elif trader_type == 'sell':
                             try:
                                 trader_type, amount, price = order_stock_value(c, c.account, c.account_type, stock,
-                                                                               value, 'sell')
+                                                                               value, 'sell', price)
                                 if trader_type == 'sell' and amount >= 10:
                                     amount = adjust_amount(c, stock=stock, amount=amount)
                                     amount_list.append(amount)
@@ -395,8 +395,9 @@ def get_trader_data(c, name='测试', password='123456', zh_ratio=0.1, item=None):
                                     seed_dingding(message=msg)
                             except Exception as e:
 
-                                print('组合【{}】 组合授权码【{}】 【{}】卖出有问题可能没有持股'.format(name, password, stock))
-                                amount_list.append(0)
+                                print(
+                                    '组合【{}】 组合授权码【{}】 【{}】卖出有问题可能没有持股'.format(name, password, stock))
+
 
                         else:
                             print('组合【{}】 组合授权码【{}】 【{}】未知的交易类型'.format(name, password, stock))
@@ -554,7 +555,7 @@ def start_trader_on(c, name='测试1', password='123456', zh_ratio=0.1, item=None)
                                           str(maker), 1, str(maker), c)
                                 # passorder(23, 1101, c.account, stock, 5, 0, int(amount), '',1,'',c)
                                 print('组合【{}】 买入标的【{}】 数量【{}】 价格【{}】'.format(name, stock, amount, price))
-                                if c.is_open_id_log == '是':
+                                if is_open_id_log == '是':
                                     a.log_id.append(maker)
                                 else:
                                     pass
@@ -657,8 +658,9 @@ def run_order_trader_func(c, item=None):
                         price = get_price(c, stock)
                         # 未成交卖出
                         print(
-                            '证券代码：【{}】 未成交数量【{}】交易类型【{}】 投资备注【{}】 订单id【{}】'.format(stock, amount, trader_type,
-                                                                                            maker, oder_id))
+                            '证券代码：【{}】 未成交数量【{}】交易类型【{}】 投资备注【{}】 订单id【{}】'.format(stock, amount,
+                                                                                                      trader_type,
+                                                                                                      maker, oder_id))
                         if trader_type == 49:
                             # 撤单重新卖
                             cancel(oder_id, c.account, c.account_type, c)
@@ -671,7 +673,8 @@ def run_order_trader_func(c, item=None):
                             passorder(c.buy_code, 1101, c.account, str(stock), buy_price_code, 0, int(amount),
                                       str(maker),
                                       1, str(maker), c)
-                            print('\n组合【{}】 撤单重新买入标的【{}】 数量【{}】 价格【{}】'.format(name, stock, amount, price))
+                            print(
+                                '\n组合【{}】 撤单重新买入标的【{}】 数量【{}】 价格【{}】'.format(name, stock, amount, price))
                         else:
                             print('\n组合【{}】 撤单重新交易未知的交易类型'.format(name))
                 else:
@@ -680,11 +683,10 @@ def run_order_trader_func(c, item=None):
             print('\n撤单了重新下单没有委托数据')
 
 
-def order_stock_value(c, accountid, datatype, stock, value, trader_type):
+def order_stock_value(c, accountid, datatype, stock, value, trader_type, price):
     '''
     价值下单函数
     '''
-    price = get_price(c, stock)
     hold_stock = get_position(c, accountid, datatype)
     if hold_stock.shape[0] > 0:
         hold_stock = hold_stock[hold_stock['持仓量'] >= 10]
@@ -705,10 +707,7 @@ def order_stock_value(c, accountid, datatype, stock, value, trader_type):
     account = get_account(c, accountid, datatype)
     av_cash = account['可用金额']
     amount = value / price
-    if str(stock)[:2] in ['11', '12']:
-        amount = int(amount / 10) * 10
-    else:
-        amount = int(amount / 100) * 100
+    amount = adjust_amount(c, stock=stock, amount=amount)
     if trader_type == 'buy':
         if av_cash >= value and amount >= 10:
             print('金额下单可以资金{}大于买入金额{} 买入{} 价格{} 数量{}'.format(av_cash, value, stock, price, amount))
