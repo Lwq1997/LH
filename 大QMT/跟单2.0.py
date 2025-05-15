@@ -302,7 +302,6 @@ def check_is_sell(c, accountid, datatype, stock='', amount=''):
         if position.shape[0] > 0:
             position = position[position['持仓量'] >= 10]
             if position.shape[0] > 0:
-                hold_amount = position['持仓量'].tolist()[-1]
                 av_amount = position['可用数量'].tolist()[-1]
                 if av_amount >= amount and amount >= 10:
                     return True
@@ -371,14 +370,14 @@ def start_trader_on(c, name='测试1', password='xg_st', zh_ratio=0.1):
             hold_amount_dict = {}
         if sell_df.shape[0] > 0:
             sell_df['可用数量'] = sell_df['证券代码'].apply(lambda x: av_amount_dict.get(x, 0))
-            sell_df['持仓量'] = sell_df['证券代码'].apply(lambda x: av_amount_dict.get(x, 0))
+            sell_df['持仓量'] = sell_df['证券代码'].apply(lambda x: hold_amount_dict.get(x, 0))
             for stock, av_amount, hold_amount, amount, maker, in zip(sell_df['证券代码'].tolist(),
                                                                      sell_df['可用数量'].tolist(),
                                                                      sell_df['持仓量'].tolist(),
                                                                      sell_df['数量'].tolist(),
                                                                      sell_df['投资备注'].tolist()):
                 if stock not in c.del_trader_list:
-                    if stock not in a.log_id:
+                    if maker not in a.log_id:
                         # print('{} 标的不在黑名单卖出'.format(stock))
                         if av_amount >= amount:
                             amount = amount
