@@ -643,7 +643,8 @@ def run_order_trader_func(c, item=None):
             password_list = item['组合授权码']
             sell_price_code = item['卖出价格编码']
             buy_price_code = item['买入价格编码']
-            if trader_log.shape[0] > 0:
+            url = item['服务器']
+            if trader_log.shape[0] > 0 and url == "http://server.588gs.cn":
                 trader_log['证券代码'] = trader_log['证券代码'].apply(lambda x: '0' * (6 - len(str(x))) + str(x))
                 trader_log['组合授权码'] = trader_log['投资备注'].apply(lambda x: str(x).split(',')[0])
                 trader_log['订单ID'] = trader_log['投资备注'].apply(lambda x: str(x).split(',')[-1])
