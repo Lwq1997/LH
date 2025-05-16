@@ -588,7 +588,7 @@ def update_all_data(c):
             update_time = item['不同策略间隔更新时间']
             for name, password, ratio in zip(name_list, password_list, ratio_list):
                 print('【【【【【【【策略---【{}】-----IP---【{}】----端口---【{}】---分隔符】】】】】】】】'.format(name, item['服务器'],
-                                                                                          item['端口']))
+                                                                                                item['端口']))
                 start_trader_on(c, name=name, password=password, zh_ratio=ratio, item=item)
                 time.sleep(update_time * 60)
     else:
@@ -631,57 +631,63 @@ def run_order_trader_func(c, item=None):
     '''
     下单不成交撤单在下单
     '''
-    trader_log = get_order(c, c.account, c.account_type)
-    # 不成交代码
-    not_list = [49, 50, 51, 52]
-    if trader_log.shape[0] > 0:
-        trader_log['不成交'] = trader_log['委托状态'].apply(lambda x: '是' if x in not_list else '不是')
-        trader_log = trader_log[trader_log['不成交'] == '是']
-    for item in data:
-        name_list = item['组合名称']
-        password_list = item['组合授权码']
-        sell_price_code = item['卖出价格编码']
-        buy_price_code = item['买入价格编码']
+    if check_is_trader_date_1(is_retry=True):
+        trader_log = get_order(c, c.account, c.account_type)
+        # 不成交代码
+        not_list = [49, 50, 51, 52]
         if trader_log.shape[0] > 0:
-            trader_log['证券代码'] = trader_log['证券代码'].apply(lambda x: '0' * (6 - len(str(x))) + str(x))
-            trader_log['组合授权码'] = trader_log['投资备注'].apply(lambda x: str(x).split(',')[0])
-            trader_log['订单ID'] = trader_log['投资备注'].apply(lambda x: str(x).split(',')[-1])
-            trader_log['订单ID'] = trader_log['订单ID'].astype(str)
-            for name, password in zip(name_list, password_list):
-                trader_log_new = trader_log[trader_log['组合授权码'] == password]
-                trader_log_new['投资备注'] =  trader_log_new['投资备注'] + ',撤回后再交易'
-                if trader_log_new.shape[0] > 0:
-                    for stock, amount, trader_type, maker, oder_id in zip(trader_log_new['证券代码'].tolist(),
-                                                                          trader_log_new['未成交数量'].tolist(),
-                                                                          trader_log_new['买卖方向'].tolist(),
-                                                                          trader_log_new['投资备注'].tolist(),
-                                                                          trader_log_new['订单编号'].tolist()):
-                        price = get_price(c, stock)
-                        # 未成交卖出
-                        print(
-                            '证券代码：【{}】 未成交数量【{}】交易类型【{}】 投资备注【{}】 订单id【{}】'.format(stock, amount,
-                                                                                                      trader_type,
-                                                                                                      maker, oder_id))
-                        if trader_type == 49:
-                            # 撤单重新卖
-                            cancel(oder_id, c.account, c.account_type, c)
-                            passorder(c.sell_code, 1101, c.account, str(stock), sell_price_code, 0, int(amount),
-                                      str(maker), 1, str(maker), c)
-                            print('组合【{}】 撤单重新卖出标的【{}】 数量【{}】 价格【{}】'.format(name, stock, amount, price))
-                        elif trader_type == 48:
-                            # 撤单重新买
-                            cancel(oder_id, c.account, c.account_type, c)
-                            passorder(c.buy_code, 1101, c.account, str(stock), buy_price_code, 0, int(amount),
-                                      str(maker),
-                                      1, str(maker), c)
+            trader_log['不成交'] = trader_log['委托状态'].apply(lambda x: '是' if x in not_list else '不是')
+            trader_log = trader_log[trader_log['不成交'] == '是']
+        for item in data:
+            name_list = item['组合名称']
+            password_list = item['组合授权码']
+            sell_price_code = item['卖出价格编码']
+            buy_price_code = item['买入价格编码']
+            if trader_log.shape[0] > 0:
+                trader_log['证券代码'] = trader_log['证券代码'].apply(lambda x: '0' * (6 - len(str(x))) + str(x))
+                trader_log['组合授权码'] = trader_log['投资备注'].apply(lambda x: str(x).split(',')[0])
+                trader_log['订单ID'] = trader_log['投资备注'].apply(lambda x: str(x).split(',')[-1])
+                trader_log['订单ID'] = trader_log['订单ID'].astype(str)
+                for name, password in zip(name_list, password_list):
+                    trader_log_new = trader_log[trader_log['组合授权码'] == password]
+                    trader_log_new['投资备注'] = trader_log_new['投资备注'] + ',撤回后再交易'
+                    if trader_log_new.shape[0] > 0:
+                        for stock, amount, trader_type, maker, oder_id in zip(trader_log_new['证券代码'].tolist(),
+                                                                              trader_log_new['未成交数量'].tolist(),
+                                                                              trader_log_new['买卖方向'].tolist(),
+                                                                              trader_log_new['投资备注'].tolist(),
+                                                                              trader_log_new['订单编号'].tolist()):
+                            price = get_price(c, stock)
+                            # 未成交卖出
                             print(
-                                '\n组合【{}】 撤单重新买入标的【{}】 数量【{}】 价格【{}】'.format(name, stock, amount, price))
-                        else:
-                            print('\n组合【{}】 撤单重新交易未知的交易类型'.format(name))
-                else:
-                    print('\n撤单了在下单组合【{}】没有委托数据'.format(name))
-        else:
-            print('\n撤单了重新下单没有委托数据')
+                                '证券代码：【{}】 未成交数量【{}】交易类型【{}】 投资备注【{}】 订单id【{}】'.format(stock, amount,
+                                                                                                          trader_type,
+                                                                                                          maker,
+                                                                                                          oder_id))
+                            if trader_type == 49:
+                                # 撤单重新卖
+                                cancel(oder_id, c.account, c.account_type, c)
+                                passorder(c.sell_code, 1101, c.account, str(stock), sell_price_code, 0, int(amount),
+                                          str(maker), 1, str(maker), c)
+                                print('组合【{}】 撤单重新卖出标的【{}】 数量【{}】 价格【{}】'.format(name, stock, amount,
+                                                                                               price))
+                            elif trader_type == 48:
+                                # 撤单重新买
+                                cancel(oder_id, c.account, c.account_type, c)
+                                passorder(c.buy_code, 1101, c.account, str(stock), buy_price_code, 0, int(amount),
+                                          str(maker),
+                                          1, str(maker), c)
+                                print(
+                                    '\n组合【{}】 撤单重新买入标的【{}】 数量【{}】 价格【{}】'.format(name, stock, amount,
+                                                                                               price))
+                            else:
+                                print('\n组合【{}】 撤单重新交易未知的交易类型'.format(name))
+                    else:
+                        print('\n撤单了在下单组合【{}】没有委托数据'.format(name))
+            else:
+                print('\n撤单了重新下单没有委托数据')
+    else:
+        print('跟单【{}】 目前不是交易回撤时间***************'.format(datetime.now()))
 
 
 def order_stock_value(c, accountid, datatype, stock, value, trader_type, price):
@@ -776,7 +782,7 @@ def adjust_amount(c, stock='', amount=''):
     return amount
 
 
-def check_is_trader_date_1():
+def check_is_trader_date_1(is_retry=False):
     '''
     检测是不是交易时间
     '''
@@ -785,7 +791,9 @@ def check_is_trader_date_1():
     end_date = text['交易结束时间']
     start_mi = text['开始交易分钟']
     jhjj = text['是否参加集合竞价']
-    if jhjj == '是':
+    if is_retry:
+        jhjj_time = 40
+    elif jhjj == '是':
         jhjj_time = 15
     else:
         jhjj_time = 30
