@@ -627,7 +627,7 @@ def run_check_trader_func(c):
         print('交易检查没有id记录数据*******************************')
 
 
-def run_order_trader_func(c, item=None):
+def run_order_trader_func(c):
     '''
     下单不成交撤单在下单
     '''
