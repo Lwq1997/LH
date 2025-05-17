@@ -523,7 +523,7 @@ def start_trader_on(c, name='测试1', password='123456', zh_ratio=0.1, item=None)
                                 if check_is_sell(c, c.account, c.account_type, stock=stock, amount=amount):
                                     passorder(c.sell_code, 1101, c.account, str(stock), sell_price_code, 0,
                                               int(amount), str(maker), 1, str(maker), c)
-                                    print('组合【{}】 卖出标的【{}】 数量【{}】 价格【{}】'.format(name, stock, amount, price))
+                                    print('组合【{}】 卖出标的【{}】 数量【{}】 价格【{}】 Mark【maker】'.format(name, stock, amount, price, maker))
                                     if is_open_id_log == '是':
                                         a.log_id.append(maker)
                                     else:
@@ -554,7 +554,7 @@ def start_trader_on(c, name='测试1', password='123456', zh_ratio=0.1, item=None)
                                 passorder(c.buy_code, 1101, c.account, str(stock), buy_price_code, 0, int(amount),
                                           str(maker), 1, str(maker), c)
                                 # passorder(23, 1101, c.account, stock, 5, 0, int(amount), '',1,'',c)
-                                print('组合【{}】 买入标的【{}】 数量【{}】 价格【{}】'.format(name, stock, amount, price))
+                                print('组合【{}】 买入标的【{}】 数量【{}】 价格【{}】 Mark【maker】'.format(name, stock, amount, price, maker))
                                 if is_open_id_log == '是':
                                     a.log_id.append(maker)
                                 else:
@@ -571,6 +571,7 @@ def start_trader_on(c, name='测试1', password='123456', zh_ratio=0.1, item=None)
 
         else:
             print('【{}】组合没有符合调参的买入数据'.format(name))
+    print('截止目前a.logid长度:', len(a.log_id))
     # else:
     #     print('【{}】组合没有符合调参数据'.format(name))
 
