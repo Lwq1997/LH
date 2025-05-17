@@ -355,11 +355,20 @@ def get_trader_data(c, name='测试', password='123456', zh_ratio=0.1, item=None, 
             df['账户跟单比例'] = adjust_ratio
             df['组合跟单比例'] = zh_ratio
             df['交易检查'] = df['订单ID'].apply(lambda x: '已经交易' if x in trader_id_list else '没有交易')
-            if not hold_stock.empty:
-                df['是否持仓'] = df['证券代码'].apply(lambda x: '有持仓' if x in hold_stock['证券代码'].tolist() else '有持仓')
-                df = df[df['是否持仓'] == '没有持仓' and df['交易类型'] == 'sell']
-            df = df[df['交易检查'] == '没有交易']
+
             print('过滤前DF------',df)
+
+            if not hold_stock.empty:
+                # 修正赋值逻辑：存在为"有持仓"，不存在为"没有持仓"
+                df['是否持仓'] = df['证券代码'].apply(
+                    lambda x: '有持仓' if x in hold_stock['证券代码'].tolist() else '没有持仓')
+
+                # 过滤掉「没有持仓且交易类型为sell」的行（取反条件）
+                df = df[~((df['是否持仓'] == '没有持仓') & (df['交易类型'] == 'sell'))]
+
+            # 继续过滤"交易检查"列
+            df = df[df['交易检查'] == '没有交易']
+
             amount_list = []
             if not df.empty:
                 for stock, amount, trader_type in zip(df['证券代码'].tolist(), df['下单数量'].tolist(),
