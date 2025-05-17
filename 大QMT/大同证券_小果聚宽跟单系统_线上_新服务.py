@@ -192,6 +192,26 @@ def tarder_test(c):
     maker = '交易测试'
     passorder(23, 1101, c.account, stock, 5, 0, amount, maker, 1, maker, c)
 
+def check_time_window(interval_minutes: int, check_seconds: int = 3) -> bool:
+    """
+    判断当前时间是否处于每`interval_minutes`分钟的前`check_seconds`秒内
+
+    Args:
+        interval_minutes: 时间窗口间隔（分钟），支持1、5、10等正整数
+        check_seconds: 需要判断的前N秒区间（默认3秒）
+
+    Returns:
+        bool: 当前时间是否符合条件
+    """
+    now = datetime.datetime.now()
+
+    # 计算当前时间在时间窗口内的秒数偏移
+    total_seconds = now.minute * 60 + now.second
+    window_seconds = interval_minutes * 60
+    offset_seconds = total_seconds % window_seconds  # 当前窗口内的秒数偏移
+
+    return offset_seconds < check_seconds  # 判断是否在前check_seconds秒内
+
 
 def get_del_buy_sell_data(c, name='测试1', password='123456', item=None):
     '''
@@ -281,7 +301,7 @@ def seed_dingding(message='买卖交易成功',
     text = r.json()
     errmsg = text['errmsg']
     if errmsg == 'ok':
-        print('钉钉发送成功')
+        # print('钉钉发送成功')
         return text
     else:
         print(text)
@@ -527,22 +547,23 @@ def start_trader_on(c, name='测试1', password='123456', zh_ratio=0.1, item=None)
                                 if check_is_sell(c, c.account, c.account_type, stock=stock, amount=amount):
                                     passorder(c.sell_code, 1101, c.account, str(stock), sell_price_code, 0,
                                               int(amount), str(maker), 1, str(maker), c)
-                                    print('组合【{}】 卖出标的【{}】 数量【{}】 价格【{}】'.format(name, stock, amount, price))
+                                    print('组合【{}】 卖出标的【{}】 数量【{}】 价格【{}】 Mark【{}】'.format(name, stock, amount,
+                                                                                                    price, maker))
                                     if is_open_id_log == '是':
                                         a.log_id.append(maker)
                                     else:
                                         pass
                                 else:
-                                    print('组合【{}】 【{}】不能卖出'.format(name, stock))
+                                    print('组合【{}】 【{}】【{}】不能卖出'.format(name, stock, maker))
                             except Exception as e:
                                 print(e)
-                                print('组合【{}】 【{}】卖出有问题'.format(name, stock))
+                                print('组合【{}】 【{}】【{}】卖出有问题'.format(name, stock, maker))
                         else:
-                            print("【{}】 【{}】 卖出不了可用数量【{}】".format(name, stock, av_amount))
+                            print("【{}】 【{}】 【{}】 卖出不了可用数量【{}】".format(name, stock, av_amount, maker))
                     else:
-                        print('【{}】 【{}】 在id记录不卖出，等待订单确认检查'.format(name, stock))
+                        print('【{}】 【{}】 【{}】在id记录中存在，不卖出，等待订单确认检查'.format(name, stock, maker))
                 else:
-                    print('【{}】 【{}】 标的在黑名单不卖出'.format(name, stock))
+                    print('【{}】 【{}】【{}】 标的在黑名单不卖出'.format(name, stock, maker))
         else:
             print('【{}】组合没有符合调参的卖出数据'.format(name))
         buy_df = df[df['交易类型'] == 'buy']
@@ -558,20 +579,21 @@ def start_trader_on(c, name='测试1', password='123456', zh_ratio=0.1, item=None)
                                 passorder(c.buy_code, 1101, c.account, str(stock), buy_price_code, 0, int(amount),
                                           str(maker), 1, str(maker), c)
                                 # passorder(23, 1101, c.account, stock, 5, 0, int(amount), '',1,'',c)
-                                print('组合【{}】 买入标的【{}】 数量【{}】 价格【{}】'.format(name, stock, amount, price))
+                                print('组合【{}】 买入标的【{}】 数量【{}】 价格【{}】 Mark【{}】'.format(name, stock, amount,
+                                                                                                price, maker))
                                 if is_open_id_log == '是':
                                     a.log_id.append(maker)
                                 else:
                                     pass
                             else:
-                                print('组合【{}】 【{}】不能买入'.format(name, stock))
+                                print('组合【{}】 【{}】【{}】不能买入'.format(name, stock, maker))
                         except Exception as e:
                             print(e)
-                            print('组合【{}】 【{}】买入有问题'.format(name, stock))
+                            print('组合【{}】 【{}】【{}】买入有问题'.format(name, stock, maker))
                     else:
-                        print('【{}】 【{}】 在id记录不买入，等待订单确认检查'.format(name, stock))
+                        print('【{}】 【{}】 【{}】在id记录中存在，不买入，等待订单确认检查'.format(name, stock, maker))
                 else:
-                    print('【{}】 标的在黑名单不买入'.format(stock))
+                    print('【{}】 【{}】标的在黑名单不买入'.format(stock, maker))
 
         else:
             print('【{}】组合没有符合调参的买入数据'.format(name))
@@ -594,6 +616,10 @@ def update_all_data(c):
                 print('【【【【【【【策略---【{}】-----IP---【{}】----端口---【{}】---分隔符】】】】】】】】'.format(name, item['服务器'],
                                                                                                 item['端口']))
                 start_trader_on(c, name=name, password=password, zh_ratio=ratio, item=item)
+                # if check_time_window(1,3):
+                #     run_check_trader_func(c)
+                # if check_time_window(5,3):
+                #     run_order_trader_func(c)
                 time.sleep(update_time * 60)
     else:
         print('跟单【{}】 目前不是交易时间***************'.format(datetime.now()))
@@ -620,8 +646,11 @@ def run_check_trader_func(c):
     else:
         maker_list = []
     # 交易id记录a
-    if len(a.log_id) > 0:
-        for maker in a.log_id:
+    #print('交易id记录a:', a.log_id)
+    #print('已提交交易记录maker_list:', maker_list)
+    if a.log_id:  # 直接检查列表是否非空
+        # 创建一个副本用于遍历，避免修改原列表影响循环
+        for maker in list(a.log_id):  # 使用 list() 创建副本
             if maker not in maker_list:
                 a.log_id.remove(maker)
                 print('【{}】 id记录没有委托重新委托*******************************'.format(maker))
@@ -683,14 +712,14 @@ def run_order_trader_func(c):
                                           str(maker),
                                           1, str(maker), c)
                                 print(
-                                    '\n组合【{}】 撤单重新买入标的【{}】 数量【{}】 价格【{}】'.format(name, stock, amount,
+                                    '\n组合【{}】 撤单后重新买入标的【{}】 数量【{}】 价格【{}】'.format(name, stock, amount,
                                                                                                price))
                             else:
-                                print('\n组合【{}】 撤单重新交易未知的交易类型'.format(name))
+                                print('\n服务器【{}】--组合【{}】 撤单后重新交易未知的交易类型'.format(url, name))
                     else:
-                        print('\n撤单了在下单组合【{}】没有委托数据'.format(name))
+                        print('\n服务器【{}】--组合【{}】撤单了重新下单，没有委托数据'.format(url, name))
             else:
-                print('\n撤单了重新下单没有委托数据')
+                print('\n服务器【{}】--撤单了重新下单，没有委托数据'.format(url))
     else:
         print('跟单【{}】 目前不是交易回撤时间***************'.format(datetime.now()))
 
