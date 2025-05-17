@@ -288,7 +288,7 @@ def seed_dingding(message='买卖交易成功',
         return text
 
 
-def get_trader_data(c, name='测试', password='123456', zh_ratio=0.1, item=None):
+def get_trader_data(c, name='测试', password='123456', zh_ratio=0.1, item=None, hold_stock = None):
     '''
     获取交易数据
     组合的跟单比例
@@ -335,7 +335,11 @@ def get_trader_data(c, name='测试', password='123456', zh_ratio=0.1, item=None):
             df['账户跟单比例'] = adjust_ratio
             df['组合跟单比例'] = zh_ratio
             df['交易检查'] = df['订单ID'].apply(lambda x: '已经交易' if x in trader_id_list else '没有交易')
+            if hold_stock:
+                df['是否持仓'] = df['证券代码'].apply(lambda x: '有持仓' if x in hold_stock['证券代码'].tolist() else '有持仓')
+                df = df[df['是否持仓'] == '没有持仓' and df['交易类型'] == 'sell']
             df = df[df['交易检查'] == '没有交易']
+            print('过滤前DF------',df)
             amount_list = []
             if df.shape[0] > 0:
                 for stock, amount, trader_type in zip(df['证券代码'].tolist(), df['下单数量'].tolist(),
@@ -492,7 +496,7 @@ def start_trader_on(c, name='测试1', password='123456', zh_ratio=0.1, item=None)
             hold_stock_list = []
     else:
         hold_stock_list = []
-    df = get_trader_data(c, name, password=password, zh_ratio=zh_ratio, item=item)
+    df = get_trader_data(c, name, password=password, zh_ratio=zh_ratio, item=item, hold_stock = hold_stock)
     try:
         df['证券代码'] = df['证券代码'].apply(lambda x: '0' * (6 - len(str(x))) + str(x))
     except:
