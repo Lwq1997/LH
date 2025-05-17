@@ -171,12 +171,12 @@ def init(c):
     # c.run_time("update_all_data","1nDay","2024-07-25 09:45:00")
     # c.run_time("update_all_data","1nDay","2024-07-25 14:45:00")
     # 循环模式3秒
-    c.run_time("update_all_data", "3nSecond", "2024-07-25 13:20:00")
+    c.run_time("update_all_data", "60nSecond", "2024-07-25 13:20:00")
     # c.run_time("tarder_test","3nSecond","2024-07-25 13:20:00")
     # 交易检查函数1分钟一次
     c.run_time("run_check_trader_func", "60nSecond", "2024-07-25 13:20:00")
     # 撤单了重新下单5分钟一次
-    c.run_time("run_order_trader_func", "300nSecond", "2024-07-25 13:20:00")
+    # c.run_time("run_order_trader_func", "300nSecond", "2024-07-25 13:20:00")
     print(get_account(c, c.account, c.account_type))
     print(get_position(c, c.account, c.account_type))
 
@@ -627,7 +627,6 @@ def run_check_trader_func(c):
         print('交易检查没有id记录数据*******************************')
 
 
-def run_order_trader_func(c, item=None):
 def run_order_trader_func(c):
     '''
     下单不成交撤单在下单
@@ -952,4 +951,3 @@ class xg_jq_data:
         text = res.json()
         df = pd.DataFrame(text['response']['joinquant_trader_table']['data'])
         return df
-
