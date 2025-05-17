@@ -1,27 +1,29 @@
 # encoding:gbk
 '''
-声明：源代码只用作学习使用，不做商业用途
-小果聚宽跟单交易系统
-作者：小果
-时间：20240120
+小果聚宽交易成交系统高速服务器2
+作者：小果量化
+微信:xg_quant
+时间：20250507
+优化内容
+1:交易检查功能,自动补单
+2:5分钟不成交撤单了重新下单
+3：优化了交易算法，交易细节
 教程 https://gitee.com/li-xingguo11111/joinquant_trader_miniqmt
 大qmt https://gitee.com/li-xingguo11111/joinquant_trader_bigqmt
-实盘时间设置在下面的text里面改
-"交易时间段":4,
-"交易开始时间":9,
-"交易结束时间":14,
-测试时间设置
-"时间设置":"时间设置********",
-"交易时间段":8,
-"交易开始时间":0,
-"交易结束时间":24,
-"是否参加集合竞价":"否",
-"开始交易分钟":0,
-实盘需要把txet下面的参数是否测试改成否
-"是否开启测试":"否",
-下面的参数测试的时候改成否,实盘改成是
-"是否开启临时id记录":"是"
 高频使用循环模式，低频使用定时
+数值	描述
+-1	无效(只对于algo_passorder起作用)
+0	卖5价
+1	卖4价
+2	卖3价
+3	卖2价
+4	卖1价
+5	最新价
+6	买1价
+7	买2价(组合不支持)
+8	买3价(组合不支持)
+9	买4价(组合不支持)
+10	买5价(组合不支持)
 '''
 import pandas as pd
 import numpy as np
@@ -35,21 +37,22 @@ import random
 
 text = {
     "账户": "99085312",
+    "账户支持融资融券": "账户支持融资融券,账户类型STOCK/CREDIT",
     "账户类型": "STOCK",
     "聚宽跟单": "跟单原理",
     "服务器设置": "服务器跟单设置",
-    "服务器": "http://115.175.23.7",
-    "端口": "2000",
-    "测试说明": "开启测试就是选择历史交易不开启就是选择今天的数据",
-    "是否开启测试": "是",
-    "测试数量": 100,
-    "跟单设置": "跟单设置***********",
-    "账户跟单比例": 1,
-    "多策略用逗号隔开": "多策略用逗号隔开********",
-    "组合名称": ["低回撤搅屎棍组合策略", "高收益小市值组合策略"],
-    "组合授权码": ["低回撤搅屎棍组合策略", "高收益小市值组合策略"],
-    "组合跟单比例": [1, 1],
-    "不同策略间隔更新时间": 0,
+    "是否开启id记录": "是",
+    # "服务器": "http://115.175.23.7",
+    # "端口": "2000",
+    # "测试说明": "开启测试就是选择历史交易不开启就是选择今天的数据",
+    # "是否开启测试": "是",
+    # "测试数量": 100,
+    # "跟单设置": "跟单设置***********",
+    # "账户跟单比例": 0.5,
+    # "多策略用逗号隔开": "多策略用逗号隔开********",
+    # "组合名称": ["8n", "一进二", "xjy_001"],
+    # "组合授权码": ["8n", "789789", "xjy_001"],
+    # "组合跟单比例": [1, 1, 1],
     "下单默认说明": "默认/金额/数量",
     "下单模式": "默认",
     "下单值": 1000,
@@ -57,12 +60,86 @@ text = {
     "交易时间段": 8,
     "交易开始时间": 8,
     "交易结束时间": 24,
-    "是否参加集合竞价": "否",
+    "是否参加集合竞价": "是",
     "开始交易分钟": 0,
-    "是否开启临时id记录": "是",
     "发送微信消息": "是",
     "发送钉钉消息": "是"
 }
+data = [
+    {
+        "服务器": "http://server.588gs.cn",
+        "端口": "2000",
+        "测试说明": "开启测试就是选择历史交易不开启就是选择今天的数据",
+        "是否开启测试": "是",
+        "测试数量": 100,
+        "跟单设置": "跟单设置***********",
+        "账户跟单比例": 1,
+        "多策略用逗号隔开": "多策略用逗号隔开********",
+        "组合名称": ["低回撤搅屎棍组合策略", "高收益小市值组合策略", "xszs2"],
+        "组合授权码": ["低回撤搅屎棍组合策略", "高收益小市值组合策略", "xszs2"],
+        "组合跟单比例": [1, 1, 1],
+        "不同策略间隔更新时间": 0,
+        "买入价格编码": 4,
+        "卖出价格编码": 6,
+        "黑名单说明": "黑名单里面的标的，不会买入也不会卖出",
+        "黑名单": []
+    },
+    {
+        "服务器": "http://106.54.211.231",
+        "端口": "3333",
+        "测试说明": "开启测试就是选择历史交易不开启就是选择今天的数据",
+        "是否开启测试": "是",
+        "测试数量": 100,
+        "跟单设置": "跟单设置***********",
+        "账户跟单比例": 1,
+        "多策略用逗号隔开": "多策略用逗号隔开********",
+        "组合名称": ["低回撤搅屎棍组合策略", "高收益小市值组合策略"],
+        "组合授权码": ["低回撤搅屎棍组合策略", "高收益小市值组合策略"],
+        "组合跟单比例": [1, 1],
+        "不同策略间隔更新时间": 0,
+        "买入价格编码": 4,
+        "卖出价格编码": 6,
+        "黑名单说明": "黑名单里面的标的，不会买入也不会卖出",
+        "黑名单": []
+    },
+    # 两个打板策略
+    {
+        "服务器": "http://server.588gs.cn",
+        "端口": "2000",
+        "测试说明": "开启测试就是选择历史交易不开启就是选择今天的数据",
+        "是否开启测试": "是",
+        "测试数量": 100,
+        "跟单设置": "跟单设置***********",
+        "账户跟单比例": 1,
+        "多策略用逗号隔开": "多策略用逗号隔开********",
+        "组合名称": ["打板ST策略", "1n2_bska"],
+        "组合授权码": ["打板ST策略", "1n2_bska"],
+        "组合跟单比例": [1, 0.5],
+        "不同策略间隔更新时间": 0,
+        "买入价格编码": 3,
+        "卖出价格编码": 7,
+        "黑名单说明": "黑名单里面的标的，不会买入也不会卖出",
+        "黑名单": []
+    },
+    {
+        "服务器": "http://106.54.211.231",
+        "端口": "3333",
+        "测试说明": "开启测试就是选择历史交易不开启就是选择今天的数据",
+        "是否开启测试": "是",
+        "测试数量": 100,
+        "跟单设置": "跟单设置***********",
+        "账户跟单比例": 1,
+        "多策略用逗号隔开": "多策略用逗号隔开********",
+        "组合名称": ["打板ST策略"],
+        "组合授权码": ["打板ST策略"],
+        "组合跟单比例": [1],
+        "不同策略间隔更新时间": 0,
+        "买入价格编码": 3,
+        "卖出价格编码": 7,
+        "黑名单说明": "黑名单里面的标的，不会买入也不会卖出",
+        "黑名单": []
+    }
+]
 
 
 # 记录临时id,避免循环下没有用的单子
@@ -79,20 +156,31 @@ def init(c):
     c.account = text['账户']
     # 账户类型
     c.account_type = text['账户类型']
-    c.url = text['服务器']
-    c.port = text['端口']
-    print('小果服务器提供数据支持************服务器{} 端口{}'.format(c.url, c.port))
+    if c.account_type == 'stock' or c.account_type == 'STOCK':
+        c.buy_code = 23
+        c.sell_code = 24
+    else:
+        # 融资融券
+        c.buy_code = 33
+        c.sell_code = 34
+    for item in data:
+        url = item['服务器']
+        port = item['端口']
+        print('\n 小果服务器提供数据支持************服务器【{}】 端口【{}】'.format(url, port))
     # 定时模式
     # c.run_time("update_all_data","1nDay","2024-07-25 09:45:00")
     # c.run_time("update_all_data","1nDay","2024-07-25 14:45:00")
     # 循环模式3秒
     c.run_time("update_all_data", "3nSecond", "2024-07-25 13:20:00")
     # c.run_time("tarder_test","3nSecond","2024-07-25 13:20:00")
+    # 交易检查函数1分钟一次
+    c.run_time("run_check_trader_func", "60nSecond", "2024-07-25 13:20:00")
+    # 撤单了重新下单5分钟一次
+    c.run_time("run_order_trader_func", "300nSecond", "2024-07-25 13:20:00")
     print(get_account(c, c.account, c.account_type))
     print(get_position(c, c.account, c.account_type))
 
 
-# print(update_all_data(c))
 def handlebar(c):
     pass
 
@@ -105,13 +193,13 @@ def tarder_test(c):
     passorder(23, 1101, c.account, stock, 5, 0, amount, maker, 1, maker, c)
 
 
-def get_del_buy_sell_data(c, name='测试1', password='123456'):
+def get_del_buy_sell_data(c, name='测试1', password='123456', item=None):
     '''
     处理交易数据获取原始数据
     '''
-    test = text['是否开启测试']
-    url = text['服务器']
-    port = text['端口']
+    test = item['是否开启测试']
+    url = item['服务器']
+    port = item['端口']
     now_date = str(datetime.now())[:10]
     xg_data = xg_jq_data(url=url, port=port, password=password)
     info = xg_data.get_user_data(data_type='用户信息')
@@ -134,7 +222,7 @@ def get_del_buy_sell_data(c, name='测试1', password='123456'):
             df['策略名称'] = str('聚宽跟单')
             df['订单ID'] = df['订单ID'].astype(str)
             df['证券代码'] = df['证券代码'].apply(lambda x: str(x))
-            df['投资备注'] = df['组合授权码'] + ',' + df['订单ID']
+            df['投资备注'] = df['组合授权码'] + ',' + df['证券代码'] + ',' + df['订单ID']
             if test == '是':
                 print('开启测试模式,实盘记得关闭')
                 df = df
@@ -145,10 +233,10 @@ def get_del_buy_sell_data(c, name='测试1', password='123456'):
     else:
         df = pd.DataFrame()
     if df.shape[0] > 0:
-        print('组合 {} 策略授权码 {} {}今天有跟单数据*********************'.format(name, password, now_date))
-        # print(df)
+        print('\n 组合 【{}】 策略授权码 【{}】【{}】今天有跟单数据*********************'.format(name, password, now_date))
+    # print(df)
     else:
-        print('组合 {} 策略授权码 {} {}今天没有跟单数据*********************'.format(name, password, now_date))
+        print('\n 组合 【{}】策略授权码【{}】【{}】今天没有跟单数据*********************'.format(name, password, now_date))
     return df
 
 
@@ -200,22 +288,20 @@ def seed_dingding(message='买卖交易成功',
         return text
 
 
-def get_trader_data(c, name='测试', password='123456', zh_ratio=0.1):
+def get_trader_data(c, name='测试', password='123456', zh_ratio=0.1, item=None):
     '''
     获取交易数据
     组合的跟单比例
     '''
-    test = text['是否开启测试']
-    adjust_ratio = text['账户跟单比例']
-    is_open_id_log = text['是否开启临时id记录']
+    test = item['是否开启测试']
+    adjust_ratio = item['账户跟单比例']
     # 读取跟单数据
-    df = get_del_buy_sell_data(c, name=name, password=password)
+    df = get_del_buy_sell_data(c, name=name, password=password, item=item)
     try:
         df['证券代码'] = df['证券代码'].apply(lambda x: '0' * (6 - len(str(x))) + str(x))
     except:
         pass
     trader_log = get_order(c, c.account, c.account_type)
-    now_date = str(datetime.now())[:10]
     # 剔除撤单废单
     not_list = [54, 57]
     if trader_log.shape[0] > 0:
@@ -240,13 +326,7 @@ def get_trader_data(c, name='测试', password='123456', zh_ratio=0.1):
             trader_id_list = []
     else:
         trader_id_list = []
-    if is_open_id_log == '是':
-        for trader_id in a.log_id:
-            trader_id_list.append(trader_id)
-    else:
-        pass
     trader_id_list = list(set(trader_id_list))
-
     if df.shape[0] > 0:
         df['组合授权码'] = df['组合授权码'].astype(str)
         # df['订单ID ']=df['订单ID'].astype(str)
@@ -262,14 +342,14 @@ def get_trader_data(c, name='测试', password='123456', zh_ratio=0.1):
                                                       df['交易类型'].tolist()):
                     try:
                         price = get_price(c, stock=stock)
-                        test = text['是否开启测试']
-                        test_amount = text['测试数量']
+                        test = item['是否开启测试']
+                        test_amount = item['测试数量']
                         down_type = text['下单模式']
                         down_value = text['下单值']
                         send_wx_msg = text['发送微信消息']
                         send_dd_msg = text['发送钉钉消息']
                         if test == '是':
-                            value = test_amount * price
+                            value = price * test_amount * adjust_ratio * zh_ratio
                         else:
                             if down_type == '默认':
                                 value = price * amount * adjust_ratio * zh_ratio
@@ -282,7 +362,7 @@ def get_trader_data(c, name='测试', password='123456', zh_ratio=0.1):
                         if trader_type == 'buy':
                             try:
                                 trader_type, amount, price = order_stock_value(c, c.account, c.account_type, stock,
-                                                                               value, 'buy')
+                                                                               value, 'buy', price)
                                 print(trader_type, amount, price)
                                 if trader_type == 'buy' and amount >= 10:
                                     amount = adjust_amount(c, stock=stock, amount=amount)
@@ -290,36 +370,37 @@ def get_trader_data(c, name='测试', password='123456', zh_ratio=0.1):
                                 else:
                                     amount_list.append(0)
 
-                                msg = f'当前时刻--{str(datetime.now())[:19]}\n买入股票--{stock}\n股数--{amount}\n单价--{price}\n总价--{price * amount}'
+                                msg = f'当前时刻--{str(datetime.now())[:19]}\n组合--{name}\n买入股票--{stock}\n股数--{amount}\n单价--{price}\n总价--{price * amount}'
                                 if send_wx_msg == '是':
                                     send_wx_message(message=msg)
                                 if send_dd_msg == '是':
                                     seed_dingding(message=msg)
                             except Exception as e:
-                                print('组合{} 组合授权码{} {}买入有问题可能没有资金'.format(name, password, stock))
-                                amount_list.append(0)
+                                print('组合【{}】 组合授权码【{}】【{}】买入有问题可能没有资金'.format(name, password, stock))
+
                         elif trader_type == 'sell':
                             try:
                                 trader_type, amount, price = order_stock_value(c, c.account, c.account_type, stock,
-                                                                               value, 'sell')
+                                                                               value, 'sell', price)
                                 if trader_type == 'sell' and amount >= 10:
                                     amount = adjust_amount(c, stock=stock, amount=amount)
                                     amount_list.append(amount)
                                 else:
                                     amount_list.append(0)
 
-                                msg = f'当前时刻--{str(datetime.now())[:19]}\n卖出股票--{stock}\n股数--{amount}\n单价--{price}\n总价--{price * amount}'
+                                msg = f'当前时刻--{str(datetime.now())[:19]}\n组合--{name}\n卖出股票--{stock}\n股数--{amount}\n单价--{price}\n总价--{price * amount}'
                                 if send_wx_msg == '是':
                                     send_wx_message(message=msg)
                                 if send_dd_msg == '是':
                                     seed_dingding(message=msg)
                             except Exception as e:
 
-                                print('组合{} 组合授权码{} {}卖出有问题可能没有持股'.format(name, password, stock))
-                                amount_list.append(0)
+                                print(
+                                    '组合【{}】 组合授权码【{}】 【{}】卖出有问题可能没有持股'.format(name, password, stock))
+
 
                         else:
-                            print('组合{} 组合授权码{} {}未知的交易类型'.format(name, password, stock))
+                            print('组合【{}】 组合授权码【{}】 【{}】未知的交易类型'.format(name, password, stock))
 
                     except Exception as e:
                         print(e, stock, '有问题*************')
@@ -339,24 +420,79 @@ def get_trader_data(c, name='测试', password='123456', zh_ratio=0.1):
                 trader_log = trader_log.drop_duplicates(subset=['订单添加时间', '订单ID', '组合授权码', '组合名称'],
                                                         keep='last')
             else:
-                # print('{}组合没有需要下单股票******************'.format(name))
+                # print('【{}】组合没有需要下单股票******************'.format(name))
                 df = pd.DataFrame()
         else:
-            print('{}没有这个组合*************'.format(name))
+            print('【{}】没有这个组合*************'.format(name))
             df = pd.DataFrame()
 
     else:
-        # print('{}交易股票池没有数据*************'.format(name))
+        # print('【{}】交易股票池没有数据*************'.format(name))
         df = pd.DataFrame()
     return df
 
 
-def start_trader_on(c, name='测试1', password='123456', zh_ratio=0.1):
+def check_is_sell(c, accountid, datatype, stock='', amount=0):
+    '''
+    检查是否可以卖出
+    '''
+    position = get_position(c, accountid, datatype)
+    if position.shape[0] > 0:
+        position = position[position['证券代码'] == stock]
+        if position.shape[0] > 0:
+            position = position[position['持仓量'] >= 0]
+            if position.shape[0] > 0:
+                av_amount = position['可用数量'].tolist()[-1]
+                if av_amount >= 10:
+                    return True
+                else:
+                    print('【{}】 不能卖出可用数量【{}】 小于卖出数量【{}】'.format(stock, av_amount, amount))
+                    return False
+            else:
+                print('【{}】 不能卖出，没有持股'.format(stock))
+                return False
+        else:
+            print('【{}】 不能卖出，没有持股'.format(stock))
+            return False
+    else:
+        print('【{}】 账户空仓'.format(stock))
+        return False
+
+
+def check_is_buy(c, accountid, datatype, stock='', amount=0, price=0):
+    '''
+    检查是否可以买入
+    '''
+    account = get_account(c, accountid, datatype)
+    # 可以使用的现金
+    av_cash = account['可用金额']
+    value = amount * price
+    if av_cash >= value:
+        return True
+    else:
+        print('【{}】 账户可用资金【{}】 不能买入价格【{}】 数量【{}】 标的'.format(stock, av_cash, price, amount))
+        return False
+
+
+def start_trader_on(c, name='测试1', password='123456', zh_ratio=0.1, item=None):
     '''
     开始下单
     '''
-    is_open_id_log = text['是否开启临时id记录']
-    df = get_trader_data(c, name, password=password, zh_ratio=zh_ratio)
+    is_open_id_log = text['是否开启id记录']
+    del_trader_list = item['黑名单']
+    sell_price_code = item['卖出价格编码']
+    buy_price_code = item['买入价格编码']
+
+    hold_stock = get_position(c, c.account, c.account_type)
+    if hold_stock.shape[0] > 0:
+        hold_stock = hold_stock[hold_stock['持仓量'] >= 10]
+        if hold_stock.shape[0] > 0:
+            hold_stock_list = hold_stock['证券代码'].tolist()
+        else:
+            hold_stock_list = []
+    else:
+        hold_stock_list = []
+    df = get_trader_data(c, name, password=password, zh_ratio=zh_ratio, item=item)
     try:
         df['证券代码'] = df['证券代码'].apply(lambda x: '0' * (6 - len(str(x))) + str(x))
     except:
@@ -367,49 +503,76 @@ def start_trader_on(c, name='测试1', password='123456', zh_ratio=0.1):
         df['证券代码'] = df['证券代码'].apply(lambda x: '0' * (6 - len(str(x))) + str(x))
         # 先卖在买
         sell_df = df[df['交易类型'] == 'sell']
-        if sell_df.shape[0] > 0:
-            for stock, amount, maker, in zip(sell_df['证券代码'].tolist(), sell_df['数量'].tolist(),
-                                             sell_df['投资备注'].tolist()):
-                try:
-
-                    price = get_price(c, stock)
-                    passorder(24, 1101, c.account, str(stock), 5, 0, int(amount), str(maker), 1, str(maker), c)
-                    print('组合{} 卖出标的{} 数量{} 价格{}'.format(name, stock, amount, price))
-                    if is_open_id_log == '是':
-                        trader_id = str(maker).split(',')[-1]
-                        a.log_id.append(trader_id)
-                    else:
-                        pass
-
-                except Exception as e:
-                    print(e)
-                    print('组合{} {}卖出有问题'.format(name, stock))
+        if len(hold_stock_list) > 0:
+            av_amount_dict = dict(zip(hold_stock['证券代码'].tolist(), hold_stock['可用数量'].tolist()))
         else:
-            print('{}组合没有符合调参的卖出数据'.format(name))
+            av_amount_dict = {}
+        if sell_df.shape[0] > 0:
+            sell_df['可用数量'] = sell_df['证券代码'].apply(lambda x: av_amount_dict.get(x, 0))
+            for stock, av_amount, amount, maker, in zip(sell_df['证券代码'].tolist(),
+                                                        sell_df['可用数量'].tolist(),
+                                                        sell_df['数量'].tolist(),
+                                                        sell_df['投资备注'].tolist()):
+                if stock not in del_trader_list:
+                    if maker not in a.log_id:
+                        # print('{} 标的不在黑名单卖出'.format(stock))
+                        amount = amount if av_amount >= amount else av_amount
+                        if amount >= 10:
+                            try:
+                                price = get_price(c, stock)
+                                if check_is_sell(c, c.account, c.account_type, stock=stock, amount=amount):
+                                    passorder(c.sell_code, 1101, c.account, str(stock), sell_price_code, 0,
+                                              int(amount), str(maker), 1, str(maker), c)
+                                    print('组合【{}】 卖出标的【{}】 数量【{}】 价格【{}】'.format(name, stock, amount, price))
+                                    if is_open_id_log == '是':
+                                        a.log_id.append(maker)
+                                    else:
+                                        pass
+                                else:
+                                    print('组合【{}】 【{}】不能卖出'.format(name, stock))
+                            except Exception as e:
+                                print(e)
+                                print('组合【{}】 【{}】卖出有问题'.format(name, stock))
+                        else:
+                            print("【{}】 【{}】 卖出不了可用数量【{}】".format(name, stock, av_amount))
+                    else:
+                        print('【{}】 【{}】 在id记录不卖出，等待订单确认检查'.format(name, stock))
+                else:
+                    print('【{}】 【{}】 标的在黑名单不卖出'.format(name, stock))
+        else:
+            print('【{}】组合没有符合调参的卖出数据'.format(name))
         buy_df = df[df['交易类型'] == 'buy']
         if buy_df.shape[0] > 0:
             for stock, amount, maker, in zip(buy_df['证券代码'].tolist(), buy_df['数量'].tolist(),
                                              buy_df['投资备注'].tolist()):
-                try:
-
-                    price = get_price(c, stock)
-                    passorder(23, 1101, c.account, str(stock), 5, 0, int(amount), str(maker), 1, str(maker), c)
-                    # passorder(23, 1101, c.account, stock, 5, 0, int(amount), '',1,'',c)
-                    print('组合{} 买入标的{} 数量{} 价格{}'.format(name, stock, amount, price))
-                    if is_open_id_log == '是':
-                        trader_id = str(maker).split(',')[-1]
-                        a.log_id.append(trader_id)
+                if stock not in del_trader_list:
+                    # print('【{}】 标的不在黑名单买入'.format(stock))
+                    if maker not in a.log_id:
+                        try:
+                            price = get_price(c, stock)
+                            if check_is_buy(c, c.account, c.account_type, stock=stock, amount=amount, price=price):
+                                passorder(c.buy_code, 1101, c.account, str(stock), buy_price_code, 0, int(amount),
+                                          str(maker), 1, str(maker), c)
+                                # passorder(23, 1101, c.account, stock, 5, 0, int(amount), '',1,'',c)
+                                print('组合【{}】 买入标的【{}】 数量【{}】 价格【{}】'.format(name, stock, amount, price))
+                                if is_open_id_log == '是':
+                                    a.log_id.append(maker)
+                                else:
+                                    pass
+                            else:
+                                print('组合【{}】 【{}】不能买入'.format(name, stock))
+                        except Exception as e:
+                            print(e)
+                            print('组合【{}】 【{}】买入有问题'.format(name, stock))
                     else:
-                        pass
-
-                except Exception as e:
-                    print(e)
-                    print('组合{} {}买入有问题'.format(name, stock))
+                        print('【{}】 【{}】 在id记录不买入，等待订单确认检查'.format(name, stock))
+                else:
+                    print('【{}】 标的在黑名单不买入'.format(stock))
 
         else:
-            print('{}组合没有符合调参的买入数据'.format(name))
+            print('【{}】组合没有符合调参的买入数据'.format(name))
     # else:
-    #     print('{}组合没有符合调参数据'.format(name))
+    #     print('【{}】组合没有符合调参数据'.format(name))
 
 
 # print(a.log_id)
@@ -418,23 +581,121 @@ def update_all_data(c):
     更新策略数据
     '''
     if check_is_trader_date_1():
-        name_list = text['组合名称']
-        password_list = text['组合授权码']
-        ratio_list = text['组合跟单比例']
-        update_time = text['不同策略间隔更新时间']
-        for name, password, ratio in zip(name_list, password_list, ratio_list):
-            print('【【【【【【【策略---{}---分隔符】】】】】】】】'.format(name))
-            start_trader_on(c, name=name, password=password, zh_ratio=ratio)
-            time.sleep(update_time * 60)
+        for item in data:
+            name_list = item['组合名称']
+            password_list = item['组合授权码']
+            ratio_list = item['组合跟单比例']
+            update_time = item['不同策略间隔更新时间']
+            for name, password, ratio in zip(name_list, password_list, ratio_list):
+                print('【【【【【【【策略---【{}】-----IP---【{}】----端口---【{}】---分隔符】】】】】】】】'.format(name, item['服务器'],
+                                                                                                item['端口']))
+                start_trader_on(c, name=name, password=password, zh_ratio=ratio, item=item)
+                time.sleep(update_time * 60)
     else:
-        print('跟单{} 目前不是交易时间***************'.format(datetime.now()))
+        print('跟单【{}】 目前不是交易时间***************'.format(datetime.now()))
+        time.sleep(30)
 
 
-def order_stock_value(c, accountid, datatype, stock, value, trader_type):
+def run_check_trader_func(c):
+    '''
+    检查交易下单情况，没有下单的就补单
+    '''
+    trader_log = get_order(c, c.account, c.account_type)
+    # 剔除撤单废单
+    not_list = [54, 57]
+    if trader_log.shape[0] > 0:
+        trader_log['撤单'] = trader_log['委托状态'].apply(lambda x: '是' if x in not_list else '不是')
+        trader_log = trader_log[trader_log['撤单'] == '不是']
+
+    if trader_log.shape[0] > 0:
+        trader_log['证券代码'] = trader_log['证券代码'].apply(lambda x: '0' * (6 - len(str(x))) + str(x))
+        trader_log['组合授权码'] = trader_log['投资备注'].apply(lambda x: str(x).split(',')[0])
+        trader_log['订单ID'] = trader_log['投资备注'].apply(lambda x: str(x).split(',')[-1])
+        trader_log['订单ID'] = trader_log['订单ID'].astype(str)
+        maker_list = trader_log['投资备注'].tolist()
+    else:
+        maker_list = []
+    # 交易id记录a
+    if len(a.log_id) > 0:
+        for maker in a.log_id:
+            if maker not in maker_list:
+                a.log_id.remove(maker)
+                print('【{}】 id记录没有委托重新委托*******************************'.format(maker))
+            else:
+                print('【{}】 id记录已经委托不委托*******************************'.format(maker))
+    else:
+        print('交易检查没有id记录数据*******************************')
+
+
+def run_order_trader_func(c, item=None):
+def run_order_trader_func(c):
+    '''
+    下单不成交撤单在下单
+    '''
+    if check_is_trader_date_1(is_retry=True):
+        trader_log = get_order(c, c.account, c.account_type)
+        # 不成交代码
+        not_list = [49, 50, 51, 52]
+        if trader_log.shape[0] > 0:
+            trader_log['不成交'] = trader_log['委托状态'].apply(lambda x: '是' if x in not_list else '不是')
+            trader_log = trader_log[trader_log['不成交'] == '是']
+        for item in data:
+            name_list = item['组合名称']
+            password_list = item['组合授权码']
+            sell_price_code = item['卖出价格编码']
+            buy_price_code = item['买入价格编码']
+            url = item['服务器']
+            if trader_log.shape[0] > 0 and url == "http://server.588gs.cn":
+                trader_log['证券代码'] = trader_log['证券代码'].apply(lambda x: '0' * (6 - len(str(x))) + str(x))
+                trader_log['组合授权码'] = trader_log['投资备注'].apply(lambda x: str(x).split(',')[0])
+                trader_log['订单ID'] = trader_log['投资备注'].apply(lambda x: str(x).split(',')[-1])
+                trader_log['订单ID'] = trader_log['订单ID'].astype(str)
+                for name, password in zip(name_list, password_list):
+                    trader_log_new = trader_log[trader_log['组合授权码'] == password]
+                    trader_log_new['投资备注'] = trader_log_new['投资备注'] + ',撤回后再交易'
+                    if trader_log_new.shape[0] > 0:
+                        for stock, amount, trader_type, maker, oder_id in zip(trader_log_new['证券代码'].tolist(),
+                                                                              trader_log_new['未成交数量'].tolist(),
+                                                                              trader_log_new['买卖方向'].tolist(),
+                                                                              trader_log_new['投资备注'].tolist(),
+                                                                              trader_log_new['订单编号'].tolist()):
+                            price = get_price(c, stock)
+                            # 未成交卖出
+                            print(
+                                '证券代码：【{}】 未成交数量【{}】交易类型【{}】 投资备注【{}】 订单id【{}】'.format(stock, amount,
+                                                                                                          trader_type,
+                                                                                                          maker,
+                                                                                                          oder_id))
+                            if trader_type == 49:
+                                # 撤单重新卖
+                                cancel(oder_id, c.account, c.account_type, c)
+                                passorder(c.sell_code, 1101, c.account, str(stock), sell_price_code, 0, int(amount),
+                                          str(maker), 1, str(maker), c)
+                                print('组合【{}】 撤单重新卖出标的【{}】 数量【{}】 价格【{}】'.format(name, stock, amount,
+                                                                                               price))
+                            elif trader_type == 48:
+                                # 撤单重新买
+                                cancel(oder_id, c.account, c.account_type, c)
+                                passorder(c.buy_code, 1101, c.account, str(stock), buy_price_code, 0, int(amount),
+                                          str(maker),
+                                          1, str(maker), c)
+                                print(
+                                    '\n组合【{}】 撤单重新买入标的【{}】 数量【{}】 价格【{}】'.format(name, stock, amount,
+                                                                                               price))
+                            else:
+                                print('\n组合【{}】 撤单重新交易未知的交易类型'.format(name))
+                    else:
+                        print('\n撤单了在下单组合【{}】没有委托数据'.format(name))
+            else:
+                print('\n撤单了重新下单没有委托数据')
+    else:
+        print('跟单【{}】 目前不是交易回撤时间***************'.format(datetime.now()))
+
+
+def order_stock_value(c, accountid, datatype, stock, value, trader_type, price):
     '''
     价值下单函数
     '''
-    price = get_price(c, stock)
     hold_stock = get_position(c, accountid, datatype)
     if hold_stock.shape[0] > 0:
         hold_stock = hold_stock[hold_stock['持仓量'] >= 10]
@@ -455,10 +716,7 @@ def order_stock_value(c, accountid, datatype, stock, value, trader_type):
     account = get_account(c, accountid, datatype)
     av_cash = account['可用金额']
     amount = value / price
-    if str(stock)[:2] in ['11', '12']:
-        amount = int(amount / 10) * 10
-    else:
-        amount = int(amount / 100) * 100
+    amount = adjust_amount(c, stock=stock, amount=amount)
     if trader_type == 'buy':
         if av_cash >= value and amount >= 10:
             print('金额下单可以资金{}大于买入金额{} 买入{} 价格{} 数量{}'.format(av_cash, value, stock, price, amount))
@@ -526,7 +784,7 @@ def adjust_amount(c, stock='', amount=''):
     return amount
 
 
-def check_is_trader_date_1():
+def check_is_trader_date_1(is_retry=False):
     '''
     检测是不是交易时间
     '''
@@ -535,7 +793,9 @@ def check_is_trader_date_1():
     end_date = text['交易结束时间']
     start_mi = text['开始交易分钟']
     jhjj = text['是否参加集合竞价']
-    if jhjj == '是':
+    if is_retry:
+        jhjj_time = 40
+    elif jhjj == '是':
         jhjj_time = 15
     else:
         jhjj_time = 30
@@ -583,7 +843,7 @@ def get_position(c, accountid, datatype):
     '''
     positions = get_trade_detail_data(accountid, datatype, 'position')
     data = pd.DataFrame()
-    print('持股数量{}'.format(len(positions)))
+    print('持股数量【{}】'.format(len(positions)))
     if len(positions) > 0:
         df = pd.DataFrame()
         try:
@@ -614,7 +874,7 @@ def get_order(c, accountid, datatype):
     '''
     data = pd.DataFrame()
     orders = get_trade_detail_data(accountid, datatype, 'order')
-    print('委托数量{}'.format(len(orders)))
+    print('委托数量【{}】'.format(len(orders)))
     if len(orders) > 0:
         df = pd.DataFrame()
         for o in orders:
@@ -628,6 +888,10 @@ def get_order(c, accountid, datatype):
             df['成交金额'] = [o.m_dTradeAmount]
             df['投资备注'] = [o.m_strRemark]
             df['委托状态'] = [o.m_nOrderStatus]
+            df['委托数量'] = [o.m_nVolumeTotalOriginal]
+            df['成交数量'] = [o.m_nVolumeTraded]
+            df['订单编号'] = [o.m_strOrderSysID]
+            df['未成交数量'] = df['委托数量'] - df['成交数量']
             data = pd.concat([data, df], ignore_index=True)
     else:
         data = pd.DataFrame()
@@ -640,7 +904,7 @@ def get_deal(c, accountid, datatype):
     '''
     data = pd.DataFrame()
     deals = get_trade_detail_data(account, 'stock', 'deal')
-    print('成交数量{}'.format(len(deals)))
+    print('成交数量【{}】'.format(len(deals)))
     if len(deals):
         df = pd.DataFrame()
         for dt in deals:
@@ -688,3 +952,4 @@ class xg_jq_data:
         text = res.json()
         df = pd.DataFrame(text['response']['joinquant_trader_table']['data'])
         return df
+
