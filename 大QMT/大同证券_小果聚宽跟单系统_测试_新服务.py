@@ -192,7 +192,6 @@ def tarder_test(c):
     maker = '交易测试'
     passorder(23, 1101, c.account, stock, 5, 0, amount, maker, 1, maker, c)
 
-
 def check_time_window(interval_minutes: int, check_seconds: int = 3) -> bool:
     """
     判断当前时间是否处于每`interval_minutes`分钟的前`check_seconds`秒内
@@ -227,7 +226,7 @@ def get_del_buy_sell_data(c, name='测试1', password='123456', item=None):
     df = xg_data.get_user_data(data_type='实时数据')
     # print('用户信息已经读取')
     # print(info)
-    if df.shape[0] > 0:
+    if not df.empty():
         stats = df['数据状态'].tolist()[-1]
         if stats == True:
             df['证券代码'] = df['股票代码'].apply(
@@ -253,7 +252,7 @@ def get_del_buy_sell_data(c, name='测试1', password='123456', item=None):
             df = pd.DataFrame()
     else:
         df = pd.DataFrame()
-    if df.shape[0] > 0:
+    if not df.empty():
         print('\n 组合 【{}】 策略授权码 【{}】【{}】今天有跟单数据*********************'.format(name, password, now_date))
     # print(df)
     else:
@@ -309,7 +308,7 @@ def seed_dingding(message='买卖交易成功',
         return text
 
 
-def get_trader_data(c, name='测试', password='123456', zh_ratio=0.1, item=None):
+def get_trader_data(c, name='测试', password='123456', zh_ratio=0.1, item=None, hold_stock = None):
     '''
     获取交易数据
     组合的跟单比例
@@ -325,12 +324,12 @@ def get_trader_data(c, name='测试', password='123456', zh_ratio=0.1, item=None):
     trader_log = get_order(c, c.account, c.account_type)
     # 剔除撤单废单
     not_list = [54, 57]
-    if trader_log.shape[0] > 0:
+    if not trader_log.empty():
         trader_log['撤单'] = trader_log['委托状态'].apply(lambda x: '是' if x in not_list else '不是')
         trader_log = trader_log[trader_log['撤单'] == '不是']
     else:
         trader_log = trader_log
-    if trader_log.shape[0] > 0:
+    if not trader_log.empty():
         trader_log['证券代码'] = trader_log['证券代码'].apply(lambda x: '0' * (6 - len(str(x))) + str(x))
         trader_log['组合授权码'] = trader_log['投资备注'].apply(lambda x: str(x).split(',')[0])
         trader_log['订单ID'] = trader_log['投资备注'].apply(lambda x: str(x).split(',')[-1])
@@ -341,24 +340,28 @@ def get_trader_data(c, name='测试', password='123456', zh_ratio=0.1, item=None):
             trader_log = trader_log
         trader_log['组合授权码'] = trader_log['组合授权码'].astype(str)
         trader_log_1 = trader_log[trader_log['组合授权码'] == password]
-        if trader_log_1.shape[0] > 0:
+        if not trader_log_1.empty():
             trader_id_list = trader_log_1['订单ID'].tolist()
         else:
             trader_id_list = []
     else:
         trader_id_list = []
     trader_id_list = list(set(trader_id_list))
-    if df.shape[0] > 0:
+    if not df.empty():
         df['组合授权码'] = df['组合授权码'].astype(str)
         # df['订单ID ']=df['订单ID'].astype(str)
         df = df[df['组合授权码'] == password]
-        if df.shape[0] > 0:
+        if not df.empty():
             df['账户跟单比例'] = adjust_ratio
             df['组合跟单比例'] = zh_ratio
             df['交易检查'] = df['订单ID'].apply(lambda x: '已经交易' if x in trader_id_list else '没有交易')
+            if not hold_stock.empty():
+                df['是否持仓'] = df['证券代码'].apply(lambda x: '有持仓' if x in hold_stock['证券代码'].tolist() else '有持仓')
+                df = df[df['是否持仓'] == '没有持仓' and df['交易类型'] == 'sell']
             df = df[df['交易检查'] == '没有交易']
+            print('过滤前DF------',df)
             amount_list = []
-            if df.shape[0] > 0:
+            if not df.empty():
                 for stock, amount, trader_type in zip(df['证券代码'].tolist(), df['下单数量'].tolist(),
                                                       df['交易类型'].tolist()):
                     try:
@@ -458,11 +461,11 @@ def check_is_sell(c, accountid, datatype, stock='', amount=0):
     检查是否可以卖出
     '''
     position = get_position(c, accountid, datatype)
-    if position.shape[0] > 0:
+    if not position.empty():
         position = position[position['证券代码'] == stock]
-        if position.shape[0] > 0:
+        if not position.empty():
             position = position[position['持仓量'] >= 0]
-            if position.shape[0] > 0:
+            if not position.empty():
                 av_amount = position['可用数量'].tolist()[-1]
                 if av_amount >= 10:
                     return True
@@ -505,20 +508,20 @@ def start_trader_on(c, name='测试1', password='123456', zh_ratio=0.1, item=None)
     buy_price_code = item['买入价格编码']
 
     hold_stock = get_position(c, c.account, c.account_type)
-    if hold_stock.shape[0] > 0:
+    if not hold_stock.empty():
         hold_stock = hold_stock[hold_stock['持仓量'] >= 10]
-        if hold_stock.shape[0] > 0:
+        if not hold_stock.empty():
             hold_stock_list = hold_stock['证券代码'].tolist()
         else:
             hold_stock_list = []
     else:
         hold_stock_list = []
-    df = get_trader_data(c, name, password=password, zh_ratio=zh_ratio, item=item)
+    df = get_trader_data(c, name, password=password, zh_ratio=zh_ratio, item=item, hold_stock = hold_stock)
     try:
         df['证券代码'] = df['证券代码'].apply(lambda x: '0' * (6 - len(str(x))) + str(x))
     except:
         pass
-    if df.shape[0] > 0:
+    if not df.empty():
         df['证券代码'] = df['证券代码'].astype(str)
         # print(df['证券代码'])
         df['证券代码'] = df['证券代码'].apply(lambda x: '0' * (6 - len(str(x))) + str(x))
@@ -528,7 +531,7 @@ def start_trader_on(c, name='测试1', password='123456', zh_ratio=0.1, item=None)
             av_amount_dict = dict(zip(hold_stock['证券代码'].tolist(), hold_stock['可用数量'].tolist()))
         else:
             av_amount_dict = {}
-        if sell_df.shape[0] > 0:
+        if not sell_df.empty():
             sell_df['可用数量'] = sell_df['证券代码'].apply(lambda x: av_amount_dict.get(x, 0))
             for stock, av_amount, amount, maker, in zip(sell_df['证券代码'].tolist(),
                                                         sell_df['可用数量'].tolist(),
@@ -564,7 +567,7 @@ def start_trader_on(c, name='测试1', password='123456', zh_ratio=0.1, item=None)
         else:
             print('【{}】组合没有符合调参的卖出数据'.format(name))
         buy_df = df[df['交易类型'] == 'buy']
-        if buy_df.shape[0] > 0:
+        if not buy_df.empty():
             for stock, amount, maker, in zip(buy_df['证券代码'].tolist(), buy_df['数量'].tolist(),
                                              buy_df['投资备注'].tolist()):
                 if stock not in del_trader_list:
@@ -630,11 +633,11 @@ def run_check_trader_func(c):
     trader_log = get_order(c, c.account, c.account_type)
     # 剔除撤单废单
     not_list = [54, 57]
-    if trader_log.shape[0] > 0:
+    if not trader_log.empty():
         trader_log['撤单'] = trader_log['委托状态'].apply(lambda x: '是' if x in not_list else '不是')
         trader_log = trader_log[trader_log['撤单'] == '不是']
 
-    if trader_log.shape[0] > 0:
+    if not trader_log.empty():
         trader_log['证券代码'] = trader_log['证券代码'].apply(lambda x: '0' * (6 - len(str(x))) + str(x))
         trader_log['组合授权码'] = trader_log['投资备注'].apply(lambda x: str(x).split(',')[0])
         trader_log['订单ID'] = trader_log['投资备注'].apply(lambda x: str(x).split(',')[-1])
@@ -643,8 +646,8 @@ def run_check_trader_func(c):
     else:
         maker_list = []
     # 交易id记录a
-    print('交易id记录a:', a.log_id)
-    print('已提交交易记录maker_list:', maker_list)
+    #print('交易id记录a:', a.log_id)
+    #print('已提交交易记录maker_list:', maker_list)
     if a.log_id:  # 直接检查列表是否非空
         # 创建一个副本用于遍历，避免修改原列表影响循环
         for maker in list(a.log_id):  # 使用 list() 创建副本
@@ -665,7 +668,7 @@ def run_order_trader_func(c):
         trader_log = get_order(c, c.account, c.account_type)
         # 不成交代码
         not_list = [49, 50, 51, 52]
-        if trader_log.shape[0] > 0:
+        if not trader_log.empty():
             trader_log['不成交'] = trader_log['委托状态'].apply(lambda x: '是' if x in not_list else '不是')
             trader_log = trader_log[trader_log['不成交'] == '是']
         for item in data:
@@ -674,7 +677,7 @@ def run_order_trader_func(c):
             sell_price_code = item['卖出价格编码']
             buy_price_code = item['买入价格编码']
             url = item['服务器']
-            if trader_log.shape[0] > 0 and url == "http://server.588gs.cn":
+            if not trader_log.empty() and url == "http://server.588gs.cn":
                 trader_log['证券代码'] = trader_log['证券代码'].apply(lambda x: '0' * (6 - len(str(x))) + str(x))
                 trader_log['组合授权码'] = trader_log['投资备注'].apply(lambda x: str(x).split(',')[0])
                 trader_log['订单ID'] = trader_log['投资备注'].apply(lambda x: str(x).split(',')[-1])
@@ -682,7 +685,7 @@ def run_order_trader_func(c):
                 for name, password in zip(name_list, password_list):
                     trader_log_new = trader_log[trader_log['组合授权码'] == password]
                     trader_log_new['投资备注'] = trader_log_new['投资备注'] + ',撤回后再交易'
-                    if trader_log_new.shape[0] > 0:
+                    if not trader_log_new.empty():
                         for stock, amount, trader_type, maker, oder_id in zip(trader_log_new['证券代码'].tolist(),
                                                                               trader_log_new['未成交数量'].tolist(),
                                                                               trader_log_new['买卖方向'].tolist(),
@@ -726,11 +729,11 @@ def order_stock_value(c, accountid, datatype, stock, value, trader_type, price):
     价值下单函数
     '''
     hold_stock = get_position(c, accountid, datatype)
-    if hold_stock.shape[0] > 0:
+    if not hold_stock.empty():
         hold_stock = hold_stock[hold_stock['持仓量'] >= 10]
-        if hold_stock.shape[0] > 0:
+        if not hold_stock.empty():
             hold_df = hold_stock[hold_stock['证券代码'] == stock]
-            if hold_df.shape[0] > 0:
+            if not hold_df.empty():
                 hold_amount = hold_df['持仓量'].tolist()[-1]
                 av_amount = hold_df['可用数量'].tolist()[-1]
             else:
