@@ -14,8 +14,9 @@ import time
 text = {
     "账户": "8888888888",  # 填写你自己的资金账户
     "账户类型": "STOCK",  # 账户类型STOCK/CREDIT 普通账户/融资融券
-    "买入价格编码": 5,  # 5最新价、6买1价、7买2价(不支持组合)、8买3价(不支持组合)、9买4价(不支持组合)、10买5价(不支持组合)
+    "买入价格编码": 11,  # 5最新价、6买1价、7买2价(不支持组合)、8买3价(不支持组合)、9买4价(不支持组合)、10买5价(不支持组合) 、11指定价(不支持组合)
     "卖出价格编码": 5,  # 5最新价、4卖1价、3卖2价、2卖3价、1卖4价、0卖5价
+    "买入价格浮动比例": 1.015,
     "黑名单": ['600031.SH', '600111.SH', '513100.SH'],  # 黑名单里面的标的，不会买入也不会卖出
     "聚宽跟单": "跟单原理",
     "服务器设置": "服务器跟单设置",
@@ -65,6 +66,7 @@ def init(c):
         c.sell_code = 34
     c.buy_price_code = text['买入价格编码']
     c.sell_price_code = text['卖出价格编码']
+    c.buy_price_rate = text['买入价格浮动比例']
     c.del_trader_list = text['黑名单']
     c.url = text['服务器']
     c.port = text['端口']
@@ -393,7 +395,9 @@ def start_trader_on(c, name='测试1', password='xg_st', zh_ratio=0.1):
                         try:
                             price = get_price(c, stock)
                             if check_is_buy(c, c.account, c.account_type, stock=stock, amount=amount, price=price):
-                                passorder(c.buy_code, 1101, c.account, str(stock), c.buy_price_code, 0, int(amount),
+                                if c.buy_price_code == 11:
+                                    price = round(price * c.buy_price_rate, 2)
+                                passorder(c.buy_code, 1101, c.account, str(stock), c.buy_price_code, price, int(amount),
                                           str(maker), 1, str(maker), c)
                                 # passorder(23, 1101, c.account, stock, 5, 0, int(amount), '',1,'',c)
                                 print('组合{} 买入标的{} 数量{} 价格{}'.format(name, stock, amount, price))
