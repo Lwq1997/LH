@@ -75,12 +75,14 @@ data = [
         "跟单设置": "跟单设置***********",
         "账户跟单比例": 1,
         "多策略用逗号隔开": "多策略用逗号隔开********",
-        "组合名称": ["低回撤搅屎棍组合策略", "高收益小市值组合策略", "xszs2"],
-        "组合授权码": ["低回撤搅屎棍组合策略", "高收益小市值组合策略", "xszs2"],
-        "组合跟单比例": [1, 1, 1],
+        "组合名称": ["低回撤搅屎棍组合策略", "高收益小市值组合策略", "xszs2", "xszw2"],
+        "组合授权码": ["低回撤搅屎棍组合策略", "高收益小市值组合策略", "xszs2", "xszw2"],
+        "组合跟单比例": [1, 1, 1, 1],
         "不同策略间隔更新时间": 0,
         "买入价格编码": 4,
         "卖出价格编码": 6,
+        "浮动买入价格编码": 4,
+        "买入价格浮动比例": 1,
         "黑名单说明": "黑名单里面的标的，不会买入也不会卖出",
         "黑名单": []
     },
@@ -99,6 +101,8 @@ data = [
         "不同策略间隔更新时间": 0,
         "买入价格编码": 4,
         "卖出价格编码": 6,
+        "浮动买入价格编码": 4,
+        "买入价格浮动比例": 1,
         "黑名单说明": "黑名单里面的标的，不会买入也不会卖出",
         "黑名单": []
     },
@@ -112,12 +116,14 @@ data = [
         "跟单设置": "跟单设置***********",
         "账户跟单比例": 1,
         "多策略用逗号隔开": "多策略用逗号隔开********",
-        "组合名称": ["打板ST策略", "1n2_bska"],
-        "组合授权码": ["打板ST策略", "1n2_bska"],
-        "组合跟单比例": [1, 0.5],
+        "组合名称": ["打板ST策略", "1n2_bska", "ds4"],
+        "组合授权码": ["打板ST策略", "1n2_bska", "ds4"],
+        "组合跟单比例": [1, 0.5, 0.2],
         "不同策略间隔更新时间": 0,
         "买入价格编码": 3,
         "卖出价格编码": 7,
+        "浮动买入价格编码": 11,
+        "买入价格浮动比例": 1.015,
         "黑名单说明": "黑名单里面的标的，不会买入也不会卖出",
         "黑名单": []
     },
@@ -136,6 +142,8 @@ data = [
         "不同策略间隔更新时间": 0,
         "买入价格编码": 3,
         "卖出价格编码": 7,
+        "浮动买入价格编码": 11,
+        "买入价格浮动比例": 1.015,
         "黑名单说明": "黑名单里面的标的，不会买入也不会卖出",
         "黑名单": []
     }
@@ -235,6 +243,7 @@ def get_del_buy_sell_data(c, name='测试1', password='123456', item=None):
             df['数据长度'] = df['证券代码'].apply(lambda x: len(str(x)))
             df['订单添加时间'] = df['订单添加时间'].apply(lambda x: str(x)[:10])
             df = df[df['数据长度'] >= 6]
+            df['股票名称'] = [get_sotck_info(c, code) for code in df['证券代码']]
             df['交易类型'] = df['买卖'].apply(lambda x: 'buy' if x == True else 'sell')
             df = df.drop_duplicates(subset=['股票代码', '下单数量', '买卖', '多空'], keep='last')
             df['组合名称'] = str(name)
@@ -308,7 +317,7 @@ def seed_dingding(message='买卖交易成功',
         return text
 
 
-def get_trader_data(c, name='测试', password='123456', zh_ratio=0.1, item=None, hold_stock = None):
+def get_trader_data(c, name='测试', password='123456', zh_ratio=0.1, item=None, hold_stock=None):
     '''
     获取交易数据
     组合的跟单比例
@@ -356,7 +365,7 @@ def get_trader_data(c, name='测试', password='123456', zh_ratio=0.1, item=None, 
             df['组合跟单比例'] = zh_ratio
             df['交易检查'] = df['订单ID'].apply(lambda x: '已经交易' if x in trader_id_list else '没有交易')
 
-            print('过滤前DF------',df)
+            print('过滤前DF------', df)
 
             if not hold_stock.empty:
                 # 修正赋值逻辑：存在为"有持仓"，不存在为"没有持仓"
@@ -371,8 +380,10 @@ def get_trader_data(c, name='测试', password='123456', zh_ratio=0.1, item=None, 
 
             amount_list = []
             if not df.empty:
-                for stock, amount, trader_type in zip(df['证券代码'].tolist(), df['下单数量'].tolist(),
-                                                      df['交易类型'].tolist()):
+                for stock, stock_name, amount, trader_type in zip(df['证券代码'].tolist(),
+                                                                  df['股票名称'].tolist(),
+                                                                  df['下单数量'].tolist(),
+                                                                  df['交易类型'].tolist()):
                     try:
                         price = get_price(c, stock=stock)
                         test = item['是否开启测试']
@@ -403,7 +414,7 @@ def get_trader_data(c, name='测试', password='123456', zh_ratio=0.1, item=None, 
                                 else:
                                     amount_list.append(0)
 
-                                msg = f'当前时刻--{str(datetime.now())[:19]}\n组合--{name}\n买入股票--{stock}\n股数--{amount}\n单价--{price}\n总价--{price * amount}'
+                                msg = f'【---计划下单---】\n 当前时刻--{str(datetime.now())[:19]}\n组合--{name}\n买入股票--{stock}\n股票名称--{stock_name}\n股数--{amount}\n单价--{price}\n总价--{price * amount}'
                                 if send_wx_msg == '是':
                                     send_wx_message(message=msg)
                                 if send_dd_msg == '是':
@@ -421,7 +432,7 @@ def get_trader_data(c, name='测试', password='123456', zh_ratio=0.1, item=None, 
                                 else:
                                     amount_list.append(0)
 
-                                msg = f'当前时刻--{str(datetime.now())[:19]}\n组合--{name}\n卖出股票--{stock}\n股数--{amount}\n单价--{price}\n总价--{price * amount}'
+                                msg = f'【---计划下单---】\n 当前时刻--{str(datetime.now())[:19]}\n组合--{name}\n卖出股票--{stock}\n股票名称--{stock_name}\n股数--{amount}\n单价--{price}\n总价--{price * amount}'
                                 if send_wx_msg == '是':
                                     send_wx_message(message=msg)
                                 if send_dd_msg == '是':
@@ -507,6 +518,27 @@ def check_is_buy(c, accountid, datatype, stock='', amount=0, price=0):
         return False
 
 
+def is_st_stock(stock_name):
+    """
+    判断股票名称是否表示ST或退市股票
+
+    参数:
+    stock_name (str): 股票名称，如"ST平安"或"退市金泰"
+
+    返回:
+    bool: 如果是ST股票或退市股票返回True，否则返回False
+    """
+    # 处理None或非字符串输入
+    if not stock_name or not isinstance(stock_name, str):
+        return False
+
+    # 去除首尾空格并检查名称特征
+    name = stock_name.strip()
+    return (name.startswith(("ST", "*ST")) or
+            "退市" in name or
+            name.endswith("退"))
+
+
 def start_trader_on(c, name='测试1', password='123456', zh_ratio=0.1, item=None):
     '''
     开始下单
@@ -515,6 +547,10 @@ def start_trader_on(c, name='测试1', password='123456', zh_ratio=0.1, item=None)
     del_trader_list = item['黑名单']
     sell_price_code = item['卖出价格编码']
     buy_price_code = item['买入价格编码']
+    special_buy_price_code = item['浮动买入价格编码']
+    special_buy_price_rate = item['买入价格浮动比例']
+    send_wx_msg = text['发送微信消息']
+    send_dd_msg = text['发送钉钉消息']
 
     hold_stock = get_position(c, c.account, c.account_type)
     if not hold_stock.empty:
@@ -525,7 +561,7 @@ def start_trader_on(c, name='测试1', password='123456', zh_ratio=0.1, item=None)
             hold_stock_list = []
     else:
         hold_stock_list = []
-    df = get_trader_data(c, name, password=password, zh_ratio=zh_ratio, item=item, hold_stock = hold_stock)
+    df = get_trader_data(c, name, password=password, zh_ratio=zh_ratio, item=item, hold_stock=hold_stock)
     try:
         df['证券代码'] = df['证券代码'].apply(lambda x: '0' * (6 - len(str(x))) + str(x))
     except:
@@ -542,10 +578,11 @@ def start_trader_on(c, name='测试1', password='123456', zh_ratio=0.1, item=None)
             av_amount_dict = {}
         if not sell_df.empty:
             sell_df['可用数量'] = sell_df['证券代码'].apply(lambda x: av_amount_dict.get(x, 0))
-            for stock, av_amount, amount, maker, in zip(sell_df['证券代码'].tolist(),
-                                                        sell_df['可用数量'].tolist(),
-                                                        sell_df['数量'].tolist(),
-                                                        sell_df['投资备注'].tolist()):
+            for stock, stock_name, av_amount, amount, maker, in zip(sell_df['证券代码'].tolist(),
+                                                                    sell_df['股票名称'].tolist(),
+                                                                    sell_df['可用数量'].tolist(),
+                                                                    sell_df['数量'].tolist(),
+                                                                    sell_df['投资备注'].tolist()):
                 if stock not in del_trader_list:
                     if maker not in a.log_id:
                         # print('{} 标的不在黑名单卖出'.format(stock))
@@ -556,54 +593,84 @@ def start_trader_on(c, name='测试1', password='123456', zh_ratio=0.1, item=None)
                                 if check_is_sell(c, c.account, c.account_type, stock=stock, amount=amount):
                                     passorder(c.sell_code, 1101, c.account, str(stock), sell_price_code, 0,
                                               int(amount), str(maker), 1, str(maker), c)
-                                    print('组合【{}】 卖出标的【{}】 数量【{}】 价格【{}】 Mark【{}】'.format(name, stock, amount,
-                                                                                                    price, maker))
+                                    print('组合【{}】 卖出标的【{}】股票名称【{}】 数量【{}】 价格【{}】 Mark【{}】'.format(name,
+                                                                                                                stock,
+                                                                                                                stock_name,
+                                                                                                                amount,
+                                                                                                                price,
+                                                                                                                maker))
+
+                                    msg = f'【###真实下单###】\n当前时刻--{str(datetime.now())[:19]}\n组合--{name}\n买入股票--{stock}\n股票名称--{stock_name}\n股数--{amount}\n单价--{price}\n总价--{price * amount}'
+                                    if send_wx_msg == '是':
+                                        send_wx_message(message=msg)
+                                    if send_dd_msg == '是':
+                                        seed_dingding(message=msg)
+
                                     if is_open_id_log == '是':
                                         a.log_id.append(maker)
                                     else:
                                         pass
                                 else:
-                                    print('组合【{}】 【{}】【{}】不能卖出'.format(name, stock, maker))
+                                    print('组合【{}】【{}】【{}】【{}】不能卖出'.format(name, stock, stock_name, maker))
                             except Exception as e:
                                 print(e)
-                                print('组合【{}】 【{}】【{}】卖出有问题'.format(name, stock, maker))
+                                print('组合【{}】【{}】【{}】【{}】卖出有问题'.format(name, stock, stock_name, maker))
                         else:
-                            print("【{}】 【{}】 【{}】 卖出不了可用数量【{}】".format(name, stock, av_amount, maker))
+                            print("【{}】 【{}】 【{}】【{}】 卖出不了可用数量【{}】".format(name, stock, stock_name, av_amount,
+                                                                                   maker))
                     else:
-                        print('【{}】 【{}】 【{}】在id记录中存在，不卖出，等待订单确认检查'.format(name, stock, maker))
+                        print('【{}】 【{}】【{}】 【{}】在id记录中存在，不卖出，等待订单确认检查'.format(name, stock, stock_name,
+                                                                                                maker))
                 else:
-                    print('【{}】 【{}】【{}】 标的在黑名单不卖出'.format(name, stock, maker))
+                    print('【{}】 【{}】【{}】【{}】 标的在黑名单不卖出'.format(name, stock, stock_name, maker))
         else:
             print('【{}】组合没有符合调参的卖出数据'.format(name))
         buy_df = df[df['交易类型'] == 'buy']
         if not buy_df.empty:
-            for stock, amount, maker, in zip(buy_df['证券代码'].tolist(), buy_df['数量'].tolist(),
-                                             buy_df['投资备注'].tolist()):
+            for stock, stock_name, amount, maker, in zip(buy_df['证券代码'].tolist(),
+                                                     buy_df['股票名称'].tolist(),
+                                                     buy_df['数量'].tolist(),
+                                                     buy_df['投资备注'].tolist()):
                 if stock not in del_trader_list:
                     # print('【{}】 标的不在黑名单买入'.format(stock))
                     if maker not in a.log_id:
                         try:
                             price = get_price(c, stock)
                             if check_is_buy(c, c.account, c.account_type, stock=stock, amount=amount, price=price):
-                                passorder(c.buy_code, 1101, c.account, str(stock), buy_price_code, 0, int(amount),
-                                          str(maker), 1, str(maker), c)
-                                # passorder(23, 1101, c.account, stock, 5, 0, int(amount), '',1,'',c)
-                                print('组合【{}】 买入标的【{}】 数量【{}】 价格【{}】 Mark【{}】'.format(name, stock, amount,
-                                                                                                price, maker))
+                                if special_buy_price_code == 11 and not is_st_stock(stock_name):
+                                    price = round(price * special_buy_price_rate, 2)
+                                    passorder(c.buy_code, 1101, c.account, str(stock), special_buy_price_code, price,
+                                              int(amount),
+                                              str(maker), 1, str(maker), c)
+                                else:
+                                    passorder(c.buy_code, 1101, c.account, str(stock), buy_price_code, price,
+                                              int(amount),
+                                              str(maker), 1, str(maker), c)
+                                print('组合【{}】 买入标的【{}】 股票名称【{}】 数量【{}】 价格【{}】 Mark【{}】'.format(name, stock,
+                                                                                                             stock_name,
+                                                                                                             amount,
+                                                                                                             price, maker))
+
+                                msg = f'【真实下单】\n当前时刻--{str(datetime.now())[:19]}\n组合--{name}\n买入股票--{stock}\n股票名称--{stock_name}\n股数--{amount}\n单价--{price}\n总价--{price * amount}'
+                                if send_wx_msg == '是':
+                                    send_wx_message(message=msg)
+                                if send_dd_msg == '是':
+                                    seed_dingding(message=msg)
+
                                 if is_open_id_log == '是':
                                     a.log_id.append(maker)
                                 else:
                                     pass
                             else:
-                                print('组合【{}】 【{}】【{}】不能买入'.format(name, stock, maker))
+                                print('组合【{}】 【{}】 【{}】【{}】不能买入'.format(name, stock, stock_name, maker))
                         except Exception as e:
                             print(e)
-                            print('组合【{}】 【{}】【{}】买入有问题'.format(name, stock, maker))
+                            print('组合【{}】【{}】【{}】【{}】买入有问题'.format(name, stock, stock_name, maker))
                     else:
-                        print('【{}】 【{}】 【{}】在id记录中存在，不买入，等待订单确认检查'.format(name, stock, maker))
+                        print('【{}】【{}】【{}】 【{}】在id记录中存在，不买入，等待订单确认检查'.format(name, stock, stock_name,
+                                                                                               maker))
                 else:
-                    print('【{}】 【{}】标的在黑名单不买入'.format(stock, maker))
-
+                    print('【{}】【{}】【{}】标的在黑名单不买入'.format(stock, stock_name, maker))
         else:
             print('【{}】组合没有符合调参的买入数据'.format(name))
     # else:
@@ -655,8 +722,8 @@ def run_check_trader_func(c):
     else:
         maker_list = []
     # 交易id记录a
-    #print('交易id记录a:', a.log_id)
-    #print('已提交交易记录maker_list:', maker_list)
+    # print('交易id记录a:', a.log_id)
+    # print('已提交交易记录maker_list:', maker_list)
     if a.log_id:  # 直接检查列表是否非空
         # 创建一个副本用于遍历，避免修改原列表影响循环
         for maker in list(a.log_id):  # 使用 list() 创建副本
@@ -695,34 +762,42 @@ def run_order_trader_func(c):
                     trader_log_new = trader_log[trader_log['组合授权码'] == password]
                     trader_log_new['投资备注'] = trader_log_new['投资备注'] + ',撤回后再交易'
                     if not trader_log_new.empty:
-                        for stock, amount, trader_type, maker, oder_id in zip(trader_log_new['证券代码'].tolist(),
-                                                                              trader_log_new['未成交数量'].tolist(),
-                                                                              trader_log_new['买卖方向'].tolist(),
-                                                                              trader_log_new['投资备注'].tolist(),
-                                                                              trader_log_new['订单编号'].tolist()):
+                        for stock, stock_name, amount, trader_type, maker, oder_id in zip(
+                                trader_log_new['证券代码'].tolist(),
+                                trader_log_new['股票名称'].tolist(),
+                                trader_log_new['未成交数量'].tolist(),
+                                trader_log_new['买卖方向'].tolist(),
+                                trader_log_new['投资备注'].tolist(),
+                                trader_log_new['订单编号'].tolist()):
                             price = get_price(c, stock)
                             # 未成交卖出
                             print(
-                                '证券代码：【{}】 未成交数量【{}】交易类型【{}】 投资备注【{}】 订单id【{}】'.format(stock, amount,
-                                                                                                          trader_type,
-                                                                                                          maker,
-                                                                                                          oder_id))
+                                '证券代码：【{}】 股票名称：【{}】 未成交数量【{}】交易类型【{}】 投资备注【{}】 订单id【{}】'.format(
+                                    stock, stock_name, amount,
+                                    trader_type,
+                                    maker,
+                                    oder_id))
                             if trader_type == 49:
                                 # 撤单重新卖
                                 cancel(oder_id, c.account, c.account_type, c)
                                 passorder(c.sell_code, 1101, c.account, str(stock), sell_price_code, 0, int(amount),
                                           str(maker), 1, str(maker), c)
-                                print('组合【{}】 撤单重新卖出标的【{}】 数量【{}】 价格【{}】'.format(name, stock, amount,
-                                                                                               price))
+                                print('组合【{}】 撤单重新卖出标的【{}】 标的名称【{}】 数量【{}】 价格【{}】'.format(name, stock,
+                                                                                                            stock_name,
+                                                                                                            amount,
+                                                                                                            price))
                             elif trader_type == 48:
                                 # 撤单重新买
                                 cancel(oder_id, c.account, c.account_type, c)
-                                passorder(c.buy_code, 1101, c.account, str(stock), buy_price_code, 0, int(amount),
+                                passorder(c.buy_code, 1101, c.account, str(stock), buy_price_code, price, int(amount),
                                           str(maker),
                                           1, str(maker), c)
                                 print(
-                                    '\n组合【{}】 撤单后重新买入标的【{}】 数量【{}】 价格【{}】'.format(name, stock, amount,
-                                                                                               price))
+                                    '\n组合【{}】 撤单后重新买入标的【{}】标的名称【{}】 数量【{}】 价格【{}】'.format(name,
+                                                                                                             stock,
+                                                                                                             stock_name,
+                                                                                                             amount,
+                                                                                                             price))
                             else:
                                 print('\n服务器【{}】--组合【{}】 撤单后重新交易未知的交易类型'.format(url, name))
                     else:
@@ -814,6 +889,14 @@ def get_price(c, stock):
     return price
 
 
+def get_sotck_info(c, stock):
+    '''
+    获取股票信息
+    '''
+    stock_info = c.get_instrumentdetail(stock)['InstrumentName']
+    return stock_info
+
+
 def adjust_amount(c, stock='', amount=''):
     '''
     调整数量
@@ -890,6 +973,7 @@ def get_position(c, accountid, datatype):
         try:
             for dt in positions:
                 df['股票代码'] = [dt.m_strInstrumentID]
+                df['股票名称'] = [dt.m_strInstrumentName]
                 df['市场类型'] = [dt.m_strExchangeID]
                 df['证券代码'] = df['股票代码'] + '.' + df['市场类型']
                 df['证券名称'] = [dt.m_strInstrumentName]
@@ -920,6 +1004,7 @@ def get_order(c, accountid, datatype):
         df = pd.DataFrame()
         for o in orders:
             df['股票代码'] = [o.m_strInstrumentID]
+            df['股票名称'] = [o.m_strInstrumentName]
             df['市场类型'] = [o.m_strExchangeID]
             df['证券代码'] = df['股票代码'] + '.' + df['市场类型']
             df['买卖方向'] = [o.m_nOffsetFlag]
@@ -950,6 +1035,7 @@ def get_deal(c, accountid, datatype):
         df = pd.DataFrame()
         for dt in deals:
             df['股票代码'] = [dt.m_strInstrumentID]
+            df['股票名称'] = [dt.m_strInstrumentName]
             df['市场类型'] = [dt.m_strExchangeID]
             df['证券代码'] = df['股票代码'] + '.' + df['市场类型']
             df['证券名称'] = [dt.m_strInstrumentName]
