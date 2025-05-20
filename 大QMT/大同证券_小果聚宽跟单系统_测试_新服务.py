@@ -547,8 +547,8 @@ def start_trader_on(c, name='测试1', password='123456', zh_ratio=0.1, item=None)
     del_trader_list = item['黑名单']
     sell_price_code = item['卖出价格编码']
     buy_price_code = item['买入价格编码']
-    special_buy_price_code = item['浮动买入价格编码']
-    special_buy_price_rate = item['买入价格浮动比例']
+    special_buy_price_code = item.get('浮动买入价格编码', '买入价格编码')
+    special_buy_price_rate = item.get('买入价格浮动比例', 1)
     send_wx_msg = text['发送微信消息']
     send_dd_msg = text['发送钉钉消息']
 
@@ -600,7 +600,7 @@ def start_trader_on(c, name='测试1', password='123456', zh_ratio=0.1, item=None)
                                                                                                                 price,
                                                                                                                 maker))
 
-                                    msg = f'【###真实下单###】\n当前时刻--{str(datetime.now())[:19]}\n组合--{name}\n买入股票--{stock}\n股票名称--{stock_name}\n股数--{amount}\n单价--{price}\n总价--{price * amount}'
+                                    msg = f'【###真实下单###】\n当前时刻--{str(datetime.now())[:19]}\n组合--{name}\n【卖出】股票--{stock}\n股票名称--{stock_name}\n股数--{amount}\n单价--{price}\n总价--{price * amount}\n交易类型--{sell_price_code}'
                                     if send_wx_msg == '是':
                                         send_wx_message(message=msg)
                                     if send_dd_msg == '是':
@@ -642,16 +642,18 @@ def start_trader_on(c, name='测试1', password='123456', zh_ratio=0.1, item=None)
                                     passorder(c.buy_code, 1101, c.account, str(stock), special_buy_price_code, price,
                                               int(amount),
                                               str(maker), 1, str(maker), c)
+                                    msg = f'【###真实下单###】\n当前时刻--{str(datetime.now())[:19]}\n组合--{name}\n【买入】股票--{stock}\n股票名称--{stock_name}\n股数--{amount}\n单价--{price}\n总价--{price * amount}\n交易类型--{special_buy_price_code}\n浮动比例--{special_buy_price_rate}'
                                 else:
                                     passorder(c.buy_code, 1101, c.account, str(stock), buy_price_code, price,
                                               int(amount),
                                               str(maker), 1, str(maker), c)
+                                    msg = f'【###真实下单###】\n当前时刻--{str(datetime.now())[:19]}\n组合--{name}\n【买入】股票--{stock}\n股票名称--{stock_name}\n股数--{amount}\n单价--{price}\n总价--{price * amount}\n交易类型--{buy_price_code}'
+
                                 print('组合【{}】 买入标的【{}】 股票名称【{}】 数量【{}】 价格【{}】 Mark【{}】'.format(name, stock,
                                                                                                              stock_name,
                                                                                                              amount,
                                                                                                              price, maker))
 
-                                msg = f'【真实下单】\n当前时刻--{str(datetime.now())[:19]}\n组合--{name}\n买入股票--{stock}\n股票名称--{stock_name}\n股数--{amount}\n单价--{price}\n总价--{price * amount}'
                                 if send_wx_msg == '是':
                                     send_wx_message(message=msg)
                                 if send_dd_msg == '是':
