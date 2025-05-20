@@ -38,8 +38,9 @@ text = {
     "账户": "55001948",
     "账户支持融资融券": "账户支持融资融券,账户类型STOCK/CREDIT",
     "账户类型": "STOCK",
-    "买入价格编码": 5,
+    "买入价格编码": 11,
     "卖出价格编码": 5,
+    "买入价格浮动比例": 1.015,
     "黑名单说明": "黑名单里面的标的，不会买入也不会卖出",
     "黑名单": ['600031.SH', '600111.SH', '513100.SH'],
     "聚宽跟单": "跟单原理",
@@ -91,6 +92,7 @@ def init(c):
         c.sell_code = 34
     c.buy_price_code = text['买入价格编码']
     c.sell_price_code = text['卖出价格编码']
+    c.buy_price_rate = text['买入价格浮动比例']
     c.del_trader_list = text['黑名单']
     c.url = text['服务器']
     c.port = text['端口']
@@ -418,7 +420,9 @@ def start_trader_on(c, name='测试1', password='xg_st', zh_ratio=0.1):
                         try:
                             price = get_price(c, stock)
                             if check_is_buy(c, c.account, c.account_type, stock=stock, amount=amount, price=price):
-                                passorder(c.buy_code, 1101, c.account, str(stock), c.buy_price_code, 0, int(amount),
+                                if c.buy_price_code == 11:
+                                    price = round(price * c.buy_price_rate, 2)
+                                passorder(c.buy_code, 1101, c.account, str(stock), c.buy_price_code, price, int(amount),
                                           str(maker), 1, str(maker), c)
                                 # passorder(23, 1101, c.account, stock, 5, 0, int(amount), '',1,'',c)
                                 print('组合{} 买入标的{} 数量{} 价格{}'.format(name, stock, amount, price))
