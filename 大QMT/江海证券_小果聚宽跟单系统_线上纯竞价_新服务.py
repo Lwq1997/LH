@@ -230,7 +230,7 @@ def get_del_buy_sell_data(c, name='测试1', password='123456', item=None):
 
 
 # 发送微信消息
-def send_wx_message(message, item='大同QMT实盘'):
+def send_wx_message(message, item='江海QMT实盘'):
     url = "https://wxpusher.zjiecode.com/api/send/message"
 
     data = {
@@ -263,7 +263,7 @@ def seed_dingding(message='买卖交易成功',
             "isAtAll": False,  # 不@所有人
         },
         "text": {
-            "content": '大同QMT交易通知\n' + message,  # 消息正文
+            "content": '江海QMT交易通知\n' + message,  # 消息正文
         }
     }
     r = requests.post(url, data=json.dumps(data), headers=headers)
