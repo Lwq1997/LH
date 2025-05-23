@@ -313,7 +313,7 @@ def seed_dingding(message='买卖交易成功',
         return text
 
 
-def get_trader_data(c, name='测试', password='123456', zh_ratio=0.1, item=None, hold_stock=None):
+def get_trader_data(c, name='测试', password='123456', zh_ratio=0.1, item=None, av_stock=None):
     '''
     获取交易数据
     组合的跟单比例
@@ -363,13 +363,13 @@ def get_trader_data(c, name='测试', password='123456', zh_ratio=0.1, item=None, 
 
             print('过滤前DF------', df)
 
-            if not hold_stock.empty:
-                # 修正赋值逻辑：存在为"有持仓"，不存在为"没有持仓"
-                df['是否持仓'] = df['证券代码'].apply(
-                    lambda x: '有持仓' if x in hold_stock['证券代码'].tolist() else '没有持仓')
+            if not av_stock.empty:
+                # 修正赋值逻辑：存在为"有可用持仓"，不存在为"没可用持仓"
+                df['是否有可用持仓'] = df['证券代码'].apply(
+                    lambda x: '有可用持仓' if x in av_stock['证券代码'].tolist() else '没可用持仓')
 
-                # 过滤掉「没有持仓且交易类型为sell」的行（取反条件）
-                df = df[~((df['是否持仓'] == '没有持仓') & (df['交易类型'] == 'sell'))]
+                # 过滤掉「没有可用持仓且交易类型为sell」的行（取反条件）
+                df = df[~((df['是否有可用持仓'] == '没可用持仓') & (df['交易类型'] == 'sell'))]
 
             # 继续过滤"交易检查"列
             df = df[df['交易检查'] == '没有交易']
@@ -551,13 +551,14 @@ def start_trader_on(c, name='测试1', password='123456', zh_ratio=0.1, item=None)
     hold_stock = get_position(c, c.account, c.account_type)
     if not hold_stock.empty:
         hold_stock = hold_stock[hold_stock['持仓量'] >= 10]
+        av_stock = hold_stock[hold_stock['可用数量'] >= 10]
         if not hold_stock.empty:
             hold_stock_list = hold_stock['证券代码'].tolist()
         else:
             hold_stock_list = []
     else:
         hold_stock_list = []
-    df = get_trader_data(c, name, password=password, zh_ratio=zh_ratio, item=item, hold_stock=hold_stock)
+    df = get_trader_data(c, name, password=password, zh_ratio=zh_ratio, item=item, av_stock=av_stock)
     try:
         df['证券代码'] = df['证券代码'].apply(lambda x: '0' * (6 - len(str(x))) + str(x))
     except:
