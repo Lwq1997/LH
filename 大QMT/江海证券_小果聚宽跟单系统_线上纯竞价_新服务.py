@@ -702,6 +702,8 @@ def run_check_trader_func(c):
 
 
 def run_order_trader_func(c):
+    send_wx_msg = text['发送微信消息']
+    send_dd_msg = text['发送钉钉消息']
     '''
     下单不成交撤单在下单
     '''
@@ -751,6 +753,12 @@ def run_order_trader_func(c):
                                                                                                             stock_name,
                                                                                                             amount,
                                                                                                             price))
+                                msg = f'【###撤单后真实下单###】\n当前时刻--{str(datetime.now())[:19]}\n组合--{name}\n【卖出】股票--{stock}\n股票名称--{stock_name}\n股数--{amount}\n单价--{price}\n总价--{price * amount}\n交易类型--{sell_price_code}'
+                                if send_wx_msg == '是':
+                                    send_wx_message(message=msg)
+                                if send_dd_msg == '是':
+                                    seed_dingding(message=msg)
+
                             elif trader_type == 48:
                                 # 撤单重新买
                                 cancel(oder_id, c.account, c.account_type, c)
@@ -763,6 +771,11 @@ def run_order_trader_func(c):
                                                                                                              stock_name,
                                                                                                              amount,
                                                                                                              price))
+                                msg = f'【###撤单后真实下单###】\n当前时刻--{str(datetime.now())[:19]}\n组合--{name}\n【买入】股票--{stock}\n股票名称--{stock_name}\n股数--{amount}\n单价--{price}\n总价--{price * amount}\n交易类型--{buy_price_code}'
+                                if send_wx_msg == '是':
+                                    send_wx_message(message=msg)
+                                if send_dd_msg == '是':
+                                    seed_dingding(message=msg)
                             else:
                                 print('\n服务器【{}】--组合【{}】 撤单后重新交易未知的交易类型'.format(url, name))
                     else:
