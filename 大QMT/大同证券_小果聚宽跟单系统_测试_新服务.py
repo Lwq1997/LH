@@ -319,8 +319,8 @@ def init(c):
     c.run_time("run_check_trader_func", "60nSecond", "2024-07-25 13:20:00")
     # 撤单了重新下单5分钟一次
     c.run_time("run_order_trader_func", "300nSecond", "2024-07-25 13:20:00")
-    log_print(get_account(c, c.account, c.account_type))
-    log_print(get_position(c, c.account, c.account_type))
+    # log_print(get_account(c, c.account, c.account_type))
+    # log_print(get_position(c, c.account, c.account_type))
 
 
 def handlebar(c):
